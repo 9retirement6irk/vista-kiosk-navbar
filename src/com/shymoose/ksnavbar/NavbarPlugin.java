@@ -292,6 +292,9 @@ public final class NavbarPlugin implements KioskPlugin {
             NavConfig cfg = config;
             NavViews.Bar view = new NavViews.Bar(context, theme, cfg, cfg.activeIndex(path), new Clicks(cfg));
             bar.set(view);
+            // The page may have changed while the view was being built, before the worker could see
+            // it. Publishing first and then re-reading means no page update is lost.
+            view.setActive(cfg.activeIndex(path));
             return view;
         }
 
