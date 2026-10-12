@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "id": "ks-navbar",
+  "name": "Navbar",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "minAndroidSdk": 26,
+  "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
+  "description": "A native navigation bar that floats over the dashboard in the Kiosk Satellite design language. It highlights the item for the page being shown, opens dashboard views, kiosk actions and menus, and needs no Home Assistant token. Inspired by lovelace-navbar-card.",
+  "author": "dimatx",
+  "license": "Apache-2.0",
+  "capabilities": [
+    "overlay",
+    "host.read",
+    "host.control"
+  ],
+  "settings": [
+    {
+      "key": "position",
+      "type": "select",
+      "title": "Position",
+      "default": "Bottom",
+      "options": [
+        "Bottom",
+        "Top"
+      ],
+      "group": "Bar",
+      "description": "Where the bar floats over the dashboard."
+    },
+    {
+      "key": "labels",
+      "type": "select",
+      "title": "Labels",
+      "default": "Always",
+      "options": [
+        "Always",
+        "Active only",
+        "Never"
+      ],
+      "group": "Bar",
+      "description": "Show item labels under the icons."
+    },
+    {
+      "key": "showOn",
+      "type": "string",
+      "title": "Show on",
+      "default": "",
+      "group": "Bar",
+      "description": "Comma-separated dashboard paths where the bar appears, such as /wall-tablet,/bedroom-wall-tablet. Their views are included. Empty shows it everywhere."
+    },
+    {
+      "key": "scale",
+      "type": "select",
+      "title": "Size",
+      "default": "100%",
+      "options": [
+        "80%",
+        "90%",
+        "100%",
+        "110%",
+        "120%",
+        "140%"
+      ],
+      "group": "Bar",
+      "description": "Scale of the bar and its menus."
+    },
+    {
+      "key": "inset",
+      "type": "number",
+      "title": "Edge distance",
+      "default": 12,
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "group": "Bar",
+      "description": "Distance from the screen edge, in dp."
+    },
+    {
+      "key": "item1Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Page",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 1",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item1Label",
+      "type": "string",
+      "title": "Label",
+      "default": "Home",
+      "group": "Item 1",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item1Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "mdi:home-outline|mdi:home",
+      "group": "Item 1",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item1Target",
+      "type": "string",
+      "title": "Target",
+      "default": "/lovelace/0",
+      "group": "Item 1",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item2Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 2",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item2Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 2",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item2Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 2",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item2Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 2",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item3Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 3",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item3Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 3",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item3Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 3",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item3Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 3",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item4Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 4",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item4Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 4",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item4Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 4",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item4Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 4",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item5Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 5",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item5Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 5",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item5Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 5",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item5Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 5",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item6Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 6",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item6Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 6",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item6Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 6",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item6Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 6",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    },
+    {
+      "key": "item7Type",
+      "type": "select",
+      "title": "Type",
+      "default": "Off",
+      "options": [
+        "Off",
+        "Page",
+        "Action",
+        "Menu"
+      ],
+      "group": "Item 7",
+      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+    },
+    {
+      "key": "item7Label",
+      "type": "string",
+      "title": "Label",
+      "default": "",
+      "group": "Item 7",
+      "description": "Name shown under the icon and read by accessibility services."
+    },
+    {
+      "key": "item7Icon",
+      "type": "string",
+      "title": "Icon",
+      "default": "",
+      "group": "Item 7",
+      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+    },
+    {
+      "key": "item7Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 7",
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+    }
+  ],
+  "commands": [
+    {
+      "id": "show",
+      "title": "Show navbar"
+    },
+    {
+      "id": "hide",
+      "title": "Hide navbar"
+    },
+    {
+      "id": "toggle",
+      "title": "Toggle navbar"
+    }
+  ]
+}
