@@ -24,6 +24,21 @@ final class NavViews {
     interface Listener {
         void onItem(int index, View view);
         void onChild(int itemIndex, int childIndex);
+        void onCollapse();
+        void onExpand();
+    }
+
+    /** The KS card background at the configured opacity. Content drawn on it stays opaque. */
+    static GradientDrawable surface(KsTheme theme, NavConfig config) {
+        GradientDrawable card = theme.card();
+        card.setAlpha(Math.round(255 * config.opacity));
+        return card;
+    }
+
+    /** The chevron that points away from the bar's edge: up for a bottom bar, down for a top bar. */
+    static String chevron(NavConfig config, boolean towardEdge) {
+        boolean up = config.top == towardEdge;
+        return MdiFont.glyph(up ? "mdi:chevron-up" : "mdi:chevron-down");
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -58,6 +73,7 @@ final class NavViews {
         private final List<FrameLayout> indicators = new ArrayList<>();
         private final List<TextView> icons = new ArrayList<>();
         private final List<TextView> labels = new ArrayList<>();
+        private final TextView collapse;
         private KsTheme theme;
         private int active;
 
@@ -91,6 +107,14 @@ final class NavViews {
                 icons.add(icon);
                 labels.add(label);
             }
+            if (config.collapse != NavConfig.Collapse.OFF) {
+                collapse = icon(context);
+                collapse.setContentDescription("Collapse navbar");
+                collapse.setOnClickListener(view -> listener.onCollapse());
+                addView(collapse);
+            } else {
+                collapse = null;
+            }
             restyle(theme);
         }
 
@@ -103,8 +127,18 @@ final class NavViews {
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
-            setBackground(theme.card());
+            setBackground(surface(theme, config));
             setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
+            if (collapse != null) {
+                // Points toward the edge the bar folds into.
+                collapse.setText(chevron(config, true));
+                collapse.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
+                collapse.setTextColor(theme.color("onSurfaceVariant"));
+                collapse.setBackground(ripple(theme, null, px(theme.radiusRow())));
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(px(40 * s), px(48 * s));
+                params.leftMargin = px(4 * s);
+                collapse.setLayoutParams(params);
+            }
             int on = color(theme, "onSecondaryContainer", "onSurface");
             int off = theme.color("onSurfaceVariant");
             int pill = color(theme, "secondaryContainer", "primaryContainer");
@@ -173,7 +207,7 @@ final class NavViews {
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
-            setBackground(theme.card());
+            setBackground(surface(theme, config));
             setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int on = color(theme, "onSecondaryContainer", "onSurface");
@@ -204,5 +238,60 @@ final class NavViews {
         }
 
         private int px(float dp) { return theme.px(dp); }
+    }
+
+    /**
+     * The collapsed bar: a small tab flush with the edge, showing the current item's icon and a
+     * chevron. Tapping it opens the bar.
+     */
+    static final class Tab extends LinearLayout {
+        private final NavConfig config;
+        private final TextView current;
+        private final TextView chevron;
+        private final int active;
+        private KsTheme theme;
+
+        Tab(Context context, KsTheme theme, NavConfig config, int active, Listener listener) {
+            super(context);
+            this.config = config;
+            this.theme = theme;
+            this.active = active;
+            setOrientation(HORIZONTAL);
+            setGravity(Gravity.CENTER);
+            setContentDescription("Open navbar");
+            current = icon(context);
+            chevron = icon(context);
+            if (active >= 0) addView(current);
+            addView(chevron);
+            setOnClickListener(view -> listener.onExpand());
+            restyle(theme);
+        }
+
+        void restyle(KsTheme next) {
+            theme = next;
+            float s = config.scale;
+            float r = theme.px(theme.radiusCard());
+            GradientDrawable shape = surface(theme, config);
+            // Round only the corners away from the edge, so the tab reads as attached to it.
+            shape.setCornerRadii(config.top
+                ? new float[] {0, 0, 0, 0, r, r, r, r}
+                : new float[] {r, r, r, r, 0, 0, 0, 0});
+            setBackground(ripple(theme, shape, r));
+            setMinimumWidth(theme.px(96 * s));
+            setMinimumHeight(theme.px(40 * s));
+            setPadding(theme.px(20 * s), theme.px(6 * s), theme.px(16 * s), theme.px(6 * s));
+            if (active >= 0) {
+                NavItem item = config.items.get(active);
+                current.setText(MdiFont.glyph(item.iconSelected));
+                current.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(20 * s));
+                current.setTextColor(color(theme, "onSurface", "onSurface"));
+                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+                gap.rightMargin = theme.px(8 * s);
+                current.setLayoutParams(gap);
+            }
+            chevron.setText(chevron(config, false));
+            chevron.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(22 * s));
+            chevron.setTextColor(theme.color("onSurfaceVariant"));
+        }
     }
 }

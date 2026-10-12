@@ -5,6 +5,7 @@ A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-
 - **Follows the page.** The item for the dashboard view on screen is highlighted. This includes views you reach some other way, such as a link, a gesture or an automation.
 - **Native navigation.** Items open dashboard views through KS, and can also run kiosk actions: camera views, Music Assistant, Now Playing, the screensaver and the app launcher.
 - **Menus.** An item can open a panel of entries, like the popups in lovelace-navbar-card.
+- **Out of the way.** The background can be translucent, and the bar can fold into a small tab at the screen edge. It can start open or collapsed, and can collapse itself again after a while.
 - **Self-contained.** It needs no Home Assistant token and makes no network requests. All 7,400+ [Material Design Icons](https://pictogrammers.com/library/mdi/) are bundled, so any `mdi:` name works offline.
 - **Light.** It is drawn with Android views, not a WebView, so it adds almost nothing to a low-power tablet.
 
@@ -31,6 +32,9 @@ Settings save as you edit them. The bar redraws immediately.
 | Show on | Comma-separated dashboard paths where the bar appears, such as `/wall-tablet,/bedroom-wall-tablet`. Every view below them is included. Empty shows it on every page |
 | Size | Scale of the bar and its menus |
 | Edge distance | Distance from the screen edge, in dp |
+| Opacity | Background opacity in percent. Lower values let the dashboard show through, while icons and labels stay solid |
+| Collapsing | **Off**, **Start open** or **Start collapsed**. See below |
+| Collapse after | Seconds without a tap before an open bar folds back into its tab. 0 keeps it open |
 
 ### Items 1 to 7
 
@@ -63,6 +67,10 @@ Weather|mdi:weather-partly-cloudy|/dash/weather; Air|mdi:home-heart|/dash/air; G
 ```
 
 Problems, such as an unknown target, are listed on the plugin page, and the item is left out until it is fixed.
+
+### Collapsing
+
+With **Collapsing** on, a chevron at the end of the bar folds it into a small tab flush with the screen edge. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
 
 ### Actions
 

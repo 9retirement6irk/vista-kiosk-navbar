@@ -95,7 +95,23 @@ Each option should keep fleet sync working.
 
 **Suggestion:** Document the behavior, and ideally sync plugin settings for plugins installed from the same repository and version.
 
-## 12. Template tooling on Windows
+## 12. `haNavigate` reports failure after a successful move to another dashboard
+
+**Need:** Use the boolean result to decide whether to fall back to `loadUrl`.
+
+**Today:** Measured on KS 2026.10.21: `haNavigate {path: /bedroom-wall-tablet/toggles}` from `/wall-tablet/0` moved the page within 0.4 s, since `browser.state` fired and `getDashboardState` showed the new path. About 4 s later the command resolved `false`. A plugin that trusts the result reloads a page that is already shown. We now compare the reported page to the target before falling back.
+
+**Suggestion:** Resolve `true` once the WebView reports the new path, including for a move to another dashboard, or document what `false` means.
+
+## 13. Overlays have no show, hide or replace transition
+
+**Need:** Slide the bar into its tab and back, and fade a menu in.
+
+**Today:** `showOverlay` and `hideOverlay` swap views instantly. A plugin can animate inside its own view, but not the overlay's appearance or removal, because KS removes the view as soon as `hideOverlay` is called. Changing an overlay's size means replacing it, which also happens instantly.
+
+**Suggestion:** `OverlaySpec.enter(...)` and `exit(...)` with a few stock transitions, such as fade and slide from the anchor edge. Alternatively, call a `factory.onExit(view, done)` hook before removal.
+
+## 14. Template tooling on Windows
 
 - `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. We added the `.bat` glob.
 - `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. We skip those two tests on Windows.

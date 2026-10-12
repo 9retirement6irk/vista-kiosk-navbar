@@ -166,8 +166,28 @@ public final class NavbarTest {
         eq(NavConfig.Labels.ALWAYS, empty.labels);
         eq(1f, empty.scale);
         eq(12, empty.inset);
+        eq(1f, empty.opacity);
+        eq(NavConfig.Collapse.OFF, empty.collapse);
+        eq(0, empty.autoCollapse);
         check(empty.items.isEmpty());
         check(!empty.visibleAt("/anything"));
+
+        Map<String, Object> folding = new HashMap<>(settings);
+        folding.put("opacity", 70.0);
+        folding.put("collapse", "Start collapsed");
+        folding.put("autoCollapse", 30.0);
+        NavConfig fold = NavConfig.parse(folding);
+        eq(0.7f, fold.opacity);
+        eq(NavConfig.Collapse.START_COLLAPSED, fold.collapse);
+        eq(30, fold.autoCollapse);
+        check(!fold.sameLook(cfg));
+        folding.put("collapse", "Start open");
+        eq(NavConfig.Collapse.START_OPEN, NavConfig.parse(folding).collapse);
+        folding.put("collapse", "Off");
+        // A countdown without collapsing would have nothing to do.
+        eq(0, NavConfig.parse(folding).autoCollapse);
+        folding.put("opacity", 5.0);
+        eq(0.2f, NavConfig.parse(folding).opacity);
 
         Map<String, Object> odd = new HashMap<>();
         odd.put("scale", "huge");

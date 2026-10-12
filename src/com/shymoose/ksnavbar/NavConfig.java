@@ -13,20 +13,32 @@ final class NavConfig {
 
     enum Labels { ALWAYS, ACTIVE, NEVER }
 
+    /** Whether the bar can shrink to a tab at its edge, and how it starts. */
+    enum Collapse { OFF, START_OPEN, START_COLLAPSED }
+
     final boolean top;
     final Labels labels;
     final float scale;
     final int inset;
+    /** Background opacity, 0.2 to 1. Icons and labels stay opaque. */
+    final float opacity;
+    final Collapse collapse;
+    /** Seconds without a tap before an open bar collapses again. 0 never does. */
+    final int autoCollapse;
     final List<String> showOn;
     final List<NavItem> items;
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(boolean top, Labels labels, float scale, int inset, List<String> showOn, List<NavItem> items, List<String> problems) {
+    private NavConfig(boolean top, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse,
+                      List<String> showOn, List<NavItem> items, List<String> problems) {
         this.top = top;
         this.labels = labels;
         this.scale = scale;
         this.inset = inset;
+        this.opacity = opacity;
+        this.collapse = collapse;
+        this.autoCollapse = autoCollapse;
         this.showOn = Collections.unmodifiableList(showOn);
         this.items = Collections.unmodifiableList(items);
         this.problems = Collections.unmodifiableList(problems);
@@ -41,8 +53,12 @@ final class NavConfig {
         if (!scaleText.isEmpty()) {
             try { scale = Math.max(50, Math.min(200, Integer.parseInt(scaleText))) / 100f; } catch (NumberFormatException ignored) {}
         }
-        Object insetValue = settings.get("inset");
-        int inset = insetValue instanceof Number ? Math.max(0, Math.min(200, ((Number) insetValue).intValue())) : 12;
+        int inset = number(settings, "inset", 0, 200, 12);
+        float opacity = number(settings, "opacity", 20, 100, 100) / 100f;
+        String collapseSetting = text(settings, "collapse");
+        Collapse collapse = "Start open".equals(collapseSetting) ? Collapse.START_OPEN
+            : "Start collapsed".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.OFF;
+        int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
         List<String> showOn = new ArrayList<>();
         for (String prefix : text(settings, "showOn").split(",")) {
             if (!prefix.trim().isEmpty()) showOn.add(Paths.normalize(prefix.trim()));
@@ -67,7 +83,7 @@ final class NavConfig {
                 problems.add(name + ": " + error.getMessage());
             }
         }
-        return new NavConfig(top, labels, scale, inset, showOn, items, problems);
+        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, showOn, items, problems);
     }
 
     /** Whether the bar belongs on {@code path}. Unknown paths show it, so it is never stuck hidden. */
@@ -91,7 +107,8 @@ final class NavConfig {
 
     String describe() {
         StringBuilder text = new StringBuilder();
-        text.append(top).append('|').append(labels).append('|').append(scale).append('|').append(inset);
+        text.append(top).append('|').append(labels).append('|').append(scale).append('|').append(inset)
+            .append('|').append(opacity).append('|').append(collapse);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }
@@ -101,6 +118,11 @@ final class NavConfig {
         if (item.target != null) text.append(',').append(item.target.kind).append(':').append(item.target.value);
         for (NavItem child : item.children) appendItem(text, child);
         text.append(']');
+    }
+
+    private static int number(Map<String, Object> settings, String key, int min, int max, int fallback) {
+        Object value = settings.get(key);
+        return value instanceof Number ? Math.max(min, Math.min(max, ((Number) value).intValue())) : fallback;
     }
 
     private static String text(Map<String, Object> settings, String key) {

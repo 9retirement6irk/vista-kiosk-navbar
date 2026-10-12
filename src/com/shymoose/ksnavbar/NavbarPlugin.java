@@ -8,6 +8,7 @@ import android.view.View;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import me.jxl.kiosk.plugins.KioskPlugin;
@@ -20,11 +21,11 @@ import me.jxl.kiosk.plugins.PluginHost;
  * A native navigation bar for the kiosk. It follows the page the dashboard shows, highlights the
  * matching item and navigates through KS itself, so it needs no Home Assistant token.
  *
- * Threads: plugin callbacks and command results run on the KS plugin worker, which owns the bar
- * and takes this object's lock. Taps run on the main thread, which owns the menu and never takes the
- * lock. The worker asks the main thread to close the menu by posting, so every menu change happens
- * on one thread in order. Listeners catch every exception, because one escaping a listener would end
- * the app.
+ * Threads: plugin callbacks and command results run on the KS plugin worker, which keeps the
+ * configuration and page in volatile fields and takes this object's lock. The main thread owns both
+ * overlays: the worker asks it to resync by posting, and taps run there already, so every overlay
+ * change happens on one thread in order. Main-thread code never takes the lock, and catches every
+ * exception, because one escaping a listener would end the app.
  */
 public final class NavbarPlugin implements KioskPlugin {
     static final String BAR = "bar";
@@ -38,14 +39,17 @@ public final class NavbarPlugin implements KioskPlugin {
     private volatile String path;
     private volatile String origin;
     private volatile boolean userHidden;
+    private volatile boolean collapsed;
+    private final AtomicBoolean rebuild = new AtomicBoolean();
     private final AtomicReference<NavViews.Bar> bar = new AtomicReference<>();
     /** Bumped by every tap that navigates and every session change, so stale results are dropped. */
     private final AtomicInteger navigation = new AtomicInteger();
+    private final Runnable autoCollapse = this::autoCollapse;
     // Worker-only state.
-    private boolean barShown;
     private int readRevision;
     private String lastStatus;
     // Main-thread-only state.
+    private boolean barShown;
     private int openMenu = -1;
     private View menuView;
 
@@ -55,12 +59,12 @@ public final class NavbarPlugin implements KioskPlugin {
         path = null;
         origin = null;
         userHidden = false;
-        barShown = false;
         lastStatus = null;
         readRevision++;
         navigation.incrementAndGet();
         bar.set(null);
-        main.post(this::forgetMenu);
+        main.post(this::forgetOverlays);
+        config = NavConfig.parse(Collections.<String, Object>emptyMap());
         this.host = host;
         configure(settings);
         try {
@@ -73,12 +77,16 @@ public final class NavbarPlugin implements KioskPlugin {
 
     @Override
     public synchronized void configure(Map<String, Object> settings) {
+        NavConfig previous = config;
         NavConfig next = NavConfig.parse(settings);
-        boolean rebuild = !next.sameLook(config);
         config = next;
+        // A new collapse mode, including the first configuration, starts in its chosen state.
+        if (next.collapse != previous.collapse || previous.items.isEmpty()) {
+            collapsed = next.collapse == NavConfig.Collapse.START_COLLAPSED;
+        }
         if (host == null) return;
-        if (rebuild) requestCloseMenu();
-        apply(rebuild);
+        if (!next.sameLook(previous)) rebuild.set(true);
+        sync();
         report();
     }
 
@@ -90,7 +98,7 @@ public final class NavbarPlugin implements KioskPlugin {
             case "toggle": userHidden = !userHidden; break;
             default: throw new IllegalArgumentException("Unknown command: " + command);
         }
-        apply(false);
+        sync();
         report();
     }
 
@@ -107,8 +115,7 @@ public final class NavbarPlugin implements KioskPlugin {
         navigation.incrementAndGet();
         readRevision++;
         bar.set(null);
-        barShown = false;
-        main.post(this::forgetMenu);
+        main.post(this::forgetOverlays);
     }
 
     /** Ask KS for the current page. Responses can race, so only the latest request is applied. */
@@ -129,42 +136,79 @@ public final class NavbarPlugin implements KioskPlugin {
                 origin = nextOrigin != null ? nextOrigin : Paths.origin(text(state.get("homeAssistantUrl")));
                 if (!Objects.equals(nextPath, path)) {
                     path = nextPath;
-                    requestCloseMenu();
+                    main.post(this::closeMenu);
                 }
-                apply(false);
+                sync();
                 report();
             }
         });
     }
 
-    /** Show, hide or refresh the bar for the current page. Runs on the worker. */
-    private void apply(boolean rebuild) {
+    /** Ask the main thread to bring the overlays in line with the current state. */
+    private void sync() {
+        main.post(this::syncOverlays);
+    }
+
+    /** Main thread. Show, hide, rebuild or refresh the bar. */
+    private void syncOverlays() {
         PluginHost current = host;
         if (current == null) return;
         NavConfig cfg = config;
         boolean visible = !userHidden && cfg.visibleAt(path);
         try {
             if (!visible) {
-                requestCloseMenu();
+                closeMenu();
+                main.removeCallbacks(autoCollapse);
                 if (barShown) {
                     current.hideOverlay(BAR);
                     barShown = false;
                 }
                 return;
             }
-            if (!barShown || rebuild) {
-                current.showOverlay(BAR, OverlaySpec.at(cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM).inset(cfg.inset).closeOnBack(false), new BarFactory());
-                barShown = true;
+            if (!barShown || rebuild.getAndSet(false)) {
+                showBar(current, cfg);
                 return;
             }
+            NavViews.Bar view = bar.get();
+            if (view != null) view.setActive(cfg.activeIndex(path));
         } catch (UnsupportedOperationException olderHost) {
-            current.status("Native overlays need Kiosk Satellite 2026.10.13 or newer.", true);
-            return;
+            status(current, "Native overlays need Kiosk Satellite 2026.10.13 or newer.");
+        } catch (RuntimeException error) {
+            log(current, "Could not update the bar", error);
         }
-        NavViews.Bar view = bar.get();
-        if (view != null) {
-            int active = cfg.activeIndex(path);
-            view.post(() -> view.setActive(active));
+    }
+
+    /** Main thread. The factory reads the collapsed state, so the newest call always wins. */
+    private void showBar(PluginHost current, NavConfig cfg) {
+        String anchor = cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM;
+        OverlaySpec spec = collapsed ? OverlaySpec.at(anchor) : OverlaySpec.at(anchor).inset(cfg.inset);
+        current.showOverlay(BAR, spec.closeOnBack(false), new BarFactory());
+        barShown = true;
+        scheduleAutoCollapse(cfg);
+    }
+
+    /** Main thread. */
+    private void setCollapsed(boolean value) {
+        PluginHost current = host;
+        if (current == null) return;
+        closeMenu();
+        collapsed = value;
+        if (barShown) showBar(current, config);
+    }
+
+    /** Main thread. Restarts the countdown that folds an open bar back into its tab. */
+    private void scheduleAutoCollapse(NavConfig cfg) {
+        main.removeCallbacks(autoCollapse);
+        if (!collapsed && cfg.collapse != NavConfig.Collapse.OFF && cfg.autoCollapse > 0) {
+            main.postDelayed(autoCollapse, cfg.autoCollapse * 1000L);
+        }
+    }
+
+    private void autoCollapse() {
+        try {
+            if (!collapsed && host != null && config.collapse != NavConfig.Collapse.OFF) setCollapsed(true);
+        } catch (RuntimeException error) {
+            log(host, "Could not collapse the bar", error);
         }
     }
 
@@ -190,11 +234,6 @@ public final class NavbarPlugin implements KioskPlugin {
         current.status(message, error);
     }
 
-    /** From the worker: close the menu on the main thread, after any tap already queued there. */
-    private void requestCloseMenu() {
-        main.post(this::closeMenu);
-    }
-
     /** Main thread. */
     private void closeMenu() {
         PluginHost current = host;
@@ -205,7 +244,9 @@ public final class NavbarPlugin implements KioskPlugin {
     }
 
     /** Main thread. The overlays went with the old session, so only the bookkeeping is reset. */
-    private void forgetMenu() {
+    private void forgetOverlays() {
+        main.removeCallbacks(autoCollapse);
+        barShown = false;
         openMenu = -1;
         menuView = null;
     }
@@ -221,6 +262,10 @@ public final class NavbarPlugin implements KioskPlugin {
             current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
                 if (host != current || navigation.get() != revision) return;
                 if (ok && !Boolean.FALSE.equals(data)) return;
+                // haNavigate can report false after it has already moved the page, for example to
+                // another dashboard. Reloading then would only flash the page, so check first.
+                String targetPath = target.matchPath();
+                if (targetPath != null && targetPath.equals(Paths.normalize(path))) return;
                 NavTarget.Command fallback = "haNavigate".equals(command.name) ? target.fallback(base) : null;
                 if (fallback == null) {
                     current.status("Could not open " + describe(target) + (error == null ? "" : ": " + error), true);
@@ -233,7 +278,7 @@ public final class NavbarPlugin implements KioskPlugin {
                 });
             });
         } catch (RuntimeException error) {
-            try { current.status("Could not open " + describe(target) + ": " + error.getMessage(), true); } catch (RuntimeException ignored) {}
+            status(current, "Could not open " + describe(target) + ": " + error.getMessage());
         }
     }
 
@@ -245,6 +290,14 @@ public final class NavbarPlugin implements KioskPlugin {
         return value instanceof String ? (String) value : null;
     }
 
+    private static void status(PluginHost current, String message) {
+        try { if (current != null) current.status(message, true); } catch (RuntimeException ignored) {}
+    }
+
+    private static void log(PluginHost current, String what, RuntimeException error) {
+        try { if (current != null) current.log(what + ": " + error); } catch (RuntimeException ignored) {}
+    }
+
     /** Taps on one bar instance. Holds that bar's configuration so indexes always line up. */
     private final class Clicks implements NavViews.Listener {
         private final NavConfig cfg;
@@ -253,6 +306,7 @@ public final class NavbarPlugin implements KioskPlugin {
 
         @Override public void onItem(int index, View view) {
             try {
+                scheduleAutoCollapse(cfg);
                 NavItem item = cfg.items.get(index);
                 if (item.type == NavItem.Type.MENU) {
                     if (openMenu == index) closeMenu();
@@ -261,17 +315,28 @@ public final class NavbarPlugin implements KioskPlugin {
                 }
                 closeMenu();
                 run(item.target);
-            } catch (RuntimeException ignored) {
-                // The session can end between the tap and the host call.
+            } catch (RuntimeException error) {
+                log(host, "Tap on item " + (index + 1) + " failed", error);
             }
         }
 
         @Override public void onChild(int itemIndex, int childIndex) {
             try {
+                scheduleAutoCollapse(cfg);
                 NavItem child = cfg.items.get(itemIndex).children.get(childIndex);
                 closeMenu();
                 run(child.target);
-            } catch (RuntimeException ignored) {}
+            } catch (RuntimeException error) {
+                log(host, "Tap on a menu entry failed", error);
+            }
+        }
+
+        @Override public void onCollapse() {
+            try { setCollapsed(true); } catch (RuntimeException error) { log(host, "Could not collapse the bar", error); }
+        }
+
+        @Override public void onExpand() {
+            try { setCollapsed(false); } catch (RuntimeException error) { log(host, "Could not open the bar", error); }
         }
 
         private void openMenu(int index, View anchor) {
@@ -284,12 +349,18 @@ public final class NavbarPlugin implements KioskPlugin {
             // Replacing the overlay at the same key swaps one open menu for another.
             current.showOverlay(MENU, OverlaySpec.at(cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM).inset(inset), new MenuFactory(cfg, index));
             openMenu = index;
+            current.log("Opened menu " + (index + 1) + " at " + inset + " dp");
         }
     }
 
+    /** Builds the open bar or, while collapsed, its tab. */
     private final class BarFactory implements OverlayFactory {
         @Override public View create(Context context, KsTheme theme) {
             NavConfig cfg = config;
+            if (collapsed && cfg.collapse != NavConfig.Collapse.OFF) {
+                bar.set(null);
+                return new NavViews.Tab(context, theme, cfg, cfg.activeIndex(path), new Clicks(cfg));
+            }
             NavViews.Bar view = new NavViews.Bar(context, theme, cfg, cfg.activeIndex(path), new Clicks(cfg));
             bar.set(view);
             // The page may have changed while the view was being built, before the worker could see
@@ -299,11 +370,12 @@ public final class NavbarPlugin implements KioskPlugin {
         }
 
         @Override public void onThemeChanged(View view, KsTheme theme) {
-            ((NavViews.Bar) view).restyle(theme);
+            if (view instanceof NavViews.Bar) ((NavViews.Bar) view).restyle(theme);
+            else if (view instanceof NavViews.Tab) ((NavViews.Tab) view).restyle(theme);
         }
 
         @Override public void onDestroy(View view) {
-            bar.compareAndSet((NavViews.Bar) view, null);
+            if (view instanceof NavViews.Bar) bar.compareAndSet((NavViews.Bar) view, null);
         }
     }
 
