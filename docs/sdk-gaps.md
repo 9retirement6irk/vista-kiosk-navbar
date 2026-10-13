@@ -42,7 +42,9 @@ Each option should keep fleet sync working.
 
 **Suggestion:** Per-edge insets, such as `inset(left, top, right, bottom)` or `offset(x, y)` in dp. Even better would be a position relative to a point the plugin supplies in screen coordinates.
 
-**Our workaround:** We put the menu inside the bar's own overlay, which grows to fit it, and position the menu within the view. This works partly because of gap 15, below.
+**Our workaround:** Each menu gets its own overlay that spans the screen beside the bar (FILL along the bar, inset by the bar's depth), and the plugin moves the menu card next to its item inside it.
+
+Because the one inset also applies to the FILL sides, the overlay is shorter than the screen by twice the bar's depth. On a left or right rail, a tall menu such as a 12-camera grid can't line up with an item near the top or bottom; it is pushed toward the middle instead.
 
 ## 5. A small overlay cannot detect a tap outside it
 

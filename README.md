@@ -7,6 +7,7 @@ A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-
 - **Knows where you are.** The current page's item lights up, however you got there.
 - **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras.
 - **Kiosk actions.** Open camera views, Music Assistant, Now Playing, the screensaver or the app launcher.
+- **Any edge.** A bar along the bottom or top, or a rail down the left or right side.
 - **Gets out of the way.** Translucent, and a swipe tucks it into a small tab.
 - **Light and offline.** Native Android views, no WebView, no Home Assistant token. All 7,400+ [Material Design Icons](https://pictogrammers.com/library/mdi/) are built in.
 
@@ -23,7 +24,7 @@ A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-
 
 ## Items
 
-Each of the 7 items has a **Label** (empty turns the item off), an optional **Icon** and **Selected icon**, and a **Target**:
+Each of the 7 items has a **Label** (empty turns the item off), a **Target**, and an optional **Icon** and **Selected icon**:
 
 | Target | Example | Does |
 | --- | --- | --- |
@@ -43,24 +44,24 @@ Front door = a1b2c3d4e5f60718293a4b5c6d7e8f90; Garage = fedcba9876543210fedcba98
 > Leave icons empty and the navbar picks one from the label: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa.
 
 <details>
-<summary><b>Bar settings</b></summary>
+<summary><b>Look and behavior settings</b></summary>
 
 | Setting | Options |
 | --- | --- |
-| Position | Bottom or Top |
+| Position | Bottom, Top, Left or Right |
 | Labels | Always, Active only or Never |
 | Size | 80% to 140% |
 | Opacity | How much of the dashboard shows through |
-| Collapsing | Start open, Start collapsed or Off |
-| Collapse after | Seconds without a tap before the bar tucks away. 0 never does |
+| Swipe to tuck away | Start open, Start tucked away or Off |
+| Tuck away after | Seconds without a tap before the bar tucks away. 0 keeps it open |
 | Hide on | Pages without the bar, such as `/profile`. Includes the pages below them |
 
 </details>
 
 <details>
-<summary><b>Collapsing</b></summary>
+<summary><b>Tucking the bar away</b></summary>
 
-Swipe the bar toward the screen edge to tuck it into a tab. Swipe the tab back, or tap it, to bring the bar back. The tab shows the current page's icon.
+Swipe the bar toward its edge to tuck it into a small tab. Swipe the tab back, or tap it, to bring the bar back. The tab shows the current page's icon.
 
 </details>
 

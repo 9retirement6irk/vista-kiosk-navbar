@@ -11,6 +11,9 @@ final class NavConfig {
     static final int SLOTS = 7;
     static final int DEFAULT_INSET = 12;
 
+    /** The screen edge the bar sits against. */
+    enum Edge { BOTTOM, TOP, LEFT, RIGHT }
+
     enum Labels { ALWAYS, ACTIVE, NEVER }
 
     /** Whether the bar can shrink to a tab at its edge, and how it starts. */
@@ -22,7 +25,11 @@ final class NavConfig {
     /** Auto switches to a grid above this many entries. */
     static final int AUTO_GRID_ABOVE = 6;
 
+    final Edge edge;
+    /** Whether the bar is against the top edge. */
     final boolean top;
+    /** Whether the bar is a vertical rail against the left or right edge. */
+    final boolean vertical;
     final Labels labels;
     final float scale;
     final int inset;
@@ -37,9 +44,11 @@ final class NavConfig {
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(boolean top, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout,
+    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout,
                       List<String> hideOn, List<NavItem> items, List<String> problems) {
-        this.top = top;
+        this.edge = edge;
+        this.top = edge == Edge.TOP;
+        this.vertical = edge == Edge.LEFT || edge == Edge.RIGHT;
         this.labels = labels;
         this.scale = scale;
         this.inset = inset;
@@ -53,7 +62,9 @@ final class NavConfig {
     }
 
     static NavConfig parse(Map<String, Object> settings) {
-        boolean top = "Top".equals(text(settings, "position"));
+        String position = text(settings, "position");
+        Edge edge = "Top".equals(position) ? Edge.TOP : "Left".equals(position) ? Edge.LEFT
+            : "Right".equals(position) ? Edge.RIGHT : Edge.BOTTOM;
         String labelSetting = text(settings, "labels");
         Labels labels = "Never".equals(labelSetting) ? Labels.NEVER : "Active only".equals(labelSetting) ? Labels.ACTIVE : Labels.ALWAYS;
         float scale = 1f;
@@ -65,8 +76,8 @@ final class NavConfig {
         int inset = DEFAULT_INSET;
         float opacity = number(settings, "opacity", 20, 100, 100) / 100f;
         String collapseSetting = text(settings, "collapse");
-        Collapse collapse = "Start open".equals(collapseSetting) ? Collapse.START_OPEN
-            : "Start collapsed".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.OFF;
+        Collapse collapse = "Off".equals(collapseSetting) ? Collapse.OFF
+            : "Start tucked away".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.START_OPEN;
         int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
         // Menus pick their own layout: a list, or a grid once a list would get long.
         MenuLayout menuLayout = MenuLayout.AUTO;
@@ -91,7 +102,7 @@ final class NavConfig {
                 problems.add(name + ": " + error.getMessage());
             }
         }
-        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, hideOn, items, problems);
+        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, hideOn, items, problems);
     }
 
     /**
@@ -135,7 +146,7 @@ final class NavConfig {
 
     String describe() {
         StringBuilder text = new StringBuilder();
-        text.append(top).append('|').append(labels).append('|').append(scale).append('|').append(inset)
+        text.append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
             .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();

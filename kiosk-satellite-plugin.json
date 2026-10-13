@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
-  "description": "A navigation bar for your dashboards, drawn by Kiosk Satellite itself. It shows which page you are on and opens pages, menus and kiosk actions.",
+  "description": "A native navigation bar for your dashboards. It shows which page you're on and opens pages, menus and kiosk actions.",
   "author": "dimatx",
   "license": "Apache-2.0",
   "capabilities": [
@@ -20,31 +20,34 @@
       "type": "select",
       "title": "Position",
       "default": "Bottom",
+      "group": "Look",
+      "description": "The screen edge the bar sits on.",
       "options": [
         "Bottom",
-        "Top"
-      ],
-      "group": "Bar",
-      "description": "Top or bottom of the screen."
+        "Top",
+        "Left",
+        "Right"
+      ]
     },
     {
       "key": "labels",
       "type": "select",
       "title": "Labels",
       "default": "Always",
+      "group": "Look",
+      "description": "Text under the icons.",
       "options": [
         "Always",
         "Active only",
         "Never"
-      ],
-      "group": "Bar",
-      "description": "Text under the icons."
+      ]
     },
     {
       "key": "scale",
       "type": "select",
       "title": "Size",
       "default": "100%",
+      "group": "Look",
       "options": [
         "80%",
         "90%",
@@ -52,45 +55,43 @@
         "110%",
         "120%",
         "140%"
-      ],
-      "group": "Bar",
-      "description": "Size of the bar and its menus."
+      ]
     },
     {
       "key": "opacity",
       "type": "number",
       "title": "Opacity",
       "default": 100,
+      "group": "Look",
+      "description": "Lower lets the dashboard show through.",
       "min": 20,
       "max": 100,
       "step": 5,
-      "group": "Bar",
-      "description": "How much of the dashboard shows through.",
       "unit": "%"
     },
     {
       "key": "collapse",
       "type": "select",
-      "title": "Collapsing",
+      "title": "Swipe to tuck away",
       "default": "Start open",
+      "group": "Behavior",
+      "description": "Swipe the bar toward the edge to tuck it into a small tab.",
       "options": [
-        "Off",
         "Start open",
-        "Start collapsed"
-      ],
-      "group": "Bar",
-      "description": "Swipe the bar toward the edge to tuck it into a tab."
+        "Start tucked away",
+        "Off"
+      ]
     },
     {
       "key": "autoCollapse",
       "type": "number",
-      "title": "Collapse after",
+      "title": "Tuck away after",
       "default": 0,
+      "group": "Behavior",
+      "description": "Without a tap. 0 keeps it open.",
       "min": 0,
       "max": 300,
       "step": 5,
-      "group": "Bar",
-      "description": "Tuck the bar away after this long without a tap. 0 never does.",
       "unit": "s"
     },
     {
@@ -98,8 +99,8 @@
       "type": "string",
       "title": "Hide on",
       "default": "",
-      "group": "Bar",
-      "description": "Optional. Pages without the bar, such as /profile."
+      "group": "Behavior",
+      "description": "Pages without the bar, separated by commas, such as /profile."
     },
     {
       "key": "item1Label",
@@ -110,12 +111,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item1Target",
+      "type": "string",
+      "title": "Target",
+      "default": "/lovelace/0",
+      "group": "Item 1",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item1Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 1",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item1IconSelected",
@@ -123,15 +132,7 @@
       "title": "Selected icon",
       "default": "mdi:home",
       "group": "Item 1",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item1Target",
-      "type": "string",
-      "title": "Target",
-      "default": "/lovelace/0",
-      "group": "Item 1",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item2Label",
@@ -142,12 +143,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item2Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 2",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item2Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 2",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item2IconSelected",
@@ -155,15 +164,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 2",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item2Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 2",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item3Label",
@@ -174,12 +175,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item3Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 3",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item3Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 3",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item3IconSelected",
@@ -187,15 +196,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 3",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item3Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 3",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item4Label",
@@ -206,12 +207,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item4Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 4",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item4Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 4",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item4IconSelected",
@@ -219,15 +228,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 4",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item4Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 4",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item5Label",
@@ -238,12 +239,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item5Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 5",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item5Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 5",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item5IconSelected",
@@ -251,15 +260,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 5",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item5Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 5",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item6Label",
@@ -270,12 +271,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item6Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 6",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item6Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 6",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item6IconSelected",
@@ -283,15 +292,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 6",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item6Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 6",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     },
     {
       "key": "item7Label",
@@ -302,12 +303,20 @@
       "description": "Leave empty to turn this item off."
     },
     {
+      "key": "item7Target",
+      "type": "string",
+      "title": "Target",
+      "default": "",
+      "group": "Item 7",
+      "description": "A page such as /lovelace/0, an action or a menu. See the README."
+    },
+    {
       "key": "item7Icon",
       "type": "string",
       "title": "Icon",
       "default": "",
       "group": "Item 7",
-      "description": "Optional, such as mdi:home-outline."
+      "description": "Optional, such as mdi:home-outline. Picked from the label when empty."
     },
     {
       "key": "item7IconSelected",
@@ -315,15 +324,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 7",
-      "description": "Optional. Shown while this page is open."
-    },
-    {
-      "key": "item7Target",
-      "type": "string",
-      "title": "Target",
-      "default": "",
-      "group": "Item 7",
-      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
+      "description": "Optional. Shown while this item's page is open."
     }
   ],
   "commands": [
@@ -338,6 +339,35 @@
     {
       "id": "toggle",
       "title": "Toggle navbar"
+    }
+  ],
+  "groups": [
+    {
+      "title": "Look"
+    },
+    {
+      "title": "Behavior"
+    },
+    {
+      "title": "Item 1"
+    },
+    {
+      "title": "Item 2"
+    },
+    {
+      "title": "Item 3"
+    },
+    {
+      "title": "Item 4"
+    },
+    {
+      "title": "Item 5"
+    },
+    {
+      "title": "Item 6"
+    },
+    {
+      "title": "Item 7"
     }
   ]
 }

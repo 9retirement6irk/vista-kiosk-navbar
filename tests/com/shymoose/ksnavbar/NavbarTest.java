@@ -190,6 +190,18 @@ public final class NavbarTest {
         item(settings, 7, "Bad", "", "nowhere");
         NavConfig cfg = NavConfig.parse(settings);
         check(cfg.top);
+        check(!cfg.vertical);
+        eq(NavConfig.Edge.TOP, cfg.edge);
+        Map<String, Object> side = new HashMap<>(settings);
+        side.put("position", "Left");
+        NavConfig left = NavConfig.parse(side);
+        eq(NavConfig.Edge.LEFT, left.edge);
+        check(left.vertical);
+        check(!left.top);
+        check(!left.sameLook(cfg));
+        side.put("position", "Right");
+        eq(NavConfig.Edge.RIGHT, NavConfig.parse(side).edge);
+        check(NavConfig.parse(side).vertical);
         eq(NavConfig.Labels.ACTIVE, cfg.labels);
         eq(1.2f, cfg.scale);
         eq(NavConfig.DEFAULT_INSET, cfg.inset);
@@ -244,14 +256,17 @@ public final class NavbarTest {
         eq(1f, empty.scale);
         eq(NavConfig.DEFAULT_INSET, empty.inset);
         eq(1f, empty.opacity);
-        eq(NavConfig.Collapse.OFF, empty.collapse);
+        // Swipe to tuck away is on by default, starting open.
+        eq(NavConfig.Collapse.START_OPEN, empty.collapse);
+        eq(NavConfig.Edge.BOTTOM, empty.edge);
+        check(!empty.vertical);
         eq(0, empty.autoCollapse);
         check(empty.items.isEmpty());
         check(!empty.visibleAt("/anything"));
 
         Map<String, Object> folding = new HashMap<>(settings);
         folding.put("opacity", 70.0);
-        folding.put("collapse", "Start collapsed");
+        folding.put("collapse", "Start tucked away");
         folding.put("autoCollapse", 30.0);
         NavConfig fold = NavConfig.parse(folding);
         eq(0.7f, fold.opacity);

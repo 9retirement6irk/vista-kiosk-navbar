@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- **Left and right.** Position can be Left or Right for a vertical rail. Menus open beside it, and a sideways swipe tucks it into a tab on the edge.
+- **Tidier settings.** Look and Behavior groups, and each item lists Label and Target before its icons. Collapsing is now **Swipe to tuck away**, with Start open, Start tucked away or Off, and **Tuck away after**. Shorter descriptions throughout.
+- Haptic feedback on taps, where the device supports it.
+
+**Upgrading:** set Swipe to tuck away again if it was Start collapsed.
+
 ## 0.9.1
 
 - Actions with no icon get one that fits: screensaver, apps, now playing, web addresses.

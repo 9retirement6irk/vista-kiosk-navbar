@@ -41,11 +41,24 @@ class ManifestSchemaTest(unittest.TestCase):
 
     def test_select_options_are_the_ones_navconfig_understands(self):
         by_key = {s['key']: s for s in MANIFEST['settings']}
-        self.assertEqual(by_key['position']['options'], ['Bottom', 'Top'])
+        self.assertEqual(by_key['position']['options'], ['Bottom', 'Top', 'Left', 'Right'])
         self.assertEqual(by_key['labels']['options'], ['Always', 'Active only', 'Never'])
-        self.assertEqual(by_key['collapse']['options'], ['Off', 'Start open', 'Start collapsed'])
+        self.assertEqual(by_key['collapse']['options'], ['Start open', 'Start tucked away', 'Off'])
+        for key in ('position', 'labels', 'collapse'):
+            for option in by_key[key]['options']:
+                if option not in ('Bottom', 'Always', 'Start open'):  # the fallbacks
+                    self.assertIn(f'"{option}"', CONFIG)
         for option in by_key['scale']['options']:
             self.assertRegex(option, r'^[0-9]+%$')
+
+    def test_groups_order_existing_setting_groups(self):
+        groups = [g['title'] for g in MANIFEST.get('groups', [])]
+        used = [s.get('group') for s in MANIFEST['settings']]
+        self.assertLessEqual(len(groups), 20)
+        self.assertEqual(len(groups), len(set(groups)))
+        for title in groups:
+            self.assertIn(title, used)
+        self.assertEqual(groups[0], used[0])
 
     def test_commands_and_capabilities(self):
         for command in MANIFEST['commands']:

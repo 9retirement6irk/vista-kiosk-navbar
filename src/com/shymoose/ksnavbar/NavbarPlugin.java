@@ -172,7 +172,7 @@ public final class NavbarPlugin implements KioskPlugin {
             }
             if (!shown || rebuild.getAndSet(false)) {
                 closeMenu();
-                String anchor = cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM;
+                String anchor = anchor(cfg);
                 // Flush with the edge: the view keeps the bar's distance itself, so the tab can touch it.
                 current.showOverlay(BAR, OverlaySpec.at(anchor).closeOnBack(false), new RootFactory());
                 shown = true;
@@ -235,16 +235,26 @@ public final class NavbarPlugin implements KioskPlugin {
      * Main thread. A menu gets its own overlay so opening it never resizes the bar. It fills the
      * kiosk's width beside the bar, and the menu card inside it sits over its item.
      */
-    private void openMenu(int index, float offsetPx, int barHeightDp) {
+    private void openMenu(int index, float offsetPx, int barDepthDp) {
         PluginHost current = host;
         if (current == null) return;
         NavConfig cfg = config;
-        int inset = Math.min(200, barHeightDp + MENU_GAP);
-        OverlaySpec spec = OverlaySpec.at(cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM)
-            .size(OverlaySpec.FILL, OverlaySpec.WRAP).inset(inset);
+        int inset = Math.min(200, barDepthDp + MENU_GAP);
+        OverlaySpec spec = OverlaySpec.at(anchor(cfg)).inset(inset);
+        spec = cfg.vertical ? spec.size(OverlaySpec.WRAP, OverlaySpec.FILL) : spec.size(OverlaySpec.FILL, OverlaySpec.WRAP);
         // Replacing the overlay at the same key swaps one open menu for another.
         current.showOverlay(MENU, spec, new MenuFactory(cfg, index, offsetPx));
         openMenu = index;
+    }
+
+    /** The overlay anchor for the bar's edge. */
+    private static String anchor(NavConfig cfg) {
+        switch (cfg.edge) {
+            case TOP: return OverlaySpec.TOP;
+            case LEFT: return OverlaySpec.LEFT;
+            case RIGHT: return OverlaySpec.RIGHT;
+            default: return OverlaySpec.BOTTOM;
+        }
     }
 
     private void report() {
@@ -266,7 +276,7 @@ public final class NavbarPlugin implements KioskPlugin {
             int active = cfg.activeIndex(path);
             if (path == null) text.append("Waiting for the dashboard to load.");
             else if (active >= 0) text.append(cfg.items.get(active).label).append(" is selected.");
-            else text.append("No item is for this page (").append(path).append(").");
+            else text.append("No item matches this page (").append(path).append(").");
         }
         String message = text.length() > 1000 ? text.substring(0, 1000) : text.toString();
         if (message.equals(lastStatus)) return;

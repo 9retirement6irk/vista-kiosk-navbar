@@ -92,10 +92,29 @@ final class NavViews {
         return states;
     }
 
-    /** Up for a bottom bar opening, down for a top bar opening, and the reverse toward the edge. */
+    /** Points away from the bar's edge, the way the bar opens, or toward it. */
     static String chevron(NavConfig config, boolean towardEdge) {
-        boolean up = config.top == towardEdge;
-        return MdiFont.glyph(up ? "mdi:chevron-up" : "mdi:chevron-down");
+        String away;
+        switch (config.edge) {
+            case TOP: away = towardEdge ? "up" : "down"; break;
+            case LEFT: away = towardEdge ? "left" : "right"; break;
+            case RIGHT: away = towardEdge ? "right" : "left"; break;
+            default: away = towardEdge ? "down" : "up"; break;
+        }
+        return MdiFont.glyph("mdi:chevron-" + away);
+    }
+
+    /**
+     * Corner radii for a shape attached to the bar's edge: the corners against the edge are square,
+     * so it reads as part of the edge.
+     */
+    static float[] edgeRadii(NavConfig config, float r) {
+        switch (config.edge) {
+            case TOP: return new float[] {0, 0, 0, 0, r, r, r, r};
+            case LEFT: return new float[] {0, 0, r, r, r, r, 0, 0};
+            case RIGHT: return new float[] {r, r, 0, 0, 0, 0, r, r};
+            default: return new float[] {r, r, r, r, 0, 0, 0, 0};
+        }
     }
 
     static TextView icon(Context context) {
@@ -248,8 +267,8 @@ final class NavViews {
             this.theme = theme;
             this.path = path;
             this.active = config.activeIndex(path);
-            setOrientation(VERTICAL);
-            setGravity(Gravity.CENTER_HORIZONTAL);
+            setOrientation(config.vertical ? HORIZONTAL : VERTICAL);
+            setGravity(config.vertical ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
             bar = new Bar(context, theme, config, active, this::tapItem);
             tab = new Tab(context, theme, config, active, view -> {
                 listener.onInteraction();
@@ -360,10 +379,12 @@ final class NavViews {
             listener.onInteraction();
             NavItem item = config.items.get(index);
             if (item.type == NavItem.Type.MENU) {
-                // Where the item sits relative to the center, where both overlays are centered.
-                float offset = bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
+                // Where the item sits along the bar relative to its center, where both overlays are centered.
+                float offset = config.vertical
+                    ? bar.getTop() + bar.itemCenter(index) - getHeight() / 2f
+                    : bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
                 float density = getResources().getDisplayMetrics().density;
-                listener.onMenu(index, offset, Math.round(getHeight() / density));
+                listener.onMenu(index, offset, Math.round((config.vertical ? getWidth() : getHeight()) / density));
                 return;
             }
             if (item.type == NavItem.Type.PAGE) preview(index);
@@ -413,11 +434,12 @@ final class NavViews {
         }
 
         private boolean checkSwipe(MotionEvent event) {
-            float dx = event.getX() - startX;
-            float dy = event.getY() - startY;
+            // Along the axis that leaves the edge: vertical for a top or bottom bar, horizontal for a rail.
+            float along = config.vertical ? event.getX() - startX : event.getY() - startY;
+            float across = config.vertical ? event.getY() - startY : event.getX() - startX;
             float threshold = theme.px(24 * config.scale);
-            if (Math.abs(dy) < threshold || Math.abs(dy) < 1.5f * Math.abs(dx)) return false;
-            boolean towardEdge = config.top ? dy < 0 : dy > 0;
+            if (Math.abs(along) < threshold || Math.abs(along) < 1.5f * Math.abs(across)) return false;
+            boolean towardEdge = config.top || config.edge == NavConfig.Edge.LEFT ? along < 0 : along > 0;
             if (towardEdge == collapsed) return false;
             swiped = true;
             listener.onInteraction();
@@ -433,31 +455,41 @@ final class NavViews {
             tab.restyle(theme);
             LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
             // Insets are inside the view: the overlay itself sits flush so the tab can touch the edge.
-            barParams.leftMargin = edge;
-            barParams.rightMargin = edge;
-            if (config.top) barParams.topMargin = edge;
-            else barParams.bottomMargin = edge;
+            switch (config.edge) {
+                case TOP: barParams.setMargins(edge, edge, edge, 0); break;
+                case LEFT: barParams.setMargins(edge, edge, 0, edge); break;
+                case RIGHT: barParams.setMargins(0, edge, edge, edge); break;
+                default: barParams.setMargins(edge, 0, edge, edge); break;
+            }
             bar.setLayoutParams(barParams);
             tab.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
     }
 
     /**
-     * A menu's own overlay: the full width of the kiosk above (or below) the bar, transparent except
-     * for the menu card, which sits over its item. Taps on the transparent space close the menu.
+     * A menu's own overlay: the full length of the kiosk beside the bar, transparent except for the
+     * menu card, which sits next to its item. Taps on the transparent space close the menu.
      */
     static final class MenuPanel extends FrameLayout {
         private final Menu menu;
         private final float offset;
+        private final boolean vertical;
         private final SizeGate gate = new SizeGate(this);
 
         MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, float offset,
                   Menu.Taps taps, Runnable close) {
             super(context);
             this.offset = offset;
+            this.vertical = config.vertical;
             menu = new Menu(context, theme, config, itemIndex, path, taps);
-            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT,
-                config.top ? Gravity.TOP : Gravity.BOTTOM));
+            int gravity;
+            switch (config.edge) {
+                case TOP: gravity = Gravity.TOP; break;
+                case LEFT: gravity = Gravity.LEFT; break;
+                case RIGHT: gravity = Gravity.RIGHT; break;
+                default: gravity = Gravity.BOTTOM; break;
+            }
+            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, gravity));
             setOnClickListener(view -> close.run());
         }
 
@@ -481,13 +513,20 @@ final class NavViews {
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
             super.onLayout(changed, l, t, r, b);
             // Both overlays are centered, so the item's offset from the center places the card.
-            float center = getWidth() / 2f + offset;
-            float x = Math.max(0, Math.min(getWidth() - menu.getWidth(), center - menu.getWidth() / 2f));
-            menu.setTranslationX(x);
+            if (vertical) {
+                float center = getHeight() / 2f + offset;
+                menu.setTranslationY(Math.max(0, Math.min(getHeight() - menu.getHeight(), center - menu.getHeight() / 2f)));
+            } else {
+                float center = getWidth() / 2f + offset;
+                menu.setTranslationX(Math.max(0, Math.min(getWidth() - menu.getWidth(), center - menu.getWidth() / 2f)));
+            }
             gate.check();
         }
     }
-    /** A horizontal pill of items. Each item is an icon in an indicator above an optional label. */
+    /**
+     * A pill of items, horizontal at the top or bottom and a vertical rail at the sides. Each item is
+     * an icon in an indicator above an optional label.
+     */
     static final class Bar extends LinearLayout {
         interface Taps {
             void onItem(int index);
@@ -507,8 +546,8 @@ final class NavViews {
             this.config = config;
             this.theme = theme;
             this.active = active;
-            setOrientation(HORIZONTAL);
-            setGravity(Gravity.CENTER_VERTICAL);
+            setOrientation(config.vertical ? VERTICAL : HORIZONTAL);
+            setGravity(config.vertical ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL);
             for (int i = 0; i < config.items.size(); i++) {
                 NavItem item = config.items.get(i);
                 LinearLayout cell = new LinearLayout(context);
@@ -526,7 +565,10 @@ final class NavViews {
                 cell.addView(indicator);
                 cell.addView(label);
                 final int index = i;
-                cell.setOnClickListener(view -> taps.onItem(index));
+                cell.setOnClickListener(view -> {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                    taps.onItem(index);
+                });
                 addView(cell);
                 cells.add(cell);
                 indicators.add(indicator);
@@ -536,10 +578,10 @@ final class NavViews {
             restyle(theme);
         }
 
-        /** The horizontal center of an item, relative to the bar. */
+        /** The center of an item along the bar, relative to the bar. */
         float itemCenter(int index) {
             View cell = cells.get(index);
-            return cell.getLeft() + cell.getWidth() / 2f;
+            return config.vertical ? cell.getTop() + cell.getHeight() / 2f : cell.getLeft() + cell.getWidth() / 2f;
         }
 
         void setActive(int index) {
@@ -552,7 +594,8 @@ final class NavViews {
             theme = next;
             float s = config.scale;
             setBackground(surface(theme, config));
-            setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
+            if (config.vertical) setPadding(px(6 * s), px(8 * s), px(6 * s), px(8 * s));
+            else setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
             indicatorShapes.clear();
             for (int i = 0; i < cells.size(); i++) {
                 LinearLayout cell = cells.get(i);
@@ -645,7 +688,10 @@ final class NavViews {
                 if (grid) label.setGravity(Gravity.CENTER);
                 entry.addView(label);
                 final int index = i;
-                entry.setOnClickListener(view -> taps.onChild(index));
+                entry.setOnClickListener(view -> {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                    taps.onChild(index);
+                });
                 entries.add(entry);
                 if (grid) {
                     if (i % columns == 0) {
@@ -724,14 +770,18 @@ final class NavViews {
             this.config = config;
             this.theme = theme;
             this.active = active;
-            setOrientation(HORIZONTAL);
+            // A rail's tab stands upright against the side edge.
+            setOrientation(config.vertical ? VERTICAL : HORIZONTAL);
             setGravity(Gravity.CENTER);
             setContentDescription("Open navbar");
             current = icon(context);
             chevron = icon(context);
             addView(current);
             addView(chevron);
-            setOnClickListener(open);
+            setOnClickListener(view -> {
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                open.onClick(view);
+            });
             restyle(theme);
         }
 
@@ -745,16 +795,24 @@ final class NavViews {
             theme = next;
             float s = config.scale;
             float r = theme.px(theme.radiusCard());
+            float[] radii = edgeRadii(config, r);
             GradientDrawable shape = surface(theme, config);
-            // Round only the corners away from the edge, so the tab reads as attached to it.
-            shape.setCornerRadii(config.top
-                ? new float[] {0, 0, 0, 0, r, r, r, r}
-                : new float[] {r, r, r, r, 0, 0, 0, 0});
-            float[] radii = config.top ? new float[] {0, 0, 0, 0, r, r, r, r} : new float[] {r, r, r, r, 0, 0, 0, 0};
+            shape.setCornerRadii(radii);
             setBackground(pressable(theme, shape, radii));
-            setMinimumWidth(theme.px(96 * s));
-            setMinimumHeight(theme.px(40 * s));
-            setPadding(theme.px(20 * s), theme.px(6 * s), theme.px(16 * s), theme.px(6 * s));
+            int length = theme.px(96 * s);
+            int depth = theme.px(40 * s);
+            int lead = theme.px(20 * s);
+            int trail = theme.px(16 * s);
+            int side = theme.px(6 * s);
+            if (config.vertical) {
+                setMinimumWidth(depth);
+                setMinimumHeight(length);
+                setPadding(side, lead, side, trail);
+            } else {
+                setMinimumWidth(length);
+                setMinimumHeight(depth);
+                setPadding(lead, side, trail, side);
+            }
             current.setVisibility(active >= 0 ? VISIBLE : GONE);
             if (active >= 0) {
                 NavItem item = config.items.get(active);
@@ -762,12 +820,12 @@ final class NavViews {
                 current.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(20 * s));
                 current.setTextColor(theme.color("onSurface"));
                 LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-                gap.rightMargin = theme.px(8 * s);
+                if (config.vertical) gap.bottomMargin = theme.px(8 * s);
+                else gap.rightMargin = theme.px(8 * s);
                 current.setLayoutParams(gap);
             }
             chevron.setText(chevron(config, false));
             chevron.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(22 * s));
             chevron.setTextColor(theme.color("onSurfaceVariant"));
-        }
-    }
+        }    }
 }
