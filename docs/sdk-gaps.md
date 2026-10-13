@@ -26,6 +26,7 @@ These are gaps in the Kiosk Satellite plugin SDK (SDK 1, KS 2026.10.21) that cam
 - a `json` type, validated by the plugin, with a code editor in Remote Admin
 
 Each option should keep fleet sync working.
+
 ## 3. Camera views cannot be listed
 
 **Need:** Let users pick a camera view by name, or show the view's name in a menu.
@@ -50,7 +51,9 @@ Because the one inset also applies to the FILL sides, the overlay is shorter tha
 
 **Need:** Close a popup menu when the user taps elsewhere, which is standard popup behavior.
 
-**Today:** A touchable overlay receives only touches inside its rectangle, and touches outside go to the dashboard unseen. The only workaround is a transparent full-screen overlay, which blocks the dashboard. We close the menu on back, on navigation, or when its item is tapped again.
+**Today:** A touchable overlay receives only touches inside its rectangle, and touches outside go to the dashboard unseen. A transparent full-screen overlay would catch them, but it blocks the dashboard.
+
+**Our workaround:** The menu's overlay spans the screen beside the bar (see gap 4), so a tap on its transparent space closes the menu. A tap anywhere else on the dashboard does not. The menu also closes on back, on navigation, or when its item is tapped again.
 
 **Suggestion:** `OverlaySpec.closeOnOutsideTouch(true)`, which removes the overlay and sends `overlay.closed`. The touch could optionally pass through to the dashboard as well.
 
@@ -132,7 +135,7 @@ Because the one inset also applies to the FILL sides, the overlay is shorter tha
 
 **Today:** Measured on a ThinkSmart View (Snapdragon 624, Android 8.1, KS 2026.10.21) with `adb screencap`: a new `showOverlay`, or a replacement at an existing key, rendered nothing for 8 s or more. One later showed as an undrawn grey box before it finished. The same panel reports 95% janky frames from the dashboard alone. Changes inside an existing overlay, such as moving the highlight, were immediate. Each overlay is a new Flutter platform view, and that seems to be the cost.
 
-**Our workaround:** One long-lived overlay. Collapse, expand and menus only change visibility inside it, and the `WRAP` overlay resizes.
+**Our workaround:** The bar is one long-lived overlay, and collapsing or expanding only changes what is visible inside it. Menus need their own overlay (see gap 16), but it is small and holds only the menu card, so it appears in about a second on the same panel.
 
 **Suggestion:** Document the cost, so plugin authors reuse overlays rather than replace them. Consider reusing the platform view when an overlay is replaced at the same key.
 
@@ -152,3 +155,19 @@ Two more details, both measured with logging and on-device `screencap`. First, t
 
 - `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. We added the `.bat` glob.
 - `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. We skip those two tests on Windows.
+
+## 18. Settings cannot depend on each other
+
+**Need:** Show a setting only when it applies, so the settings page stays short.
+
+**Today:** Every setting is always shown. **Tuck away after** appears even when **Swipe to tuck away** is Off, and the Target and icon fields of an item appear even while its Label is empty and the item is off. Seven item groups are always listed, used or not.
+
+**Suggestion:** A `visibleWhen` (or `dependsOn`) field, such as `{"key": "collapse", "notEquals": "Off"}` or `{"key": "item3Label", "notEmpty": true}`, honored by the kiosk and Remote Admin. Collapsing groups that are empty, or starting them collapsed, would help too.
+
+## 19. A local ZIP cannot replace a repository install
+
+**Need:** Test a development build on a kiosk that runs the released version, then go back.
+
+**Today:** **Install from ZIP** (and `installPlugin`) refuses a plugin that was installed from a GitHub repository. The plugin has to be removed first, so we save its settings over the remote API and restore them after each swap.
+
+**Suggestion:** Let a trusted local ZIP replace a repository install of the same plugin ID while keeping its settings, perhaps marking it as a development build until the next repository update.
