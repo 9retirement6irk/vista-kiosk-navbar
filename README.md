@@ -112,3 +112,7 @@ Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jx
 Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) by [@joseluis9595](https://github.com/joseluis9595). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
 
 Apache-2.0.
+
+## License
+
+[Apache-2.0](LICENSE). See [NOTICE](NOTICE) for what comes from the Kiosk Satellite plugin template.
