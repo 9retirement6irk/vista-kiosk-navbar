@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- **Swipe to collapse.** Swipe the bar toward its edge to fold it into its tab, and swipe the tab back or tap it to open the bar. The collapse chevron is gone.
+- **Selected icon** is its own optional setting. A pipe in Icon still works for existing settings.
+- Faster feedback. A press shows at once with no ripple animation, a tapped page is highlighted before Home Assistant confirms it, and moving the highlight no longer re-lays out the bar.
+- Each tap logs how late KS delivered the touch and when the bar redrew.
+
 ## 0.3.2
 
 - **Collapsing** now defaults to **Start open**. The bar starts expanded with a collapse chevron, and stays open until someone taps it. **Collapse after** still defaults to 0, which never collapses the bar on its own.

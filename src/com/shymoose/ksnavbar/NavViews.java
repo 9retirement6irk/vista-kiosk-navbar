@@ -2,11 +2,14 @@
 package com.shymoose.ksnavbar;
 
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.RippleDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.StateListDrawable;
+import android.os.SystemClock;
+import android.view.MotionEvent;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -33,6 +36,11 @@ final class NavViews {
         void onExpand();
         /** Any tap, to restart the auto-collapse countdown. */
         void onInteraction();
+        /**
+         * How late a tap reached the view and when the view next drew, in ms. Touches pass through
+         * Flutter before reaching a plugin view, so delivery time is KS's share of any lag.
+         */
+        void onLatency(long downMs, long upMs, long drawMs);
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -51,13 +59,27 @@ final class NavViews {
         return card;
     }
 
-    /** A touch ripple in onSurface over {@code content}, clipped to a rounded rectangle. */
-    static Drawable ripple(KsTheme theme, Drawable content, float radiusPx) {
+    /**
+     * Pressed feedback without animation: an onSurface wash that appears on touch down and goes on
+     * release. A ripple animates for about 300 ms, and every one of its frames has to cross KS's
+     * overlay texture, which arrives late on a low-power panel. This costs one frame each way.
+     */
+    static Drawable pressable(KsTheme theme, Drawable content, float radiusPx) {
+        return pressable(theme, content, new float[] {radiusPx, radiusPx, radiusPx, radiusPx, radiusPx, radiusPx, radiusPx, radiusPx});
+    }
+
+    static Drawable pressable(KsTheme theme, Drawable content, float[] radii) {
         int ink = theme.color("onSurface");
-        GradientDrawable mask = new GradientDrawable();
-        mask.setCornerRadius(radiusPx);
-        mask.setColor(Color.WHITE);
-        return new RippleDrawable(ColorStateList.valueOf(Color.argb(31, Color.red(ink), Color.green(ink), Color.blue(ink))), content, mask);
+        GradientDrawable wash = new GradientDrawable();
+        wash.setCornerRadii(radii);
+        wash.setColor(Color.argb(36, Color.red(ink), Color.green(ink), Color.blue(ink)));
+        StateListDrawable states = new StateListDrawable();
+        states.setEnterFadeDuration(0);
+        states.setExitFadeDuration(0);
+        states.addState(new int[] {android.R.attr.state_pressed},
+            content == null ? wash : new LayerDrawable(new Drawable[] {content, wash}));
+        states.addState(new int[0], content == null ? new ColorDrawable(Color.TRANSPARENT) : content);
+        return states;
     }
 
     /** Up for a bottom bar opening, down for a top bar opening, and the reverse toward the edge. */
@@ -101,10 +123,7 @@ final class NavViews {
             setOrientation(VERTICAL);
             setGravity(Gravity.CENTER_HORIZONTAL);
             setClipChildren(false);
-            bar = new Bar(context, theme, config, active, new Bar.Taps() {
-                @Override public void onItem(int index) { tapItem(index); }
-                @Override public void onCollapse() { listener.onInteraction(); listener.onCollapse(); }
-            });
+            bar = new Bar(context, theme, config, active, this::tapItem);
             tab = new Tab(context, theme, config, active, view -> {
                 listener.onInteraction();
                 listener.onExpand();
@@ -169,13 +188,68 @@ final class NavViews {
         void setPath(String next) {
             if (java.util.Objects.equals(next, path)) return;
             path = next;
-            int index = config.activeIndex(next);
-            if (index != active) {
-                active = index;
-                bar.setActive(index);
-                tab.setActive(index);
-            }
+            removeCallbacks(settle);
+            showActive(config.activeIndex(next));
             closeMenu();
+        }
+
+        /** Falls back to the real page if a tapped page never loads. */
+        private final Runnable settle = this::settle;
+
+        private void settle() {
+            showActive(config.activeIndex(path));
+        }
+
+        /**
+         * Highlights a tapped page at once, the way a native tab bar does, instead of waiting for
+         * Home Assistant to report the new page. If the page has not changed after a few seconds,
+         * the highlight goes back to where the dashboard really is.
+         */
+        private void preview(int index) {
+            showActive(index);
+            removeCallbacks(settle);
+            postDelayed(settle, 5000);
+        }
+
+        private void showActive(int index) {
+            if (index == active) return;
+            active = index;
+            bar.setActive(index);
+            tab.setActive(index);
+        }
+
+        private long downDelay = -1;
+        private long upDelay = -1;
+        private long downAt;
+        private boolean measureDraw;
+
+        /** Measures how late touches arrive. The event time is when the finger actually moved. */
+        @Override public boolean dispatchTouchEvent(MotionEvent event) {
+            long now = SystemClock.uptimeMillis();
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                downDelay = now - event.getEventTime();
+                downAt = now;
+                upDelay = -1;
+                measureDraw = true;
+            } else if (action == MotionEvent.ACTION_UP && downDelay >= 0) {
+                upDelay = now - event.getEventTime();
+                long draw = drawDelay;
+                long down = downDelay;
+                downDelay = -1;
+                try { listener.onLatency(down, upDelay, draw); } catch (RuntimeException ignored) {}
+            }
+            return super.dispatchTouchEvent(event);
+        }
+
+        private long drawDelay = -1;
+
+        @Override protected void dispatchDraw(android.graphics.Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (measureDraw) {
+                measureDraw = false;
+                drawDelay = SystemClock.uptimeMillis() - downAt;
+            }
         }
 
         void setCollapsed(boolean value) {
@@ -202,6 +276,7 @@ final class NavViews {
             NavItem item = config.items.get(index);
             if (item.type != NavItem.Type.MENU) {
                 closeMenu();
+                if (item.type == NavItem.Type.PAGE) preview(index);
                 listener.onTarget(item.target);
                 return;
             }
@@ -213,7 +288,9 @@ final class NavViews {
             menu = new Menu(getContext(), theme, config, index, path, child -> {
                 listener.onInteraction();
                 closeMenu();
-                listener.onTarget(item.children.get(child).target);
+                NavItem entry = item.children.get(child);
+                if (entry.type == NavItem.Type.PAGE) preview(index);
+                listener.onTarget(entry.target);
             });
             menuHolder.removeAllViews();
             menuHolder.addView(menu, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
@@ -227,6 +304,66 @@ final class NavViews {
                 float x = Math.max(0, Math.min(menuHolder.getWidth() - shown.getWidth(), center - shown.getWidth() / 2f));
                 shown.setTranslationX(x);
             });
+        }
+
+        private float startX;
+        private float startY;
+        private boolean swiped;
+
+        /**
+         * A swipe toward the bar's edge folds it into its tab, and a swipe away from the edge opens
+         * it again. The action fires as soon as the swipe is recognized, not on release, so it keeps
+         * up with the finger even when touches reach the view late.
+         */
+        @Override public boolean onInterceptTouchEvent(MotionEvent event) {
+            if (config.collapse == NavConfig.Collapse.OFF) return false;
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    startX = event.getX();
+                    startY = event.getY();
+                    swiped = false;
+                    return false;
+                case MotionEvent.ACTION_MOVE:
+                    return !swiped && checkSwipe(event);
+                default:
+                    return false;
+            }
+        }
+
+        @Override public boolean onTouchEvent(MotionEvent event) {
+            int action = event.getActionMasked();
+            if (swiped) {
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) swiped = false;
+                return true;
+            }
+            // A swipe that starts on empty space, where no child takes the touch.
+            if (config.collapse != NavConfig.Collapse.OFF) {
+                if (action == MotionEvent.ACTION_DOWN) {
+                    startX = event.getX();
+                    startY = event.getY();
+                } else if (action == MotionEvent.ACTION_MOVE && checkSwipe(event)) {
+                    MotionEvent cancel = MotionEvent.obtain(event);
+                    cancel.setAction(MotionEvent.ACTION_CANCEL);
+                    super.onTouchEvent(cancel);
+                    cancel.recycle();
+                    return true;
+                }
+            }
+            return super.onTouchEvent(event);
+        }
+
+        private boolean checkSwipe(MotionEvent event) {
+            float dx = event.getX() - startX;
+            float dy = event.getY() - startY;
+            float threshold = theme.px(24 * config.scale);
+            if (Math.abs(dy) < threshold || Math.abs(dy) < 1.5f * Math.abs(dx)) return false;
+            boolean towardEdge = config.top ? dy < 0 : dy > 0;
+            if (towardEdge == collapsed) return false;
+            swiped = true;
+            listener.onInteraction();
+            if (towardEdge) listener.onCollapse();
+            else listener.onExpand();
+            return true;
         }
 
         void restyle(KsTheme next) {
@@ -259,15 +396,14 @@ final class NavViews {
     static final class Bar extends LinearLayout {
         interface Taps {
             void onItem(int index);
-            void onCollapse();
         }
 
         private final NavConfig config;
         private final List<LinearLayout> cells = new ArrayList<>();
         private final List<FrameLayout> indicators = new ArrayList<>();
+        private final List<GradientDrawable> indicatorShapes = new ArrayList<>();
         private final List<TextView> icons = new ArrayList<>();
         private final List<TextView> labels = new ArrayList<>();
-        private final TextView collapse;
         private KsTheme theme;
         private int active;
 
@@ -302,14 +438,6 @@ final class NavViews {
                 icons.add(icon);
                 labels.add(label);
             }
-            if (config.collapse != NavConfig.Collapse.OFF) {
-                collapse = icon(context);
-                collapse.setContentDescription("Collapse navbar");
-                collapse.setOnClickListener(view -> taps.onCollapse());
-                addView(collapse);
-            } else {
-                collapse = null;
-            }
             restyle(theme);
         }
 
@@ -322,7 +450,7 @@ final class NavViews {
         void setActive(int index) {
             if (index == active) return;
             active = index;
-            restyle(theme);
+            applySelection();
         }
 
         void restyle(KsTheme next) {
@@ -330,42 +458,49 @@ final class NavViews {
             float s = config.scale;
             setBackground(surface(theme, config));
             setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
-            if (collapse != null) {
-                collapse.setText(chevron(config, true));
-                collapse.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
-                collapse.setTextColor(theme.color("onSurfaceVariant"));
-                collapse.setBackground(ripple(theme, null, px(theme.radiusRow())));
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(px(40 * s), px(48 * s));
-                params.leftMargin = px(4 * s);
-                collapse.setLayoutParams(params);
-            }
-            int on = color(theme, "onSecondaryContainer", "onSurface");
-            int off = theme.color("onSurfaceVariant");
-            int pill = color(theme, "secondaryContainer", "primaryContainer");
+            indicatorShapes.clear();
             for (int i = 0; i < cells.size(); i++) {
-                NavItem item = config.items.get(i);
-                boolean selected = i == active;
                 LinearLayout cell = cells.get(i);
-                cell.setBackground(ripple(theme, null, px(theme.radiusRow())));
+                cell.setBackground(pressable(theme, null, px(theme.radiusRow())));
                 cell.setMinimumWidth(px(68 * s));
                 cell.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
                 GradientDrawable indicator = new GradientDrawable();
                 indicator.setCornerRadius(px(16 * s));
-                indicator.setColor(selected ? pill : Color.TRANSPARENT);
+                indicatorShapes.add(indicator);
                 FrameLayout frame = indicators.get(i);
                 frame.setBackground(indicator);
                 frame.setLayoutParams(new LinearLayout.LayoutParams(px(56 * s), px(32 * s)));
-                TextView icon = icons.get(i);
-                icon.setText(MdiFont.glyph(selected ? item.iconSelected : item.icon));
-                icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(24 * s));
-                icon.setTextColor(selected ? on : off);
+                icons.get(i).setTextSize(TypedValue.COMPLEX_UNIT_PX, px(24 * s));
                 TextView label = labels.get(i);
-                theme.styleText(label, 12 * s, selected ? 600 : 500, selected ? "onSurface" : "onSurfaceVariant");
-                boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
-                label.setVisibility(show ? VISIBLE : GONE);
+                theme.styleText(label, 12 * s, 500, "onSurfaceVariant");
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 spacing.topMargin = px(4 * s);
                 label.setLayoutParams(spacing);
+            }
+            applySelection();
+        }
+
+        /**
+         * Moves the highlight. Only colors and glyphs change, so a tap costs one redraw and no layout
+         * pass. The label weight stays the same for the same reason: a bolder label would be wider.
+         */
+        private void applySelection() {
+            int on = color(theme, "onSecondaryContainer", "onSurface");
+            int off = theme.color("onSurfaceVariant");
+            int pill = color(theme, "secondaryContainer", "primaryContainer");
+            int strong = theme.color("onSurface");
+            for (int i = 0; i < cells.size(); i++) {
+                NavItem item = config.items.get(i);
+                boolean selected = i == active;
+                indicatorShapes.get(i).setColor(selected ? pill : Color.TRANSPARENT);
+                TextView icon = icons.get(i);
+                icon.setText(MdiFont.glyph(selected ? item.iconSelected : item.icon));
+                icon.setTextColor(selected ? on : off);
+                TextView label = labels.get(i);
+                label.setTextColor(selected ? strong : off);
+                boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
+                int visibility = show ? VISIBLE : GONE;
+                if (label.getVisibility() != visibility) label.setVisibility(visibility);
             }
         }
 
@@ -422,7 +557,7 @@ final class NavViews {
                 GradientDrawable background = new GradientDrawable();
                 background.setCornerRadius(px(theme.radiusRow()));
                 background.setColor(selected ? pill : Color.TRANSPARENT);
-                row.setBackground(ripple(theme, background, px(theme.radiusRow())));
+                row.setBackground(pressable(theme, background, px(theme.radiusRow())));
                 row.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
                 row.setMinimumHeight(px(48 * s));
                 row.setMinimumWidth(px(220 * s));
@@ -486,7 +621,8 @@ final class NavViews {
             shape.setCornerRadii(config.top
                 ? new float[] {0, 0, 0, 0, r, r, r, r}
                 : new float[] {r, r, r, r, 0, 0, 0, 0});
-            setBackground(ripple(theme, shape, r));
+            float[] radii = config.top ? new float[] {0, 0, 0, 0, r, r, r, r} : new float[] {r, r, r, r, 0, 0, 0, 0};
+            setBackground(pressable(theme, shape, radii));
             setMinimumWidth(theme.px(96 * s));
             setMinimumHeight(theme.px(40 * s));
             setPadding(theme.px(20 * s), theme.px(6 * s), theme.px(16 * s), theme.px(6 * s));

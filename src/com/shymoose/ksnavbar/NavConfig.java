@@ -70,11 +70,12 @@ final class NavConfig {
             if (type.isEmpty() || "Off".equals(type)) continue;
             String label = text(settings, "item" + slot + "Label");
             String icon = text(settings, "item" + slot + "Icon");
+            String selectedIcon = text(settings, "item" + slot + "IconSelected");
             String target = text(settings, "item" + slot + "Target");
             String name = "Item " + slot + (label.isEmpty() ? "" : " (" + label + ")");
             try {
                 if (label.isEmpty()) throw new IllegalArgumentException("label is empty");
-                NavItem item = "Menu".equals(type.trim()) ? NavItem.menu(label, icon, target) : NavItem.leaf(label, icon, target);
+                NavItem item = "Menu".equals(type.trim()) ? NavItem.menu(label, icon, selectedIcon, target) : NavItem.leaf(label, icon, selectedIcon, target);
                 String expected = type.trim().toLowerCase(Locale.ROOT);
                 if (item.type == NavItem.Type.PAGE && "action".equals(expected)) throw new IllegalArgumentException("a /path target is a Page, not an Action");
                 if (item.type == NavItem.Type.ACTION && "page".equals(expected)) throw new IllegalArgumentException("a Page target must be a /dashboard/view path");

@@ -42,7 +42,8 @@ Settings save as you edit them. The bar redraws immediately.
 | --- | --- |
 | Type | **Off**, **Page**, **Action** or **Menu** |
 | Label | Text under the icon, also read by accessibility services |
-| Icon | An MDI name such as `mdi:home-outline`. Add a second one for the selected state: `mdi:home-outline\|mdi:home` |
+| Icon | An MDI name, such as `mdi:home-outline` |
+| Selected icon | Optional. The icon while the item's page is shown, often the filled version, such as `mdi:home` |
 | Target | See below |
 
 **Page** targets are dashboard paths, such as `/wall-tablet/kitchen`. The item is highlighted while that view is shown. A dashboard's first view matches both `/dash/0` and `/dash`. A path with a query string, such as `/dash/cameras?camera=garage`, still works. It loads as a full URL on the kiosk's current server, and the highlight ignores the query.
@@ -70,7 +71,7 @@ Problems, such as an unknown target, are listed on the plugin page, and the item
 
 ### Collapsing
 
-By default the bar starts open with a chevron at its end. Tapping the chevron folds the bar into a small tab flush with the screen edge, and it stays open until someone does. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
+By default the bar starts open. Swipe it toward its edge (down for a bottom bar, up for a top bar) to fold it into a small tab flush with the screen edge. Swipe the tab back, or tap it, to open the bar again. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
 
 ### Actions
 

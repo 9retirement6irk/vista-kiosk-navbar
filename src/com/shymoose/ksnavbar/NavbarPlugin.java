@@ -297,6 +297,14 @@ public final class NavbarPlugin implements KioskPlugin {
         @Override public void onInteraction() {
             try { scheduleAutoCollapse(); } catch (RuntimeException ignored) {}
         }
+
+        @Override public void onLatency(long downMs, long upMs, long drawMs) {
+            PluginHost current = host;
+            try {
+                if (current != null) current.log("Tap latency: touch down reached the bar " + downMs + " ms late, touch up "
+                    + upMs + " ms late, first redraw " + drawMs + " ms after touch down");
+            } catch (RuntimeException ignored) {}
+        }
     }
 
     private final class RootFactory implements OverlayFactory {

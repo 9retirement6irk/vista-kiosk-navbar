@@ -29,7 +29,7 @@ Each option should keep fleet sync working.
 
 **Today:** `showCameraView` needs the view ID, and no read command lists the configured views. Users have to find the 32-character IDs in an exported config.
 
-**Suggestion:** A `getCameraViews` read command that returns `[{id, name}]`, or `showCameraView` accepting the view name.
+**Suggestion:** KS already has `cameraGetConfig`, but it is not on the plugin allowlist. Expose a sanitized read, `getCameraViews`, that returns `[{id, name, cameraCount}]` with no stream URLs or credentials. With it, a plugin can build a camera menu or grid of every view with no setup. Separately or as well, let `showCameraView` accept the view name. `cameraPutView` already rejects duplicate names (case-insensitive), so a name is unambiguous and short enough to fit in a setting.
 
 ## 4. Overlay positioning is limited to nine anchors with one inset
 

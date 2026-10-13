@@ -117,6 +117,13 @@ public final class NavbarTest {
         eq("mdi:home", icons[1]);
         eq("mdi:cctv", NavItem.icons("mdi:cctv")[1]);
         eq(NavItem.DEFAULT_ICON, NavItem.icons("")[0]);
+        // Separate fields win, a blank selected icon falls back to a legacy pipe, then to the icon.
+        eq("mdi:home", NavItem.icons("mdi:home-outline", "mdi:home")[1]);
+        eq("mdi:home", NavItem.icons("mdi:home-outline|mdi:home", "")[1]);
+        eq("mdi:x", NavItem.icons("mdi:home-outline|mdi:home", "mdi:x")[1]);
+        eq("mdi:cctv", NavItem.icons("mdi:cctv", "  ")[1]);
+        eq("mdi:home", NavItem.leaf("Home", "mdi:home-outline", "mdi:home", "/a/b").iconSelected);
+        eq("mdi:sun", NavItem.menu("M", "mdi:cloud", "mdi:sun", "A||/a/b").iconSelected);
     }
 
     private static void config() {
@@ -126,7 +133,8 @@ public final class NavbarTest {
         settings.put("showOn", "/wall-tablet, /bedroom-wall-tablet/");
         settings.put("scale", "120%");
         settings.put("inset", 16.0);
-        item(settings, 1, "Page", "Home", "mdi:home-outline|mdi:home", "/wall-tablet/0");
+        item(settings, 1, "Page", "Home", "mdi:home-outline", "/wall-tablet/0");
+        settings.put("item1IconSelected", "mdi:home");
         item(settings, 2, "Menu", "Climate", "mdi:weather-partly-cloudy", "Weather||/bedroom-wall-tablet/weather");
         item(settings, 3, "Off", "Ignored", "", "");
         item(settings, 4, "Page", "Toggles", "mdi:toggle-switch-outline", "/bedroom-wall-tablet/toggles");
@@ -139,6 +147,8 @@ public final class NavbarTest {
         eq(1.2f, cfg.scale);
         eq(16, cfg.inset);
         eq(Arrays.asList("/wall-tablet", "/bedroom-wall-tablet"), cfg.showOn);
+        eq("mdi:home", cfg.items.get(0).iconSelected);
+        eq("mdi:home-outline", cfg.items.get(0).icon);
         eq(4, cfg.items.size());
         eq(2, cfg.problems.size());
         check(cfg.problems.get(0).startsWith("Item 6"));

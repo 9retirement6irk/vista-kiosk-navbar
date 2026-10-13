@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -97,7 +97,7 @@
         "Start collapsed"
       ],
       "group": "Bar",
-      "description": "Show a chevron at the end of the bar that folds it into a small tab at its edge. Tapping the tab opens it again. Start open shows the bar until someone collapses it. Start collapsed shows only the tab. Off removes the chevron."
+      "description": "Swipe the bar toward its edge to fold it into a small tab, and swipe the tab back or tap it to open the bar. Start open shows the bar until someone swipes it away. Start collapsed shows only the tab. Off turns the swipe off."
     },
     {
       "key": "autoCollapse",
@@ -108,7 +108,7 @@
       "max": 300,
       "step": 5,
       "group": "Bar",
-      "description": "Seconds without a tap before an open bar folds back into its tab. 0 keeps it open until someone collapses it."
+      "description": "Seconds without a tap before an open bar folds back into its tab. 0 keeps it open until someone swipes it away."
     },
     {
       "key": "item1Type",
@@ -136,9 +136,17 @@
       "key": "item1Icon",
       "type": "string",
       "title": "Icon",
-      "default": "mdi:home-outline|mdi:home",
+      "default": "mdi:home-outline",
       "group": "Item 1",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item1IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "mdi:home",
+      "group": "Item 1",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item1Target",
@@ -176,7 +184,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 2",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item2IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 2",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item2Target",
@@ -214,7 +230,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 3",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item3IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 3",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item3Target",
@@ -252,7 +276,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 4",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item4IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 4",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item4Target",
@@ -290,7 +322,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 5",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item5IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 5",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item5Target",
@@ -328,7 +368,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 6",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item6IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 6",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item6Target",
@@ -366,7 +414,15 @@
       "title": "Icon",
       "default": "",
       "group": "Item 7",
-      "description": "Material Design Icon name, such as mdi:home-outline. Add |mdi:home for a different icon while selected."
+      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+    },
+    {
+      "key": "item7IconSelected",
+      "type": "string",
+      "title": "Selected icon",
+      "default": "",
+      "group": "Item 7",
+      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
     },
     {
       "key": "item7Target",

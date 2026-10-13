@@ -32,7 +32,7 @@ class ManifestSchemaTest(unittest.TestCase):
         slots = int(re.search(r'static final int SLOTS = (\d+);', CONFIG).group(1))
         keys = {s['key'] for s in MANIFEST['settings']}
         for slot in range(1, slots + 1):
-            for field in ('Type', 'Label', 'Icon', 'Target'):
+            for field in ('Type', 'Label', 'Icon', 'IconSelected', 'Target'):
                 self.assertIn(f'item{slot}{field}', keys)
         self.assertNotIn(f'item{slots + 1}Type', keys)
         for key in ('position', 'labels', 'showOn', 'scale', 'inset', 'opacity', 'collapse', 'autoCollapse'):
