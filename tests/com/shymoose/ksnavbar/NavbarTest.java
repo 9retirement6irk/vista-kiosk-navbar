@@ -164,41 +164,51 @@ public final class NavbarTest {
         Map<String, Object> settings = new HashMap<>();
         settings.put("position", "Top");
         settings.put("labels", "Active only");
-        settings.put("showOn", "/wall-tablet, /bedroom-wall-tablet/");
+        settings.put("hideOn", "/developer-tools, /profile/");
         settings.put("scale", "120%");
-        settings.put("inset", 16.0);
-        item(settings, 1, "Page", "Home", "mdi:home-outline", "/wall-tablet/0");
+        item(settings, 1, "Home", "mdi:home-outline", "/wall-tablet/0");
         settings.put("item1IconSelected", "mdi:home");
-        item(settings, 2, "Menu", "Climate", "mdi:weather-partly-cloudy", "Weather||/bedroom-wall-tablet/weather");
-        item(settings, 3, "Off", "Ignored", "", "");
-        item(settings, 4, "Page", "Toggles", "mdi:toggle-switch-outline", "/bedroom-wall-tablet/toggles");
-        item(settings, 5, "Action", "Cameras", "mdi:cctv", "camera:front");
-        item(settings, 6, "Page", "", "mdi:x", "/a");
-        item(settings, 7, "Action", "Wrong", "mdi:x", "/a/b");
+        item(settings, 2, "Climate", "mdi:weather-partly-cloudy", "Weather||/bedroom-wall-tablet/weather");
+        item(settings, 3, "", "mdi:x", "/ignored");
+        item(settings, 4, "Toggles", "", "/bedroom-wall-tablet/toggles");
+        item(settings, 5, "Cameras", "mdi:cctv", "camera:front");
+        item(settings, 6, "Broken", "", "");
+        item(settings, 7, "Bad", "", "nowhere");
         NavConfig cfg = NavConfig.parse(settings);
         check(cfg.top);
         eq(NavConfig.Labels.ACTIVE, cfg.labels);
         eq(1.2f, cfg.scale);
-        eq(16, cfg.inset);
-        eq(Arrays.asList("/wall-tablet", "/bedroom-wall-tablet"), cfg.showOn);
+        eq(NavConfig.DEFAULT_INSET, cfg.inset);
+        eq(Arrays.asList("/developer-tools", "/profile"), cfg.hideOn);
         eq("mdi:home", cfg.items.get(0).iconSelected);
         eq("mdi:home-outline", cfg.items.get(0).icon);
+        // The kind follows the target: a path is a page, entries make a menu, the rest are actions.
         eq(4, cfg.items.size());
+        eq(NavItem.Type.PAGE, cfg.items.get(0).type);
+        eq(NavItem.Type.MENU, cfg.items.get(1).type);
+        eq(NavItem.Type.ACTION, cfg.items.get(3).type);
+        eq("mdi:toggle-switch-outline", cfg.items.get(2).icon);
         eq(2, cfg.problems.size());
-        check(cfg.problems.get(0).startsWith("Item 6"));
-        check(cfg.problems.get(1).startsWith("Item 7 (Wrong)"));
+        check(cfg.problems.get(0).startsWith("Item 6 (Broken)"));
+        check(cfg.problems.get(1).startsWith("Item 7 (Bad)"));
         eq(0, cfg.activeIndex("/wall-tablet"));
         eq(0, cfg.activeIndex("/wall-tablet/0"));
         eq(1, cfg.activeIndex("/bedroom-wall-tablet/weather"));
         eq(2, cfg.activeIndex("/bedroom-wall-tablet/toggles"));
         eq(-1, cfg.activeIndex("/bedroom-wall-tablet/cars"));
         eq(-1, cfg.activeIndex(null));
+        // Shown everywhere except Hide on.
         check(cfg.visibleAt("/bedroom-wall-tablet/cars"));
         check(cfg.visibleAt(null));
         check(!cfg.visibleAt("/developer-tools/yaml"));
+        check(!cfg.visibleAt("/profile"));
+        check(cfg.visibleAt("/profiles"));
+        check(NavConfig.isMenu("A||/a;B||/b"));
+        check(NavConfig.isMenu("A|mdi:x|/a"));
+        check(!NavConfig.isMenu("/a/b"));
 
         Map<String, Object> wider = new HashMap<>(settings);
-        wider.put("showOn", "");
+        wider.put("hideOn", "");
         NavConfig everywhere = NavConfig.parse(wider);
         check(everywhere.visibleAt("/developer-tools/yaml"));
         check(everywhere.sameLook(cfg));
@@ -213,17 +223,12 @@ public final class NavbarTest {
         eq(NavConfig.MenuLayout.AUTO, auto.menuLayout);
         check(auto.grid(longMenu));
         check(!auto.grid(shortMenu));
-        Map<String, Object> layouts = new HashMap<>();
-        layouts.put("menuLayout", "List");
-        check(!NavConfig.parse(layouts).grid(longMenu));
-        layouts.put("menuLayout", "Grid");
-        check(NavConfig.parse(layouts).grid(shortMenu));
 
         NavConfig empty = NavConfig.parse(new HashMap<String, Object>());
         check(!empty.top);
         eq(NavConfig.Labels.ALWAYS, empty.labels);
         eq(1f, empty.scale);
-        eq(12, empty.inset);
+        eq(NavConfig.DEFAULT_INSET, empty.inset);
         eq(1f, empty.opacity);
         eq(NavConfig.Collapse.OFF, empty.collapse);
         eq(0, empty.autoCollapse);
@@ -249,14 +254,12 @@ public final class NavbarTest {
 
         Map<String, Object> odd = new HashMap<>();
         odd.put("scale", "huge");
-        odd.put("inset", "12");
-        odd.put("item1Type", 5);
+        odd.put("item1Label", 5);
+        odd.put("item1Target", "/a");
         NavConfig tolerant = NavConfig.parse(odd);
         eq(1f, tolerant.scale);
-        eq(12, tolerant.inset);
         check(tolerant.items.isEmpty());
     }
-
     private static void icons() {
         Map<String, Integer> names = MdiCodec.names(MdiCodec.decode(MdiData.NAMES));
         eq(MdiData.ICON_COUNT, names.size());
@@ -276,8 +279,7 @@ public final class NavbarTest {
         check(MdiCodec.bareName(null) == null);
     }
 
-    private static void item(Map<String, Object> settings, int slot, String type, String label, String icon, String target) {
-        settings.put("item" + slot + "Type", type);
+    private static void item(Map<String, Object> settings, int slot, String label, String icon, String target) {
         settings.put("item" + slot + "Label", label);
         settings.put("item" + slot + "Icon", icon);
         settings.put("item" + slot + "Target", target);

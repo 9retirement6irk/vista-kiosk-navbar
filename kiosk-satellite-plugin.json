@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -41,14 +41,6 @@
       "description": "Show item labels under the icons."
     },
     {
-      "key": "showOn",
-      "type": "string",
-      "title": "Show on",
-      "default": "",
-      "group": "Bar",
-      "description": "Dashboards where the bar appears, separated by commas, such as /wall-tablet,/bedroom-wall-tablet. All their views are included. Leave empty to show it everywhere."
-    },
-    {
       "key": "scale",
       "type": "select",
       "title": "Size",
@@ -63,18 +55,6 @@
       ],
       "group": "Bar",
       "description": "Scale of the bar and its menus."
-    },
-    {
-      "key": "inset",
-      "type": "number",
-      "title": "Edge distance",
-      "default": 12,
-      "min": 0,
-      "max": 48,
-      "step": 2,
-      "group": "Bar",
-      "description": "Space between the bar and the edge of the screen.",
-      "unit": "dp"
     },
     {
       "key": "opacity",
@@ -114,31 +94,12 @@
       "unit": "s"
     },
     {
-      "key": "menuLayout",
-      "type": "select",
-      "title": "Menu layout",
-      "default": "Auto",
-      "options": [
-        "Auto",
-        "List",
-        "Grid"
-      ],
+      "key": "hideOn",
+      "type": "string",
+      "title": "Hide on",
+      "default": "",
       "group": "Bar",
-      "description": "How menus show their entries. Grid shows tiles with an icon over a short label, like an app drawer, and suits long menus such as cameras. Auto uses a grid for menus with more than 6 entries."
-    },
-    {
-      "key": "item1Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Page",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 1",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "Optional. Pages where the bar stays hidden, separated by commas, such as /developer-tools,/profile. Each path includes the pages below it. The bar shows everywhere else."
     },
     {
       "key": "item1Label",
@@ -146,13 +107,13 @@
       "title": "Label",
       "default": "Home",
       "group": "Item 1",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item1Icon",
       "type": "string",
       "title": "Icon",
-      "default": "mdi:home-outline",
+      "default": "",
       "group": "Item 1",
       "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
@@ -170,21 +131,7 @@
       "title": "Target",
       "default": "/lovelace/0",
       "group": "Item 1",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item2Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 2",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item2Label",
@@ -192,7 +139,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 2",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item2Icon",
@@ -216,21 +163,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 2",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item3Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 3",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item3Label",
@@ -238,7 +171,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 3",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item3Icon",
@@ -262,21 +195,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 3",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item4Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 4",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item4Label",
@@ -284,7 +203,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 4",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item4Icon",
@@ -308,21 +227,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 4",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item5Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 5",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item5Label",
@@ -330,7 +235,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 5",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item5Icon",
@@ -354,21 +259,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 5",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item6Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 6",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item6Label",
@@ -376,7 +267,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 6",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item6Icon",
@@ -400,21 +291,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 6",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
-    },
-    {
-      "key": "item7Type",
-      "type": "select",
-      "title": "Type",
-      "default": "Off",
-      "options": [
-        "Off",
-        "Page",
-        "Action",
-        "Menu"
-      ],
-      "group": "Item 7",
-      "description": "Page opens a dashboard view and highlights while it is shown. Action runs a kiosk action. Menu opens a list of entries."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     },
     {
       "key": "item7Label",
@@ -422,7 +299,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 7",
-      "description": "Name shown under the icon and read by accessibility services."
+      "description": "Name shown under the icon. Leave empty to turn this item off."
     },
     {
       "key": "item7Icon",
@@ -446,7 +323,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 7",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
+      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
     }
   ],
   "commands": [

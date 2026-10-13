@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- **Simpler settings.** The bar shows on every page. An optional **Hide on** replaces Show on. Items have no **Type**: an item is on when it has a label, and what it does follows its target. **Edge distance** and **Menu layout** are gone. The edge distance is fixed, and menus switch to a grid on their own above 6 entries. 43 settings down to 35.
+
+**Upgrading:** set Hide on if the bar should stay off some pages, and clear the Label of any item that was Off.
+
 ## 0.7.1
 
 - Fixed: in 0.7.0 the bar could stay invisible, and expanding could leave a stretched frame on screen. The bar now skips drawing while its size changes instead of using transparency, and reveals itself 150 ms after KS reports the new size.

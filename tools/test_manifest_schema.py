@@ -32,10 +32,10 @@ class ManifestSchemaTest(unittest.TestCase):
         slots = int(re.search(r'static final int SLOTS = (\d+);', CONFIG).group(1))
         keys = {s['key'] for s in MANIFEST['settings']}
         for slot in range(1, slots + 1):
-            for field in ('Type', 'Label', 'Icon', 'IconSelected', 'Target'):
+            for field in ('Label', 'Icon', 'IconSelected', 'Target'):
                 self.assertIn(f'item{slot}{field}', keys)
-        self.assertNotIn(f'item{slots + 1}Type', keys)
-        for key in ('position', 'labels', 'showOn', 'scale', 'inset', 'opacity', 'collapse', 'autoCollapse', 'menuLayout'):
+        self.assertNotIn(f'item{slots + 1}Label', keys)
+        for key in ('position', 'labels', 'hideOn', 'scale', 'opacity', 'collapse', 'autoCollapse'):
             self.assertIn(key, keys)
             self.assertIn(f'"{key}"', CONFIG)
 
@@ -44,8 +44,6 @@ class ManifestSchemaTest(unittest.TestCase):
         self.assertEqual(by_key['position']['options'], ['Bottom', 'Top'])
         self.assertEqual(by_key['labels']['options'], ['Always', 'Active only', 'Never'])
         self.assertEqual(by_key['collapse']['options'], ['Off', 'Start open', 'Start collapsed'])
-        self.assertEqual(by_key['menuLayout']['options'], ['Auto', 'List', 'Grid'])
-        self.assertEqual(by_key['item1Type']['options'], ['Off', 'Page', 'Action', 'Menu'])
         for option in by_key['scale']['options']:
             self.assertRegex(option, r'^[0-9]+%$')
 

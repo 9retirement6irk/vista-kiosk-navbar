@@ -4,12 +4,12 @@ package com.shymoose.ksnavbar;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /** The validated navbar configuration, built from the plugin's KS settings. */
 final class NavConfig {
     static final int SLOTS = 7;
+    static final int DEFAULT_INSET = 12;
 
     enum Labels { ALWAYS, ACTIVE, NEVER }
 
@@ -32,13 +32,13 @@ final class NavConfig {
     /** Seconds without a tap before an open bar collapses again. 0 never does. */
     final int autoCollapse;
     final MenuLayout menuLayout;
-    final List<String> showOn;
+    final List<String> hideOn;
     final List<NavItem> items;
     /** One line per item that could not be used. */
     final List<String> problems;
 
     private NavConfig(boolean top, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout,
-                      List<String> showOn, List<NavItem> items, List<String> problems) {
+                      List<String> hideOn, List<NavItem> items, List<String> problems) {
         this.top = top;
         this.labels = labels;
         this.scale = scale;
@@ -47,7 +47,7 @@ final class NavConfig {
         this.collapse = collapse;
         this.autoCollapse = autoCollapse;
         this.menuLayout = menuLayout;
-        this.showOn = Collections.unmodifiableList(showOn);
+        this.hideOn = Collections.unmodifiableList(hideOn);
         this.items = Collections.unmodifiableList(items);
         this.problems = Collections.unmodifiableList(problems);
     }
@@ -61,48 +61,50 @@ final class NavConfig {
         if (!scaleText.isEmpty()) {
             try { scale = Math.max(50, Math.min(200, Integer.parseInt(scaleText))) / 100f; } catch (NumberFormatException ignored) {}
         }
-        int inset = number(settings, "inset", 0, 200, 12);
+        // Fixed: the bar sits a comfortable distance from the edge, one setting fewer.
+        int inset = DEFAULT_INSET;
         float opacity = number(settings, "opacity", 20, 100, 100) / 100f;
         String collapseSetting = text(settings, "collapse");
         Collapse collapse = "Start open".equals(collapseSetting) ? Collapse.START_OPEN
             : "Start collapsed".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.OFF;
         int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
-        String layoutSetting = text(settings, "menuLayout");
-        MenuLayout menuLayout = "List".equals(layoutSetting) ? MenuLayout.LIST : "Grid".equals(layoutSetting) ? MenuLayout.GRID : MenuLayout.AUTO;
-        List<String> showOn = new ArrayList<>();
-        for (String prefix : text(settings, "showOn").split(",")) {
-            if (!prefix.trim().isEmpty()) showOn.add(Paths.normalize(prefix.trim()));
+        // Menus pick their own layout: a list, or a grid once a list would get long.
+        MenuLayout menuLayout = MenuLayout.AUTO;
+        List<String> hideOn = new ArrayList<>();
+        for (String prefix : text(settings, "hideOn").split(",")) {
+            if (!prefix.trim().isEmpty()) hideOn.add(Paths.normalize(prefix.trim()));
         }
         List<NavItem> items = new ArrayList<>();
         List<String> problems = new ArrayList<>();
         for (int slot = 1; slot <= SLOTS; slot++) {
-            String type = text(settings, "item" + slot + "Type");
-            if (type.isEmpty() || "Off".equals(type)) continue;
+            // An item is on when it has a label. Its kind follows its target, so there is no Type.
             String label = text(settings, "item" + slot + "Label");
+            if (label.isEmpty()) continue;
             String icon = text(settings, "item" + slot + "Icon");
             String selectedIcon = text(settings, "item" + slot + "IconSelected");
             String target = text(settings, "item" + slot + "Target");
-            String name = "Item " + slot + (label.isEmpty() ? "" : " (" + label + ")");
+            String name = "Item " + slot + " (" + label + ")";
             try {
-                if (label.isEmpty()) throw new IllegalArgumentException("label is empty");
-                NavItem item = "Menu".equals(type.trim()) ? NavItem.menu(label, icon, selectedIcon, target) : NavItem.leaf(label, icon, selectedIcon, target);
-                String expected = type.trim().toLowerCase(Locale.ROOT);
-                if (item.type == NavItem.Type.PAGE && "action".equals(expected)) throw new IllegalArgumentException("a /path target is a Page, not an Action");
-                if (item.type == NavItem.Type.ACTION && "page".equals(expected)) throw new IllegalArgumentException("a Page target must be a /dashboard/view path");
+                NavItem item = isMenu(target) ? NavItem.menu(label, icon, selectedIcon, target) : NavItem.leaf(label, icon, selectedIcon, target);
                 items.add(item);
             } catch (IllegalArgumentException error) {
                 problems.add(name + ": " + error.getMessage());
             }
         }
-        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, showOn, items, problems);
+        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, hideOn, items, problems);
     }
 
-    /** Whether the bar belongs on {@code path}. Unknown paths show it, so it is never stuck hidden. */
+    /** A target listing entries, as in Label|icon|target; Label|icon|target, makes a menu. */
+    static boolean isMenu(String target) {
+        return target != null && (target.contains("|") || target.contains(";"));
+    }
+
+    /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
     boolean visibleAt(String path) {
         if (items.isEmpty()) return false;
-        if (showOn.isEmpty() || path == null) return true;
-        for (String prefix : showOn) if (Paths.within(path, prefix)) return true;
-        return false;
+        if (path == null) return true;
+        for (String prefix : hideOn) if (Paths.within(path, prefix)) return false;
+        return true;
     }
 
     /** Whether a menu shows its entries as a grid of tiles rather than a list. */

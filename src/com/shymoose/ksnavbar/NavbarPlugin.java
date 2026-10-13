@@ -255,11 +255,11 @@ public final class NavbarPlugin implements KioskPlugin {
         boolean error = !cfg.problems.isEmpty();
         for (String problem : cfg.problems) text.append(problem).append('\n');
         if (cfg.items.isEmpty()) {
-            text.append("Add an item to show the bar: set an item's Type to Page, Action or Menu.");
+            text.append("Add an item to show the bar: give it a Label and a Target.");
         } else if (userHidden) {
             text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
         } else if (!cfg.visibleAt(path)) {
-            text.append("Hidden on this page (").append(path).append("). Add its dashboard to Show on to show the bar here.");
+            text.append("Hidden on this page (").append(path).append(") by Hide on.");
         } else {
             int count = cfg.items.size();
             text.append("Showing ").append(count).append(count == 1 ? " item. " : " items. ");
