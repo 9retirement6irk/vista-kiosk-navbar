@@ -60,7 +60,7 @@ Settings save as you edit them. The bar redraws immediately.
 | `home` | Loads the kiosk's Start URL |
 | `https://…` | Loads a URL in the dashboard |
 
-**Menu** targets list entries as `Label|icon|target`, separated by semicolons or new lines. Each entry's target is a Page or Action target. The icon can be empty. A menu holds up to 12 entries, and the item is highlighted while any of its pages is shown.
+**Menu** targets list entries as `Label|icon|target`, separated by semicolons or new lines. Each entry's target is a Page or Action target. The icon can be empty. A menu holds up to 12 entries and opens next to its item. The item is highlighted while any of its pages is shown. Tap the item again, or the space beside the menu, to close it.
 
 ```text
 Weather|mdi:weather-partly-cloudy|/dash/weather; Air|mdi:home-heart|/dash/air; Garage|mdi:garage|camera:garage

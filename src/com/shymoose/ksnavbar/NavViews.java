@@ -17,28 +17,22 @@ import java.util.ArrayList;
 import java.util.List;
 import me.jxl.kiosk.plugins.KsTheme;
 
-/** The navbar pill and its menu panel, drawn natively in the KS design language. */
+/**
+ * The navbar, drawn natively in the KS design language. One overlay holds everything: the bar, the
+ * tab it collapses into and the open menu. Creating a KS overlay is slow on low-power panels, so
+ * collapsing, expanding and opening menus only change visibility inside this one view, and the
+ * wrapped overlay resizes to fit.
+ */
 final class NavViews {
     private NavViews() {}
 
+    /** What the plugin hears from the bar. All calls arrive on the main thread. */
     interface Listener {
-        void onItem(int index, View view);
-        void onChild(int itemIndex, int childIndex);
+        void onTarget(NavTarget target);
         void onCollapse();
         void onExpand();
-    }
-
-    /** The KS card background at the configured opacity. Content drawn on it stays opaque. */
-    static GradientDrawable surface(KsTheme theme, NavConfig config) {
-        GradientDrawable card = theme.card();
-        card.setAlpha(Math.round(255 * config.opacity));
-        return card;
-    }
-
-    /** The chevron that points away from the bar's edge: up for a bottom bar, down for a top bar. */
-    static String chevron(NavConfig config, boolean towardEdge) {
-        boolean up = config.top == towardEdge;
-        return MdiFont.glyph(up ? "mdi:chevron-up" : "mdi:chevron-down");
+        /** Any tap, to restart the auto-collapse countdown. */
+        void onInteraction();
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -50,6 +44,13 @@ final class NavViews {
         }
     }
 
+    /** The KS card background at the configured opacity. Content drawn on it stays opaque. */
+    static GradientDrawable surface(KsTheme theme, NavConfig config) {
+        GradientDrawable card = theme.card();
+        card.setAlpha(Math.round(255 * config.opacity));
+        return card;
+    }
+
     /** A touch ripple in onSurface over {@code content}, clipped to a rounded rectangle. */
     static Drawable ripple(KsTheme theme, Drawable content, float radiusPx) {
         int ink = theme.color("onSurface");
@@ -57,6 +58,12 @@ final class NavViews {
         mask.setCornerRadius(radiusPx);
         mask.setColor(Color.WHITE);
         return new RippleDrawable(ColorStateList.valueOf(Color.argb(31, Color.red(ink), Color.green(ink), Color.blue(ink))), content, mask);
+    }
+
+    /** Up for a bottom bar opening, down for a top bar opening, and the reverse toward the edge. */
+    static String chevron(NavConfig config, boolean towardEdge) {
+        boolean up = config.top == towardEdge;
+        return MdiFont.glyph(up ? "mdi:chevron-up" : "mdi:chevron-down");
     }
 
     static TextView icon(Context context) {
@@ -67,9 +74,153 @@ final class NavViews {
         return icon;
     }
 
+    /**
+     * Stacks the menu, the bar and the tab, edge last. Taps on its transparent space close an open
+     * menu. Every method runs on the main thread.
+     */
+    static final class Root extends LinearLayout {
+        private final NavConfig config;
+        private final Listener listener;
+        private final Bar bar;
+        private final Tab tab;
+        private final FrameLayout menuHolder;
+        private Menu menu;
+        private KsTheme theme;
+        private String path;
+        private int active;
+        private int openMenu = -1;
+        private boolean collapsed;
+
+        Root(Context context, KsTheme theme, NavConfig config, String path, boolean collapsed, Listener listener) {
+            super(context);
+            this.config = config;
+            this.listener = listener;
+            this.theme = theme;
+            this.path = path;
+            this.active = config.activeIndex(path);
+            setOrientation(VERTICAL);
+            setGravity(Gravity.CENTER_HORIZONTAL);
+            setClipChildren(false);
+            bar = new Bar(context, theme, config, active, new Bar.Taps() {
+                @Override public void onItem(int index) { tapItem(index); }
+                @Override public void onCollapse() { listener.onInteraction(); listener.onCollapse(); }
+            });
+            tab = new Tab(context, theme, config, active, view -> {
+                listener.onInteraction();
+                listener.onExpand();
+            });
+            menuHolder = new FrameLayout(context);
+            menuHolder.setVisibility(GONE);
+            // The menu sits on the side away from the edge: above a bottom bar, below a top bar.
+            if (config.top) {
+                addView(bar);
+                addView(tab);
+                addView(menuHolder);
+            } else {
+                addView(menuHolder);
+                addView(bar);
+                addView(tab);
+            }
+            setOnClickListener(view -> closeMenu());
+            setCollapsed(collapsed);
+            restyle(theme);
+        }
+
+        void setPath(String next) {
+            if (java.util.Objects.equals(next, path)) return;
+            path = next;
+            int index = config.activeIndex(next);
+            if (index != active) {
+                active = index;
+                bar.setActive(index);
+                tab.setActive(index);
+            }
+            closeMenu();
+        }
+
+        void setCollapsed(boolean value) {
+            closeMenu();
+            collapsed = value && config.collapse != NavConfig.Collapse.OFF;
+            bar.setVisibility(collapsed ? GONE : VISIBLE);
+            tab.setVisibility(collapsed ? VISIBLE : GONE);
+        }
+
+        boolean isCollapsed() { return collapsed; }
+
+        void closeMenu() {
+            if (openMenu < 0) return;
+            openMenu = -1;
+            menu = null;
+            menuHolder.removeAllViews();
+            menuHolder.setVisibility(GONE);
+        }
+
+        private void tapItem(int index) {
+            listener.onInteraction();
+            NavItem item = config.items.get(index);
+            if (item.type != NavItem.Type.MENU) {
+                closeMenu();
+                listener.onTarget(item.target);
+                return;
+            }
+            if (openMenu == index) {
+                closeMenu();
+                return;
+            }
+            openMenu = index;
+            menu = new Menu(getContext(), theme, config, index, path, child -> {
+                listener.onInteraction();
+                closeMenu();
+                listener.onTarget(item.children.get(child).target);
+            });
+            menuHolder.removeAllViews();
+            menuHolder.addView(menu, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+            menuHolder.setVisibility(VISIBLE);
+            // Line the menu up with its item once both are laid out, within the overlay's width.
+            final Menu shown = menu;
+            shown.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
+                if (menu != shown) return;
+                float center = bar.getLeft() + bar.itemCenter(index);
+                float x = Math.max(0, Math.min(menuHolder.getWidth() - shown.getWidth(), center - shown.getWidth() / 2f));
+                shown.setTranslationX(x);
+            });
+        }
+
+        void restyle(KsTheme next) {
+            theme = next;
+            float s = config.scale;
+            int edge = theme.px(config.inset);
+            int gap = theme.px(8 * s);
+            bar.restyle(theme);
+            tab.restyle(theme);
+            if (menu != null) menu.restyle(theme);
+            LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+            // Insets are inside the view: the overlay itself sits flush so the tab can touch the edge.
+            barParams.leftMargin = edge;
+            barParams.rightMargin = edge;
+            if (config.top) {
+                barParams.topMargin = edge;
+                menuParams.topMargin = gap;
+            } else {
+                barParams.bottomMargin = edge;
+                menuParams.bottomMargin = gap;
+            }
+            bar.setLayoutParams(barParams);
+            menuHolder.setLayoutParams(menuParams);
+            tab.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+        }
+    }
+
     /** A horizontal pill of items. Each item is an icon in an indicator above an optional label. */
     static final class Bar extends LinearLayout {
+        interface Taps {
+            void onItem(int index);
+            void onCollapse();
+        }
+
         private final NavConfig config;
+        private final List<LinearLayout> cells = new ArrayList<>();
         private final List<FrameLayout> indicators = new ArrayList<>();
         private final List<TextView> icons = new ArrayList<>();
         private final List<TextView> labels = new ArrayList<>();
@@ -77,7 +228,7 @@ final class NavViews {
         private KsTheme theme;
         private int active;
 
-        Bar(Context context, KsTheme theme, NavConfig config, int active, Listener listener) {
+        Bar(Context context, KsTheme theme, NavConfig config, int active, Taps taps) {
             super(context);
             this.config = config;
             this.theme = theme;
@@ -101,8 +252,9 @@ final class NavViews {
                 cell.addView(indicator);
                 cell.addView(label);
                 final int index = i;
-                cell.setOnClickListener(view -> listener.onItem(index, view));
+                cell.setOnClickListener(view -> taps.onItem(index));
                 addView(cell);
+                cells.add(cell);
                 indicators.add(indicator);
                 icons.add(icon);
                 labels.add(label);
@@ -110,12 +262,18 @@ final class NavViews {
             if (config.collapse != NavConfig.Collapse.OFF) {
                 collapse = icon(context);
                 collapse.setContentDescription("Collapse navbar");
-                collapse.setOnClickListener(view -> listener.onCollapse());
+                collapse.setOnClickListener(view -> taps.onCollapse());
                 addView(collapse);
             } else {
                 collapse = null;
             }
             restyle(theme);
+        }
+
+        /** The horizontal center of an item, relative to the bar. */
+        float itemCenter(int index) {
+            View cell = cells.get(index);
+            return cell.getLeft() + cell.getWidth() / 2f;
         }
 
         void setActive(int index) {
@@ -130,7 +288,6 @@ final class NavViews {
             setBackground(surface(theme, config));
             setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
             if (collapse != null) {
-                // Points toward the edge the bar folds into.
                 collapse.setText(chevron(config, true));
                 collapse.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
                 collapse.setTextColor(theme.color("onSurfaceVariant"));
@@ -142,10 +299,10 @@ final class NavViews {
             int on = color(theme, "onSecondaryContainer", "onSurface");
             int off = theme.color("onSurfaceVariant");
             int pill = color(theme, "secondaryContainer", "primaryContainer");
-            for (int i = 0; i < indicators.size(); i++) {
+            for (int i = 0; i < cells.size(); i++) {
                 NavItem item = config.items.get(i);
                 boolean selected = i == active;
-                LinearLayout cell = (LinearLayout) indicators.get(i).getParent();
+                LinearLayout cell = cells.get(i);
                 cell.setBackground(ripple(theme, null, px(theme.radiusRow())));
                 cell.setMinimumWidth(px(68 * s));
                 cell.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
@@ -174,12 +331,16 @@ final class NavViews {
 
     /** The entries of a menu item, as a card of rows. The current page's row is highlighted. */
     static final class Menu extends LinearLayout {
+        interface Taps {
+            void onChild(int index);
+        }
+
         private final NavConfig config;
         private final NavItem item;
         private final String path;
         private KsTheme theme;
 
-        Menu(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Listener listener) {
+        Menu(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Taps taps) {
             super(context);
             this.config = config;
             this.item = config.items.get(itemIndex);
@@ -198,7 +359,7 @@ final class NavViews {
                 label.setSingleLine(true);
                 row.addView(label);
                 final int index = i;
-                row.setOnClickListener(view -> listener.onChild(itemIndex, index));
+                row.setOnClickListener(view -> taps.onChild(index));
                 addView(row);
             }
             restyle(theme);
@@ -248,10 +409,10 @@ final class NavViews {
         private final NavConfig config;
         private final TextView current;
         private final TextView chevron;
-        private final int active;
+        private int active;
         private KsTheme theme;
 
-        Tab(Context context, KsTheme theme, NavConfig config, int active, Listener listener) {
+        Tab(Context context, KsTheme theme, NavConfig config, int active, View.OnClickListener open) {
             super(context);
             this.config = config;
             this.theme = theme;
@@ -261,9 +422,15 @@ final class NavViews {
             setContentDescription("Open navbar");
             current = icon(context);
             chevron = icon(context);
-            if (active >= 0) addView(current);
+            addView(current);
             addView(chevron);
-            setOnClickListener(view -> listener.onExpand());
+            setOnClickListener(open);
+            restyle(theme);
+        }
+
+        void setActive(int index) {
+            if (index == active) return;
+            active = index;
             restyle(theme);
         }
 
@@ -280,11 +447,12 @@ final class NavViews {
             setMinimumWidth(theme.px(96 * s));
             setMinimumHeight(theme.px(40 * s));
             setPadding(theme.px(20 * s), theme.px(6 * s), theme.px(16 * s), theme.px(6 * s));
+            current.setVisibility(active >= 0 ? VISIBLE : GONE);
             if (active >= 0) {
                 NavItem item = config.items.get(active);
                 current.setText(MdiFont.glyph(item.iconSelected));
                 current.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(20 * s));
-                current.setTextColor(color(theme, "onSurface", "onSurface"));
+                current.setTextColor(theme.color("onSurface"));
                 LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 gap.rightMargin = theme.px(8 * s);
                 current.setLayoutParams(gap);

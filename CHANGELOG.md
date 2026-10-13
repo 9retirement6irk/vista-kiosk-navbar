@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- The bar, its tab and its menus now live in one overlay. Collapsing, expanding and opening a menu are now instant. Before, each change created a new KS overlay, which could take several seconds to appear on a ThinkSmart View.
+- Menus open next to their item instead of in the middle of the bar.
+- Tapping the space beside an open menu closes it.
+
 ## 0.2.0
 
 - **Opacity**: a translucent bar background, with solid icons and labels.

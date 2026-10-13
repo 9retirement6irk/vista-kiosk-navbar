@@ -39,6 +39,8 @@ Each option should keep fleet sync working.
 
 **Suggestion:** Per-edge insets, such as `inset(left, top, right, bottom)` or `offset(x, y)` in dp. Even better would be a position relative to a point the plugin supplies in screen coordinates.
 
+**Our workaround:** We put the menu inside the bar's own overlay, which grows to fit it, and position the menu within the view. This works partly because of gap 15, below.
+
 ## 5. A small overlay cannot detect a tap outside it
 
 **Need:** Close a popup menu when the user taps elsewhere, which is standard popup behavior.
@@ -83,7 +85,7 @@ Each option should keep fleet sync working.
 
 **Need:** Call `showOverlay` and `hideOverlay` from both the plugin worker and the main thread, for example in click listeners, without deadlocking.
 
-**Today:** The docs say KS builds the view on the main thread through the factory. They do not say whether `showOverlay` blocks until the view exists, or whether `create` and `onDestroy` can run inside the call when it is made from the main thread. We had to design defensively for both orderings.
+**Today:** The docs say KS builds the view on the main thread through the factory. They do not say whether `showOverlay` blocks until the view exists, or whether `create` and `onDestroy` can run inside the call when it is made from the main thread. We had to design defensively for both orderings. In the end, all our overlay calls run on the main thread.
 
 **Suggestion:** Document it. Something like: "showOverlay never blocks. From the main thread, create runs after the call returns."
 
@@ -111,7 +113,25 @@ Each option should keep fleet sync working.
 
 **Suggestion:** `OverlaySpec.enter(...)` and `exit(...)` with a few stock transitions, such as fade and slide from the anchor edge. Alternatively, call a `factory.onExit(view, done)` hook before removal.
 
-## 14. Template tooling on Windows
+## 14. `/api/screenshot` does not show native overlays reliably
+
+**Need:** Check a plugin overlay remotely, the way we check the dashboard.
+
+**Today:** On KS 2026.10.21 on a ThinkSmart View, the Remote Admin screenshot showed the first bar correctly. It never showed a menu overlay that was on the panel, as confirmed with `adb exec-out screencap`, and it showed a replaced overlay in its old state. This cost us a debugging detour, because the menu looked broken when it was not.
+
+**Suggestion:** Capture the composited screen, including platform-view textures, or document that native overlays may be missing from the screenshot.
+
+## 15. Creating an overlay is very slow on low-power panels
+
+**Need:** Collapse a bar into a tab, expand it and open menus, each as a quick response to a tap.
+
+**Today:** Measured on a ThinkSmart View (Snapdragon 624, Android 8.1, KS 2026.10.21) with `adb screencap`: a new `showOverlay`, or a replacement at an existing key, rendered nothing for 8 s or more. One later showed as an undrawn grey box before it finished. The same panel reports 95% janky frames from the dashboard alone. Changes inside an existing overlay, such as moving the highlight, were immediate. Each overlay is a new Flutter platform view, and that seems to be the cost.
+
+**Our workaround:** One long-lived overlay. Collapse, expand and menus only change visibility inside it, and the `WRAP` overlay resizes.
+
+**Suggestion:** Document the cost, so plugin authors reuse overlays rather than replace them. Consider reusing the platform view when an overlay is replaced at the same key.
+
+## 16. Template tooling on Windows
 
 - `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. We added the `.bat` glob.
 - `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. We skip those two tests on Windows.
