@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- Fixed: in 0.7.0 the bar could stay invisible, and expanding could leave a stretched frame on screen. The bar now skips drawing while its size changes instead of using transparency, and reveals itself 150 ms after KS reports the new size.
+
 ## 0.7.0
 
 - **No more stretched frames.** The bar, its tab and menus stay hidden while their overlay is being resized, and appear once KS has applied the new size. Before, the previous frame showed stretched to the new size for a moment.

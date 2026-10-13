@@ -115,17 +115,35 @@ final class NavViews {
      * reveals it. A timeout reveals it anyway, so a size that never arrives cannot hide the bar.
      */
     static final class SizeGate {
-        private static final long TIMEOUT_MS = 700;
+        private static final long TIMEOUT_MS = 900;
+        /**
+         * How long to stay hidden after the host reaches the right size. The host view is resized
+         * before the surface behind it, so a frame drawn at once lands in the old surface and shows
+         * stretched. Measured on a ThinkSmart View: drawing at the match left the stretched frame up
+         * indefinitely, while redraws 150 ms later always landed.
+         */
+        private static final long SETTLE_MS = 150;
 
         private final ViewGroup owner;
         private boolean waiting;
+        private int lastHostWidth = -1;
+        private int lastHostHeight = -1;
         private final Runnable timeout = this::open;
+        private final Runnable reveal = this::open;
+        private final Runnable redraw = () -> invalidateTree(owner());
         private final View.OnLayoutChangeListener hostListener = (view, l, t, r, b, ol, ot, or, ob) -> {
-            if (r - l != or - ol || b - t != ob - ot) invalidateTree(owner());
+            if (r - l != or - ol || b - t != ob - ot) redrawSoon();
             check();
         };
 
         SizeGate(ViewGroup owner) { this.owner = owner; }
+
+        /**
+         * Whether the owner should draw nothing. Owners skip drawing rather than using alpha: on KS's
+         * texture-backed overlays an alpha change alone never reached the screen, while an ordinary
+         * redraw does.
+         */
+        boolean hiding() { return waiting; }
 
         private ViewGroup owner() { return owner; }
 
@@ -142,30 +160,61 @@ final class NavViews {
             View host = host();
             if (host != null) host.removeOnLayoutChangeListener(hostListener);
             owner.removeCallbacks(timeout);
+            owner.removeCallbacks(reveal);
+            owner.removeCallbacks(redraw);
+        }
+
+        /** Redraw after the surface has had time to follow a resize, twice for slow panels. */
+        private void redrawSoon() {
+            owner.removeCallbacks(redraw);
+            owner.postDelayed(redraw, 300);
+            owner.postDelayed(redraw, 800);
         }
 
         /** The owner's size is about to change. Hide it until the host matches. */
         void close() {
             waiting = true;
-            owner.setAlpha(0f);
+            owner.invalidate();
             owner.removeCallbacks(timeout);
             owner.postDelayed(timeout, TIMEOUT_MS);
         }
 
-        /** Reveal once the host surface has the owner's measured size. */
+        /**
+         * Draw only while the host surface has exactly the owner's measured size. KS can resize the
+         * host again after a match (it briefly dropped to 2 x 2 while settling), so this runs on every
+         * layout of the owner or the host, hiding and revealing as needed.
+         */
         void check() {
-            if (!waiting) return;
             View host = host();
             int width = owner.getMeasuredWidth();
             int height = owner.getMeasuredHeight();
-            if (host != null && width > 1 && height > 1 && host.getWidth() == width && host.getHeight() == height) open();
+            int hostWidth = host == null ? -1 : host.getWidth();
+            int hostHeight = host == null ? -1 : host.getHeight();
+            // KS passes sizes through Flutter's logical pixels, so allow a pixel or two of rounding.
+            boolean match = host != null && width > 1 && height > 1
+                && Math.abs(hostWidth - width) <= 2 && Math.abs(hostHeight - height) <= 2;
+            boolean hostChanged = hostWidth != lastHostWidth || hostHeight != lastHostHeight;
+            lastHostWidth = hostWidth;
+            lastHostHeight = hostHeight;
+            if (match) {
+                if (waiting) {
+                    owner.removeCallbacks(reveal);
+                    owner.postDelayed(reveal, SETTLE_MS);
+                }
+            } else if (waiting) {
+                owner.removeCallbacks(reveal);
+            } else if (hostChanged) {
+                // Only a new host size hides again, so the timeout cannot start a hide and show loop.
+                close();
+            }
         }
 
         private void open() {
             waiting = false;
             owner.removeCallbacks(timeout);
-            owner.setAlpha(1f);
+            owner.removeCallbacks(reveal);
             invalidateTree(owner);
+            redrawSoon();
         }
     }
 
@@ -287,6 +336,7 @@ final class NavViews {
         }
 
         @Override protected void dispatchDraw(android.graphics.Canvas canvas) {
+            if (gate.hiding()) return;
             super.dispatchDraw(canvas);
             if (measureDraw) {
                 measureDraw = false;
@@ -412,6 +462,10 @@ final class NavViews {
         }
 
         void restyle(KsTheme theme) { menu.restyle(theme); }
+
+        @Override protected void dispatchDraw(android.graphics.Canvas canvas) {
+            if (!gate.hiding()) super.dispatchDraw(canvas);
+        }
 
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
