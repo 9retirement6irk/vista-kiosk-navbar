@@ -112,6 +112,13 @@ public final class NavbarTest {
             + "Garage interior|mdi:garage|camera:garage_interior;Blue bedroom|mdi:sofa|camera:blue_bedroom";
         check(cameras.length() <= 512);
         eq(9, NavItem.menu("Cameras", "mdi:cctv", cameras).children.size());
+        // Camera entries without an icon get a camera icon. Other entries get the generic one.
+        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Driveway||camera:8c65;Garage|mdi:garage|camera:feb;Air||/a/air");
+        eq(NavItem.CAMERA_ICON, bare.children.get(0).icon);
+        eq("mdi:garage", bare.children.get(1).icon);
+        eq(NavItem.DEFAULT_ICON, bare.children.get(2).icon);
+        eq(NavItem.CAMERA_ICON, NavItem.leaf("C", "|mdi:x", "", "camera:a").icon);
+        eq("mdi:x", NavItem.leaf("C", "|mdi:x", "", "camera:a").iconSelected);
         String[] icons = NavItem.icons("mdi:home-outline|mdi:home");
         eq("mdi:home-outline", icons[0]);
         eq("mdi:home", icons[1]);
@@ -170,6 +177,20 @@ public final class NavbarTest {
         check(everywhere.sameLook(cfg));
         wider.put("item4Label", "Switches");
         check(!NavConfig.parse(wider).sameLook(cfg));
+
+        StringBuilder seven = new StringBuilder();
+        for (int i = 0; i < 7; i++) seven.append("E").append(i).append("||/a/e").append(i).append(';');
+        NavItem longMenu = NavItem.menu("M", "", seven.toString());
+        NavItem shortMenu = NavItem.menu("M", "", "A||/a/a;B||/a/b");
+        NavConfig auto = NavConfig.parse(new HashMap<String, Object>());
+        eq(NavConfig.MenuLayout.AUTO, auto.menuLayout);
+        check(auto.grid(longMenu));
+        check(!auto.grid(shortMenu));
+        Map<String, Object> layouts = new HashMap<>();
+        layouts.put("menuLayout", "List");
+        check(!NavConfig.parse(layouts).grid(longMenu));
+        layouts.put("menuLayout", "Grid");
+        check(NavConfig.parse(layouts).grid(shortMenu));
 
         NavConfig empty = NavConfig.parse(new HashMap<String, Object>());
         check(!empty.top);

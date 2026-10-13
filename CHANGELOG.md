@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- **Grid menus.** **Menu layout** can be Auto, List or Grid. Grid shows tiles with an icon over a label, and Auto uses a grid above 6 entries.
+- Menus hold up to 16 entries.
+- Camera entries without an icon get a camera icon, which also keeps long camera menus short enough to fit in the setting.
+
 ## 0.4.0
 
 - **Swipe to collapse.** Swipe the bar toward its edge to fold it into its tab, and swipe the tab back or tap it to open the bar. The collapse chevron is gone.

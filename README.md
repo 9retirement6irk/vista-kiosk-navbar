@@ -35,6 +35,7 @@ Settings save as you edit them. The bar redraws immediately.
 | Opacity | Background opacity in percent. Lower values let the dashboard show through, while icons and labels stay solid |
 | Collapsing | **Start open** (default), **Start collapsed** or **Off**. See below |
 | Collapse after | Seconds without a tap before an open bar folds back into its tab. 0 keeps it open |
+| Menu layout | **Auto**, **List** or **Grid**. Grid shows tiles with an icon over a short label, and suits long menus such as cameras. Auto uses a grid above 6 entries |
 
 ### Items 1 to 7
 
@@ -61,7 +62,7 @@ Settings save as you edit them. The bar redraws immediately.
 | `home` | Loads the kiosk's Start URL |
 | `https://…` | Loads a URL in the dashboard |
 
-**Menu** targets list entries as `Label|icon|target`, separated by semicolons or new lines. Each entry's target is a Page or Action target. The icon can be empty. A menu holds up to 12 entries and opens next to its item. The item is highlighted while any of its pages is shown. Tap the item again, or the space beside the menu, to close it.
+**Menu** targets list entries as `Label|icon|target`, separated by semicolons or new lines. Each entry's target is a Page or Action target. The icon can be empty, and camera entries then get a camera icon. A menu holds up to 16 entries and opens next to its item. The item is highlighted while any of its pages is shown. Tap the item again, or the space beside the menu, to close it.
 
 ```text
 Weather|mdi:weather-partly-cloudy|/dash/weather; Air|mdi:home-heart|/dash/air; Garage|mdi:garage|camera:garage

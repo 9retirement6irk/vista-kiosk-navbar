@@ -16,6 +16,12 @@ final class NavConfig {
     /** Whether the bar can shrink to a tab at its edge, and how it starts. */
     enum Collapse { OFF, START_OPEN, START_COLLAPSED }
 
+    /** How a menu shows its entries. Auto uses a grid once a list would get long. */
+    enum MenuLayout { AUTO, LIST, GRID }
+
+    /** Auto switches to a grid above this many entries. */
+    static final int AUTO_GRID_ABOVE = 6;
+
     final boolean top;
     final Labels labels;
     final float scale;
@@ -25,12 +31,13 @@ final class NavConfig {
     final Collapse collapse;
     /** Seconds without a tap before an open bar collapses again. 0 never does. */
     final int autoCollapse;
+    final MenuLayout menuLayout;
     final List<String> showOn;
     final List<NavItem> items;
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(boolean top, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse,
+    private NavConfig(boolean top, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout,
                       List<String> showOn, List<NavItem> items, List<String> problems) {
         this.top = top;
         this.labels = labels;
@@ -39,6 +46,7 @@ final class NavConfig {
         this.opacity = opacity;
         this.collapse = collapse;
         this.autoCollapse = autoCollapse;
+        this.menuLayout = menuLayout;
         this.showOn = Collections.unmodifiableList(showOn);
         this.items = Collections.unmodifiableList(items);
         this.problems = Collections.unmodifiableList(problems);
@@ -59,6 +67,8 @@ final class NavConfig {
         Collapse collapse = "Start open".equals(collapseSetting) ? Collapse.START_OPEN
             : "Start collapsed".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.OFF;
         int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
+        String layoutSetting = text(settings, "menuLayout");
+        MenuLayout menuLayout = "List".equals(layoutSetting) ? MenuLayout.LIST : "Grid".equals(layoutSetting) ? MenuLayout.GRID : MenuLayout.AUTO;
         List<String> showOn = new ArrayList<>();
         for (String prefix : text(settings, "showOn").split(",")) {
             if (!prefix.trim().isEmpty()) showOn.add(Paths.normalize(prefix.trim()));
@@ -84,7 +94,7 @@ final class NavConfig {
                 problems.add(name + ": " + error.getMessage());
             }
         }
-        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, showOn, items, problems);
+        return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, showOn, items, problems);
     }
 
     /** Whether the bar belongs on {@code path}. Unknown paths show it, so it is never stuck hidden. */
@@ -93,6 +103,13 @@ final class NavConfig {
         if (showOn.isEmpty() || path == null) return true;
         for (String prefix : showOn) if (Paths.within(path, prefix)) return true;
         return false;
+    }
+
+    /** Whether a menu shows its entries as a grid of tiles rather than a list. */
+    boolean grid(NavItem menu) {
+        if (menuLayout == MenuLayout.GRID) return true;
+        if (menuLayout == MenuLayout.LIST) return false;
+        return menu.children.size() > AUTO_GRID_ABOVE;
     }
 
     /** The first item that is the page at {@code path}, or -1. */
@@ -109,7 +126,7 @@ final class NavConfig {
     String describe() {
         StringBuilder text = new StringBuilder();
         text.append(top).append('|').append(labels).append('|').append(scale).append('|').append(inset)
-            .append('|').append(opacity).append('|').append(collapse);
+            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }

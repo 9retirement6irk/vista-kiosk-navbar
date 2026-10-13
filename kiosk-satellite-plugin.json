@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -111,6 +111,19 @@
       "description": "Seconds without a tap before an open bar folds back into its tab. 0 keeps it open until someone swipes it away."
     },
     {
+      "key": "menuLayout",
+      "type": "select",
+      "title": "Menu layout",
+      "default": "Auto",
+      "options": [
+        "Auto",
+        "List",
+        "Grid"
+      ],
+      "group": "Bar",
+      "description": "How menus show their entries. Grid shows tiles with an icon over a short label, like an app drawer, and suits long menus such as cameras. Auto uses a grid for menus with more than 6 entries."
+    },
+    {
       "key": "item1Type",
       "type": "select",
       "title": "Type",
@@ -154,7 +167,7 @@
       "title": "Target",
       "default": "/lovelace/0",
       "group": "Item 1",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item2Type",
@@ -200,7 +213,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 2",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item3Type",
@@ -246,7 +259,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 3",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item4Type",
@@ -292,7 +305,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 4",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item5Type",
@@ -338,7 +351,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 5",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item6Type",
@@ -384,7 +397,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 6",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     },
     {
       "key": "item7Type",
@@ -430,7 +443,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 7",
-      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: entries as Label|mdi:icon|target separated by semicolons."
+      "description": "Page: a dashboard path such as /wall-tablet/kitchen. Action: camera:<view id>, music, nowplaying, screensaver, apps, reload, home or a URL. Menu: up to 16 entries as Label|mdi:icon|target separated by semicolons. The icon can be empty, and camera entries then get a camera icon."
     }
   ],
   "commands": [

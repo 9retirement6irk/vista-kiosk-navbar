@@ -507,7 +507,10 @@ final class NavViews {
         private int px(float dp) { return theme.px(dp); }
     }
 
-    /** The entries of a menu item, as a card of rows. The current page's row is highlighted. */
+    /**
+     * The entries of a menu item on a card: a list of rows, or a grid of tiles for long menus such as
+     * cameras. The current page's entry is highlighted.
+     */
     static final class Menu extends LinearLayout {
         interface Taps {
             void onChild(int index);
@@ -516,6 +519,10 @@ final class NavViews {
         private final NavConfig config;
         private final NavItem item;
         private final String path;
+        private final boolean grid;
+        private final int columns;
+        /** One per entry, in order. Each holds an icon then a label. */
+        private final List<LinearLayout> entries = new ArrayList<>();
         private KsTheme theme;
 
         Menu(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Taps taps) {
@@ -524,21 +531,37 @@ final class NavViews {
             this.item = config.items.get(itemIndex);
             this.path = path;
             this.theme = theme;
+            int count = item.children.size();
+            this.grid = config.grid(item);
+            this.columns = count <= 4 ? count : count <= 9 ? 3 : 4;
             setOrientation(VERTICAL);
-            for (int i = 0; i < item.children.size(); i++) {
+            LinearLayout row = null;
+            for (int i = 0; i < count; i++) {
                 NavItem child = item.children.get(i);
-                LinearLayout row = new LinearLayout(context);
-                row.setOrientation(HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setContentDescription(child.label);
-                row.addView(icon(context));
+                LinearLayout entry = new LinearLayout(context);
+                entry.setOrientation(grid ? VERTICAL : HORIZONTAL);
+                entry.setGravity(grid ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
+                entry.setContentDescription(child.label);
+                entry.addView(icon(context));
                 TextView label = new TextView(context);
                 label.setText(child.label);
                 label.setSingleLine(true);
-                row.addView(label);
+                label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                if (grid) label.setGravity(Gravity.CENTER);
+                entry.addView(label);
                 final int index = i;
-                row.setOnClickListener(view -> taps.onChild(index));
-                addView(row);
+                entry.setOnClickListener(view -> taps.onChild(index));
+                entries.add(entry);
+                if (grid) {
+                    if (i % columns == 0) {
+                        row = new LinearLayout(context);
+                        row.setOrientation(HORIZONTAL);
+                        addView(row);
+                    }
+                    row.addView(entry);
+                } else {
+                    addView(entry);
+                }
             }
             restyle(theme);
         }
@@ -550,35 +573,46 @@ final class NavViews {
             setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int on = color(theme, "onSecondaryContainer", "onSurface");
-            for (int i = 0; i < getChildCount(); i++) {
+            for (int i = 0; i < entries.size(); i++) {
                 NavItem child = item.children.get(i);
                 boolean selected = child.matches(path);
-                LinearLayout row = (LinearLayout) getChildAt(i);
+                LinearLayout entry = entries.get(i);
                 GradientDrawable background = new GradientDrawable();
                 background.setCornerRadius(px(theme.radiusRow()));
                 background.setColor(selected ? pill : Color.TRANSPARENT);
-                row.setBackground(pressable(theme, background, px(theme.radiusRow())));
-                row.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
-                row.setMinimumHeight(px(48 * s));
-                row.setMinimumWidth(px(220 * s));
-                TextView icon = (TextView) row.getChildAt(0);
+                entry.setBackground(pressable(theme, background, px(theme.radiusRow())));
+                TextView icon = (TextView) entry.getChildAt(0);
                 icon.setText(MdiFont.glyph(selected ? child.iconSelected : child.icon));
-                icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
                 icon.setTextColor(selected ? on : theme.color("onSurfaceVariant"));
-                TextView label = (TextView) row.getChildAt(1);
-                theme.styleText(label, 15 * s, selected ? 600 : 500, "onSurface");
-                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-                gap.leftMargin = px(14 * s);
-                label.setLayoutParams(gap);
-                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-                if (i > 0) rowParams.topMargin = px(2 * s);
-                row.setLayoutParams(rowParams);
+                TextView label = (TextView) entry.getChildAt(1);
+                LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+                if (grid) {
+                    // Tiles: a large icon over a short label, all the same size so the grid lines up.
+                    icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28 * s));
+                    theme.styleText(label, 12.5f * s, 500, "onSurface");
+                    labelParams.topMargin = px(6 * s);
+                    label.setMaxWidth(px(92 * s));
+                    entry.setPadding(px(6 * s), px(12 * s), px(6 * s), px(10 * s));
+                    LinearLayout.LayoutParams tile = new LinearLayout.LayoutParams(px(104 * s), LayoutParams.WRAP_CONTENT);
+                    tile.setMargins(px(2 * s), px(2 * s), px(2 * s), px(2 * s));
+                    entry.setLayoutParams(tile);
+                } else {
+                    icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
+                    theme.styleText(label, 15 * s, 500, "onSurface");
+                    labelParams.leftMargin = px(14 * s);
+                    entry.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
+                    entry.setMinimumHeight(px(48 * s));
+                    entry.setMinimumWidth(px(220 * s));
+                    LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+                    if (i > 0) rowParams.topMargin = px(2 * s);
+                    entry.setLayoutParams(rowParams);
+                }
+                label.setLayoutParams(labelParams);
             }
         }
 
         private int px(float dp) { return theme.px(dp); }
     }
-
     /**
      * The collapsed bar: a small tab flush with the edge, showing the current item's icon and a
      * chevron. Tapping it opens the bar.

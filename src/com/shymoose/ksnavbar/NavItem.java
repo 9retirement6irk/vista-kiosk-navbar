@@ -10,7 +10,8 @@ final class NavItem {
     enum Type { PAGE, ACTION, MENU }
 
     static final String DEFAULT_ICON = "mdi:circle-outline";
-    static final int MAX_CHILDREN = 12;
+    static final String CAMERA_ICON = "mdi:cctv";
+    static final int MAX_CHILDREN = 16;
 
     final Type type;
     final String label;
@@ -41,7 +42,12 @@ final class NavItem {
      */
     static NavItem leaf(String label, String icon, String selectedIcon, String target) {
         NavTarget parsed = NavTarget.parse(target);
-        String[] icons = icons(icon, selectedIcon);
+        // Camera entries are usually many, so they get a camera icon unless one is set.
+        String fallback = parsed.kind == NavTarget.Kind.CAMERA ? CAMERA_ICON : DEFAULT_ICON;
+        String trimmed = icon == null ? "" : icon.trim();
+        // A legacy "|mdi:x" means no normal icon but a selected one.
+        String given = trimmed.isEmpty() || trimmed.startsWith("|") ? fallback + trimmed : trimmed;
+        String[] icons = icons(given, selectedIcon);
         Type type = parsed.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
         return new NavItem(type, label, icons[0], icons[1], parsed, Collections.<NavItem>emptyList());
     }
