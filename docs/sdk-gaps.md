@@ -89,13 +89,13 @@ Each option should keep fleet sync working.
 
 **Suggestion:** Document it. Something like: "showOverlay never blocks. From the main thread, create runs after the call returns."
 
-## 11. Unclear whether fleet sync carries plugin settings
+## 11. Fleet sync does not carry plugins or their settings
 
 **Need:** Configure the bar once on the fleet leader and have every display follow.
 
-**Today:** It is not documented whether native fleet sync includes plugin installs, enabled state or plugin settings.
+**Today:** KS's docs/fleet.md answers this. Plugin Manager stays entirely local, and fleet sync copies no installed plugins, plugin settings, per-plugin enabled states or Enable Plugins master switch. Each display has to be installed and configured on its own, which we script through the remote API.
 
-**Suggestion:** Document the behavior, and ideally sync plugin settings for plugins installed from the same repository and version.
+**Suggestion:** Offer an opt-in sync of installed plugins and their settings from the leader, for followers on the same KS version.
 
 ## 12. `haNavigate` reports failure after a successful move to another dashboard
 
