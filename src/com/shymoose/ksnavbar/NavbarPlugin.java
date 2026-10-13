@@ -56,6 +56,8 @@ public final class NavbarPlugin implements KioskPlugin {
     // Main-thread-only state.
     private boolean shown;
     private int openMenu = -1;
+    /** A tap that reaches the bar this late, in ms, is logged. */
+    private static final long SLOW_TAP_MS = 150;
     private View menuView;
 
     @Override
@@ -220,6 +222,7 @@ public final class NavbarPlugin implements KioskPlugin {
         shown = false;
         openMenu = -1;
         menuView = null;
+        markMenu(-1);
     }
 
     /** Main thread. */
@@ -227,6 +230,7 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         boolean open = openMenu >= 0 || menuView != null;
         openMenu = -1;
+        markMenu(-1);
         if (!open || current == null) return;
         try { current.hideOverlay(MENU); } catch (RuntimeException sessionEnded) {}
     }
@@ -245,6 +249,13 @@ public final class NavbarPlugin implements KioskPlugin {
         // Replacing the overlay at the same key swaps one open menu for another.
         current.showOverlay(MENU, spec, new MenuFactory(cfg, index, offsetPx));
         openMenu = index;
+        markMenu(index);
+    }
+
+    /** Main thread. Shows which item a menu belongs to while it is open. */
+    private void markMenu(int index) {
+        NavViews.Root view = root.get();
+        if (view != null) view.setOpenMenu(index);
     }
 
     /** The overlay anchor for the bar's edge. */
@@ -359,10 +370,12 @@ public final class NavbarPlugin implements KioskPlugin {
         }
 
         @Override public void onLatency(long downMs, long upMs, long drawMs) {
+            // Only slow deliveries are worth a log line; every tap would flood the KS log.
+            long late = Math.max(downMs, upMs);
+            if (late < SLOW_TAP_MS) return;
             PluginHost current = host;
             try {
-                if (current != null) current.log("Tap latency: touch down reached the bar " + downMs + " ms late, touch up "
-                    + upMs + " ms late, first redraw " + drawMs + " ms after touch down");
+                if (current != null) current.log("Slow tap: Kiosk Satellite delivered it " + late + " ms late");
             } catch (RuntimeException ignored) {}
         }
     }
@@ -430,6 +443,7 @@ public final class NavbarPlugin implements KioskPlugin {
             if (menuView == view) {
                 menuView = null;
                 openMenu = -1;
+                markMenu(-1);
             }
         }
     }

@@ -375,6 +375,9 @@ final class NavViews {
 
         boolean isCollapsed() { return collapsed; }
 
+        /** Marks the item whose menu is open, or none for -1. */
+        void setOpenMenu(int index) { bar.setOpen(index); }
+
         private void tapItem(int index) {
             listener.onInteraction();
             NavItem item = config.items.get(index);
@@ -540,6 +543,8 @@ final class NavViews {
         private final List<TextView> labels = new ArrayList<>();
         private KsTheme theme;
         private int active;
+        /** The item whose menu is open, or -1. */
+        private int open = -1;
 
         Bar(Context context, KsTheme theme, NavConfig config, int active, Taps taps) {
             super(context);
@@ -590,6 +595,12 @@ final class NavViews {
             applySelection();
         }
 
+        void setOpen(int index) {
+            if (index == open) return;
+            open = index;
+            applySelection();
+        }
+
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
@@ -630,10 +641,13 @@ final class NavViews {
             for (int i = 0; i < cells.size(); i++) {
                 NavItem item = config.items.get(i);
                 boolean selected = i == active;
-                indicatorShapes.get(i).setColor(selected ? pill : Color.TRANSPARENT);
+                // An open menu's item gets a lighter pill, so it is clear where the menu came from.
+                boolean opened = i == open && !selected;
+                int faint = Color.argb(110, Color.red(pill), Color.green(pill), Color.blue(pill));
+                indicatorShapes.get(i).setColor(selected ? pill : opened ? faint : Color.TRANSPARENT);
                 TextView icon = icons.get(i);
                 icon.setText(MdiFont.glyph(selected ? item.iconSelected : item.icon));
-                icon.setTextColor(selected ? on : off);
+                icon.setTextColor(selected || opened ? on : off);
                 TextView label = labels.get(i);
                 label.setTextColor(selected ? strong : off);
                 boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);

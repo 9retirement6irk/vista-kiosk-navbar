@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1
+
+- While a menu is open, its item shows a lighter pill, so it is clear where the menu came from.
+- The Kiosk Satellite log no longer gets a line for every tap, only for taps that arrive more than 150 ms late.
+
 ## 0.10.0
 
 - **Left and right.** Position can be Left or Right for a vertical rail. Menus open beside it, and a sideways swipe tucks it into a tab on the edge.
