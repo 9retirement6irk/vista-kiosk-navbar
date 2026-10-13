@@ -301,7 +301,10 @@ final class NavViews {
             this.active = config.activeIndex(path);
             setOrientation(config.vertical ? HORIZONTAL : VERTICAL);
             setGravity(config.vertical ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
-            bar = new Bar(context, theme, config, active, this::tapItem);
+            bar = new Bar(context, theme, config, active, new Bar.Taps() {
+                @Override public void onItem(int index) { tapItem(index); }
+                @Override public boolean onLongItem(int index) { return longPressItem(index); }
+            });
             tab = new Tab(context, theme, config, active, view -> {
                 listener.onInteraction();
                 listener.onExpand();
@@ -417,18 +420,30 @@ final class NavViews {
         private void tapItem(int index) {
             listener.onInteraction();
             NavItem item = config.items.get(index);
-            if (item.type == NavItem.Type.MENU) {
-                // The bar's overlay is centered on its edge like the menu's, so the item's distance
-                // from this view's center is its distance from the screen's center.
-                float offset = config.vertical
-                    ? bar.getTop() + bar.itemCenter(index) - getHeight() / 2f
-                    : bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
-                float density = getResources().getDisplayMetrics().density;
-                listener.onMenu(index, Math.round(offset / density), depthDp());
+            if (item.type == NavItem.Type.MENU && !item.longPressMenu()) {
+                openMenu(index);
                 return;
             }
-            if (item.type == NavItem.Type.PAGE) preview(index);
+            if (item.target.kind == NavTarget.Kind.PAGE) preview(index);
             listener.onTarget(item.target);
+        }
+
+        /** A long press opens an item's menu. Items without one do nothing, so a press still taps. */
+        private boolean longPressItem(int index) {
+            if (config.items.get(index).type != NavItem.Type.MENU) return false;
+            listener.onInteraction();
+            openMenu(index);
+            return true;
+        }
+
+        private void openMenu(int index) {
+            // The bar's overlay is centered on its edge like the menu's, so the item's distance
+            // from this view's center is its distance from the screen's center.
+            float offset = config.vertical
+                ? bar.getTop() + bar.itemCenter(index) - getHeight() / 2f
+                : bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
+            float density = getResources().getDisplayMetrics().density;
+            listener.onMenu(index, Math.round(offset / density), depthDp());
         }
 
         private float startX;
@@ -549,6 +564,8 @@ final class NavViews {
     static final class Bar extends LinearLayout {
         interface Taps {
             void onItem(int index);
+            /** A long press. True when it did something, which also suppresses the tap. */
+            boolean onLongItem(int index);
         }
 
         private final NavConfig config;
@@ -590,6 +607,11 @@ final class NavViews {
                 cell.setOnClickListener(view -> {
                     view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
                     taps.onItem(index);
+                });
+                cell.setOnLongClickListener(view -> {
+                    if (!taps.onLongItem(index)) return false;
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    return true;
                 });
                 addView(cell);
                 cells.add(cell);

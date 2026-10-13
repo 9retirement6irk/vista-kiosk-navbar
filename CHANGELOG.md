@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- **Tap opens**, optional on a menu item. Pick a page and a tap opens it, while a long press opens the menu. The item lights up on that page as well as on its entries' pages. Left empty, a tap opens the menu as before.
+- **Pages without the bar** has its own section at the end of the page, so the pages you add are clearly grouped.
+
 ## 0.12.0
 
 - **Plainer wording.** Settings now match Kiosk Satellite's own pages: the **Look** group is **Appearance**, and every setting has a short description. **Swipe to tuck away** is now **Swipe to hide**, with Start visible, Start hidden or Off, and **Tuck away after** is now **Hide after**.

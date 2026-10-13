@@ -366,7 +366,7 @@ public final class NavbarPlugin implements KioskPlugin {
         } else if (userHidden) {
             text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
         } else if (!cfg.visibleAt(path)) {
-            text.append("Hidden on this page, which is in Pages without the bar.");
+            text.append("Hidden on this page, which is listed under Pages without the bar.");
         }
         String message = text.toString().trim();
         if (message.length() > 1000) message = message.substring(0, 1000);

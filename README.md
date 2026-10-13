@@ -37,7 +37,7 @@ Each item has a **Label**, an optional **Icon** and **Selected icon**, and what 
 | --- | --- | --- |
 | Page | A dashboard view | Opens the view, and lights up while it's shown |
 | Camera view | One of the kiosk's camera views | Opens the camera view |
-| Menu | A list of entries | Opens a menu over the item. Over 6 entries show as a grid |
+| Menu | A list of entries | Opens a menu over the item. Over 6 entries show as a grid. Optionally, a tap opens a page and a long press the menu |
 | Kiosk action | Music, Now playing, Screensaver, App launcher, Reload or Start page | Runs it |
 | Web address | An `https://` address | Loads it in the kiosk |
 
@@ -46,6 +46,10 @@ Each item has a **Label**, an optional **Icon** and **Selected icon**, and what 
 | <img src="docs/images/editor-page.png" alt="Editing a page item" width="380"> | <img src="docs/images/editor-menu.png" alt="Editing a menu item and its entries" width="380"> |
 
 Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items, and a menu up to 16 entries.
+
+**Tap opens** is optional on a menu item. Set it to a page and a tap opens that page, while a long press opens the menu. Leave it empty and a tap opens the menu.
+
+**Pages without the bar**, the last section, lists pages where the bar does not show. Add them with the same page picker.
 
 > [!TIP]
 > Leave an icon empty and the navbar picks one from the label, then fills it in: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. Change it any time.
@@ -62,7 +66,7 @@ Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 
 | Swipe to hide | Start visible, Start hidden or Off |
 | Hide after | Seconds without a tap before the bar hides. 0 keeps it visible |
 | Keep the dashboard clear | The dashboard ends above the bar instead of under it. On by default |
-| Pages without the bar | Pages picked from your dashboards, where the bar does not show |
+
 
 </details>
 

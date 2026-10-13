@@ -113,3 +113,11 @@ avbar-demo/settings rather than *Navbar demo / Settings*.
 **Today:** An empty `icon` field reads *Choose an icon*, even though the bar draws an icon picked from the label. Users read that as "no icon". We now save the picked icon back with `saveSettings`, which works but turns a choice the plugin made into one the user appears to have made: renaming *Garage* to *Driveway* later keeps the garage icon.
 
 **Suggestion:** Let a plugin supply a placeholder for an empty `icon` field, such as a `placeholderIcon` the plugin can update at runtime, shown greyed in the picker until the user chooses one.
+
+## 24. A list setting's description shows under the add row
+
+**Need:** Explain a list setting above its rows, the way other settings put their description under the title.
+
+**Today:** A top-level `list` setting in its own group renders its rows first and its description in small text below the **Add** row. With **Pages without the bar** empty, the page reads *Add page* followed by *The bar does not show on these pages.*, so the explanation comes after the button it explains.
+
+**Suggestion:** Render a list's title and description above its rows, or let the group carry a description.

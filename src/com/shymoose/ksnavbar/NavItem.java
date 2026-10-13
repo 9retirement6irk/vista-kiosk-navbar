@@ -25,7 +25,10 @@ final class NavItem {
     final String label;
     final String icon;
     final String iconSelected;
-    /** Null for menus. */
+    /**
+     * Where a tap goes. Null for a menu, unless the menu has a Tap opens page: then a tap opens the
+     * page and a long press opens the menu.
+     */
     final NavTarget target;
     /** Empty unless this is a menu. */
     final List<NavItem> children;
@@ -50,7 +53,10 @@ final class NavItem {
         if (opens.isEmpty()) opens = PAGE;
         if (MENU.equals(opens)) {
             if (!allowMenu) throw new IllegalArgumentException("a menu entry cannot open another menu");
-            return menu(label, text(row, "icon"), text(row, "iconSelected"), rows(row.get("entries")));
+            NavItem menu = menu(label, text(row, "icon"), text(row, "iconSelected"), rows(row.get("entries")));
+            String tapPage = text(row, "tapPage");
+            if (tapPage.isEmpty()) return menu;
+            return new NavItem(Type.MENU, menu.label, menu.icon, menu.iconSelected, NavTarget.page(tapPage), menu.children);
         }
         NavTarget target;
         switch (opens) {
@@ -109,12 +115,15 @@ final class NavItem {
         return guessed != null ? guessed : otherwise;
     }
 
-    /** Whether this item, or one of its menu entries, is the page at {@code path}. */
+    /** A menu whose tap opens a page, so the menu needs a long press. */
+    boolean longPressMenu() { return type == Type.MENU && target != null; }
+
+    /** Whether this item, its Tap opens page or one of its menu entries is the page at {@code path}. */
     boolean matches(String path) {
         if (path == null) return false;
         if (type == Type.MENU) {
             for (NavItem child : children) if (child.matches(path)) return true;
-            return false;
+            if (target == null) return false;
         }
         String own = target.matchPath();
         return own != null && own.equals(Paths.normalize(path));

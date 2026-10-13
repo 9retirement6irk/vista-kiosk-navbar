@@ -119,7 +119,27 @@ public final class NavbarTest {
         Map<String, Object> web = row("Zork", "Web address");
         web.put("url", "https://x.example");
         eq("mdi:web", NavItem.fromRow(web, true).icon);
-        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
+        // By default a tap opens the menu. With Tap opens set, a tap opens that page instead and a
+        // long press opens the menu, and the item lights up on that page too.
+        check(!menu.longPressMenu());
+        check(menu.target == null);
+        Map<String, Object> split = menuRow("Climate", "", page("Weather", "panel/weather", ""));
+        split.put("tapPage", "panel/climate");
+        NavItem both = NavItem.fromRow(split, true);
+        eq(NavItem.Type.MENU, both.type);
+        check(both.longPressMenu());
+        eq("haNavigate", both.target.command().name);
+        eq("panel/climate", both.target.value);
+        check(both.matches("/panel/climate"));
+        check(both.matches("/panel/weather"));
+        check(!both.matches("/panel/other"));
+        split.put("tapPage", "");
+        check(!NavItem.fromRow(split, true).longPressMenu());
+        // Tap opens is ignored on anything but a menu.
+        Map<String, Object> plain = page("Home", "a/home", "");
+        plain.put("tapPage", "a/other");
+        check(!NavItem.fromRow(plain, true).longPressMenu());
+        eq("a/home", NavItem.fromRow(plain, true).target.value);        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
         List<Object> withEmpty = list(page("Garage", "a/g", ""), page("Kept", "a/k", "mdi:star"),
             menuRow("Cams", "", camera("Zork", ""), camera("Driveway", "")), page("", "a/x", ""), page("Bad", "", ""));
         List<Map<String, Object>> filledRows = NavItem.withIcons(withEmpty);
