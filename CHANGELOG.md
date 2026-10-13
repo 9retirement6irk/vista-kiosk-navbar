@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1
+
+- Actions with no icon get one that fits: screensaver, apps, now playing, web addresses.
+- A new README with screenshots.
+
 ## 0.9.0
 
 - **Readable menus.** Menu entries are written `Label = target`, with an optional `= mdi:icon` at the end, instead of `Label|icon|target`.

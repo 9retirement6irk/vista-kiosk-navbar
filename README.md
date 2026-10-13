@@ -1,88 +1,80 @@
 # Navbar for Kiosk Satellite
 
-A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite). It floats over the dashboard as a KS overlay, styled with KS's own colors, shapes and Rubik typeface, and follows the light and dark theme.
+A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) wall panels. KS draws it itself, in its own colors and type, so it feels like part of the kiosk rather than part of the dashboard.
 
-- **Follows the page.** The item for the dashboard view on screen is highlighted. This includes views you reach some other way, such as a link, a gesture or an automation.
-- **Native navigation.** Items open dashboard views through KS, and can also run kiosk actions: camera views, Music Assistant, Now Playing, the screensaver and the app launcher.
-- **Menus.** An item can open a panel of entries, like the popups in lovelace-navbar-card.
-- **Out of the way.** The background can be translucent, and the bar can fold into a small tab at the screen edge. It can start open or collapsed, and can collapse itself again after a while.
-- **Self-contained.** It needs no Home Assistant token and makes no network requests. All 7,400+ [Material Design Icons](https://pictogrammers.com/library/mdi/) are bundled, so any `mdi:` name works offline.
-- **Light.** It is drawn with Android views, not a WebView, so it adds almost nothing to a low-power tablet.
+<p align="center"><img src="docs/images/bar.png" alt="The navbar over a dashboard" width="720"></p>
 
-Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card). Built from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world).
+- **Knows where you are.** The current page's item lights up, however you got there.
+- **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras.
+- **Kiosk actions.** Open camera views, Music Assistant, Now Playing, the screensaver or the app launcher.
+- **Gets out of the way.** Translucent, and a swipe tucks it into a small tab.
+- **Light and offline.** Native Android views, no WebView, no Home Assistant token. All 7,400+ [Material Design Icons](https://pictogrammers.com/library/mdi/) are built in.
+
+| Grid menu | List menu | Tucked away |
+| :---: | :---: | :---: |
+| <img src="docs/images/grid.png" alt="A camera grid menu" width="280"> | <img src="docs/images/list.png" alt="A list menu of kiosk actions" width="280"> | <img src="docs/images/tab.png" alt="The bar tucked into a tab" width="280"> |
+| Long menus, such as cameras, show as tiles | Short menus show as a list | Swipe down to tuck the bar into a tab |
 
 ## Install
 
-Requires a Kiosk Satellite build with native plugin overlays.
-
 1. In Kiosk Satellite, open **Settings > Plugin Manager > Add plugin**.
-2. Paste `https://github.com/dimatx/kiosk-satellite-navbar`, tap **Preview**, review it and tap **Trust and install**.
-3. Enable **Navbar**, then open its page to configure it.
+2. Paste `https://github.com/dimatx/kiosk-satellite-navbar` and tap **Preview**, then **Trust and install**.
+3. Enable **Navbar** and give a few items a **Label** and a **Target**.
 
-## Configure
+## Items
 
-Settings save as you edit them. The bar redraws immediately.
+Each of the 7 items has a **Label** (empty turns the item off), an optional **Icon** and **Selected icon**, and a **Target**:
 
-### Bar
+| Target | Example | Does |
+| --- | --- | --- |
+| A page | `/lovelace/kitchen` | Opens the dashboard view, and lights up while it's shown |
+| A camera view ID | `a1b2c3d4e5f60718293a4b5c6d7e8f90` | Opens a KS camera view. Copy the ID from KS camera settings |
+| An action | `music` | `music`, `nowplaying`, `screensaver`, `apps`, `reload` or `home` |
+| A web address | `https://example.com` | Loads it in the kiosk |
+| A menu | `Weather = /lovelace/weather; Air = /lovelace/air` | Opens a menu of pages and actions |
 
-| Setting | Meaning |
+Menu entries are `Label = target`, separated by semicolons. Add `= mdi:icon` to pick an entry's icon. Up to 16 entries fit, and menus over 6 entries show as a grid.
+
+```text
+Front door = a1b2c3d4e5f60718293a4b5c6d7e8f90; Garage = fedcba9876543210fedcba9876543210 = mdi:garage
+```
+
+> [!TIP]
+> Leave icons empty and the navbar picks one from the label: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa.
+
+<details>
+<summary><b>Bar settings</b></summary>
+
+| Setting | Options |
 | --- | --- |
 | Position | Bottom or Top |
 | Labels | Always, Active only or Never |
-| Show on | Comma-separated dashboard paths where the bar appears, such as `/wall-tablet,/bedroom-wall-tablet`. Every view below them is included. Empty shows it on every page |
-| Size | Scale of the bar and its menus |
-| Edge distance | Distance from the screen edge, in dp |
-| Opacity | Background opacity in percent. Lower values let the dashboard show through, while icons and labels stay solid |
-| Collapsing | **Start open** (default), **Start collapsed** or **Off**. See below |
-| Collapse after | Seconds without a tap before an open bar folds back into its tab. 0 keeps it open |
-| Menu layout | **Auto**, **List** or **Grid**. Grid shows tiles with an icon over a short label, and suits long menus such as cameras. Auto uses a grid above 6 entries |
+| Size | 80% to 140% |
+| Opacity | How much of the dashboard shows through |
+| Collapsing | Start open, Start collapsed or Off |
+| Collapse after | Seconds without a tap before the bar tucks away. 0 never does |
+| Hide on | Pages without the bar, such as `/profile`. Includes the pages below them |
 
-### Items 1 to 7
+</details>
 
-| Setting | Meaning |
-| --- | --- |
-| Type | **Off**, **Page**, **Action** or **Menu** |
-| Label | Text under the icon, also read by accessibility services |
-| Icon | Optional. An MDI name, such as `mdi:home-outline`. Leave it empty to pick one from the label (see below) |
-| Selected icon | Optional. The icon while the item's page is shown, often the filled version, such as `mdi:home` |
-| Target | See below |
+<details>
+<summary><b>Collapsing</b></summary>
 
-**Icons from labels.** An item or menu entry with no icon gets one from its label. "Driveway" gets a road, "Garage" a garage, "Living room" a sofa, "Blue bedroom" a bed, "Exterior" and "Interior" a house with an arrow out or in, and "South" an arrow pointing down. There are about 70 rules for common rooms, outdoor spaces and features. A label that matches none gets a camera icon for a camera entry and a plain circle otherwise. This also keeps long camera menus short enough to fit in the setting.
+Swipe the bar toward the screen edge to tuck it into a tab. Swipe the tab back, or tap it, to bring the bar back. The tab shows the current page's icon.
 
-**Page** targets are dashboard paths, such as `/wall-tablet/kitchen`. The item is highlighted while that view is shown. A dashboard's first view matches both `/dash/0` and `/dash`. A path with a query string, such as `/dash/cameras?camera=garage`, still works. It loads as a full URL on the kiosk's current server, and the highlight ignores the query.
+</details>
 
-**Action** targets:
+<details>
+<summary><b>Gestures and the kiosk drawer</b></summary>
 
-| Target | Does |
-| --- | --- |
-| `camera:<view id>` | Opens a KS camera view |
-| `music` | Opens Music Assistant |
-| `nowplaying` | Shows Now Playing |
-| `screensaver` | Starts the screensaver |
-| `apps` | Opens the app launcher |
-| `reload` | Reloads the dashboard |
-| `home` | Loads the kiosk's Start URL |
-| `https://…` | Loads a URL in the dashboard |
+**Show navbar**, **Hide navbar** and **Toggle navbar** can be mapped to a gesture or added to the kiosk drawer.
 
-**Menu** targets list entries as `Label|icon|target`, separated by semicolons or new lines. Each entry's target is a Page or Action target. The icon can be empty, and camera entries then get a camera icon. A menu holds up to 16 entries and opens next to its item. The item is highlighted while any of its pages is shown. Tap the item again, or the space beside the menu, to close it.
+</details>
 
-```text
-Weather|mdi:weather-partly-cloudy|/dash/weather; Air|mdi:home-heart|/dash/air; Garage|mdi:garage|camera:garage
-```
+<details>
+<summary><b>Leave room for the bar</b></summary>
 
-Problems, such as an unknown target, are listed on the plugin page, and the item is left out until it is fixed.
-
-### Collapsing
-
-By default the bar starts open. Swipe it toward its edge (down for a bottom bar, up for a top bar) to fold it into a small tab flush with the screen edge. Swipe the tab back, or tap it, to open the bar again. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
-
-### Actions
-
-**Show navbar**, **Hide navbar** and **Toggle navbar** can be mapped to a gesture or added to the kiosk drawer. Hide navbar keeps the bar hidden on every page until Show navbar or Toggle navbar runs.
-
-## Leave room for the bar
-
-The bar floats over the dashboard and cannot shrink the page. Give your dashboard some bottom padding so its last cards can scroll clear of the bar. For example, with [card-mod](https://github.com/thomasloven/lovelace-card-mod) in a theme:
+The bar floats over the dashboard. Add bottom padding so the last cards can scroll clear of it, for example with [card-mod](https://github.com/thomasloven/lovelace-card-mod) in a theme:
 
 ```yaml
 card-mod-root-yaml: |
@@ -90,25 +82,24 @@ card-mod-root-yaml: |
     #view { padding-bottom: 96px !important; }
 ```
 
-## Build
+</details>
 
-You need a JDK, Python 3 and the Android SDK, with a platform and build tools installed and `ANDROID_HOME` set.
+<details>
+<summary><b>Build from source</b></summary>
+
+Needs a JDK, Python 3 and the Android SDK with `ANDROID_HOME` set.
 
 ```sh
 python3 tools/test.py
 python3 tools/build.py
 ```
 
-The ZIP lands in `dist/`. Install it on a kiosk with **Plugin Manager > Developer Tools > Install from ZIP**.
+The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > Install from ZIP**. To release, publish a GitHub release tagged `vX.Y.Z`. CI tests, builds and attaches the files KS verifies.
 
-`tools/gen_mdi.py` packs the vendored font in `third_party/mdi/` into `build/generated/`. Plugin code cannot read the package's `assets/` folder, so the font travels in the DEX and is written to the app's cache directory on first use.
+</details>
 
-To release, publish a GitHub release with a `vX.Y.Z` tag. The workflow tests, builds and attaches the plugin files that KS verifies.
+## Credits
 
-## SDK gaps
-
-[docs/sdk-gaps.md](docs/sdk-gaps.md) tracks plugin SDK limitations found while building this plugin, with suggested changes for the maintainer.
-
-## License
+Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) and built from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
 
 Apache-2.0. Material Design Icons: see [third_party/mdi/LICENSE](third_party/mdi/LICENSE).

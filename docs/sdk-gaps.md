@@ -70,7 +70,7 @@ Each option should keep fleet sync working.
 
 ## 8. `haNavigate` rejects query strings
 
-**Need:** Open view paths that carry parameters, such as the Advanced Camera Card's `?advanced-camera-card-action.camera_select=garage`.
+**Need:** Open view paths that carry parameters, such as the Advanced Camera Card's `?camera=garage`.
 
 **Today:** `haNavigate` accepts only `^/?seg(/seg)*$`. We fall back to `loadUrl` with the origin of the current URL, which does a full page load instead of HA's in-app navigation.
 
@@ -104,7 +104,7 @@ Each option should keep fleet sync working.
 
 **Need:** Use the boolean result to decide whether to fall back to `loadUrl`.
 
-**Today:** Measured on KS 2026.10.21: `haNavigate {path: /bedroom-wall-tablet/toggles}` from `/wall-tablet/0` moved the page within 0.4 s, since `browser.state` fired and `getDashboardState` showed the new path. About 4 s later the command resolved `false`. A plugin that trusts the result reloads a page that is already shown. We now compare the reported page to the target before falling back.
+**Today:** Measured on KS 2026.10.21: `haNavigate {path: /panel/toggles}` from `/lovelace/0` moved the page within 0.4 s, since `browser.state` fired and `getDashboardState` showed the new path. About 4 s later the command resolved `false`. A plugin that trusts the result reloads a page that is already shown. We now compare the reported page to the target before falling back.
 
 **Suggestion:** Resolve `true` once the WebView reports the new path, including for a move to another dashboard, or document what `false` means.
 

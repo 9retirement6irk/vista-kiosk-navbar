@@ -39,7 +39,7 @@ final class NavItem {
     /** A page or action with an optional icon for its selected state, which defaults to the normal one. */
     static NavItem leaf(String label, String icon, String selectedIcon, String target) {
         NavTarget parsed = NavTarget.parse(target);
-        String fallback = fallbackIcon(label, parsed.kind == NavTarget.Kind.CAMERA ? CAMERA_ICON : DEFAULT_ICON);
+        String fallback = fallbackIcon(label, kindIcon(parsed.kind));
         String[] icons = icons(icon, selectedIcon, fallback);
         Type type = parsed.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
         return new NavItem(type, label, icons[0], icons[1], parsed, Collections.<NavItem>emptyList());
@@ -75,6 +75,21 @@ final class NavItem {
 
     private static final java.util.regex.Pattern TRAILING_ICON =
         java.util.regex.Pattern.compile("^(.*?)\\s*=\\s*(mdi:[A-Za-z0-9-]+)\\s*$");
+
+    /** The icon a target's kind suggests when the label suggests none. */
+    static String kindIcon(NavTarget.Kind kind) {
+        switch (kind) {
+            case CAMERA: return CAMERA_ICON;
+            case MUSIC: return "mdi:music";
+            case NOW_PLAYING: return "mdi:play-circle-outline";
+            case SCREENSAVER: return "mdi:monitor-shimmer";
+            case APPS: return "mdi:apps";
+            case RELOAD: return "mdi:refresh";
+            case HOME: return "mdi:home-outline";
+            case URL: return "mdi:web";
+            default: return DEFAULT_ICON;
+        }
+    }
 
     /**
      * Label, icon and target of one menu entry: {@code Label = target}, optionally followed by

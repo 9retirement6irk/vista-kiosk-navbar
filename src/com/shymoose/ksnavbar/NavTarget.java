@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 /**
  * Where a navbar item goes. Parsed from the compact target syntax used in settings:
- * a dashboard path ({@code /wall-tablet/0}), a URL, or a native KS action keyword.
+ * a dashboard path ({@code /lovelace/0}), a URL, or a native KS action keyword.
  */
 final class NavTarget {
     enum Kind { PAGE, URL, CAMERA, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME }
