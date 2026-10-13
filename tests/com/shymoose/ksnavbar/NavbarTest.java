@@ -41,9 +41,8 @@ public final class NavbarTest {
     private static void targets() {
         eq(NavTarget.Kind.PAGE, NavTarget.parse(" /wall-tablet/0 ").kind);
         eq(NavTarget.Kind.URL, NavTarget.parse("https://example.com/x").kind);
-        eq(NavTarget.Kind.URL, NavTarget.parse("url:https://example.com/x").kind);
-        eq("front-door", NavTarget.parse("camera:front-door").value);
-        eq(NavTarget.Kind.CAMERA, NavTarget.parse("Camera: driveway").kind);
+        eq("84981591289e0d2f116e8744ccbad468", NavTarget.parse(" 84981591289e0d2f116e8744ccbad468 ").value);
+        eq(NavTarget.Kind.CAMERA, NavTarget.parse("febf930c62bb15cd2a7ade43c77b092f").kind);
         eq(NavTarget.Kind.MUSIC, NavTarget.parse("music").kind);
         eq(NavTarget.Kind.NOW_PLAYING, NavTarget.parse("NowPlaying").kind);
         eq(NavTarget.Kind.NOW_PLAYING, NavTarget.parse("now-playing").kind);
@@ -53,7 +52,8 @@ public final class NavbarTest {
         eq(NavTarget.Kind.HOME, NavTarget.parse("home").kind);
         rejects("");
         rejects("   ");
-        rejects("camera:");
+        rejects("camera:84981591289e0d2f116e8744ccbad468");
+        rejects("4981591289e0d2f116e8744ccbad468");
         rejects("wall-tablet");
         rejects("javascript:alert(1)");
         rejects("https://user:pw@example.com");
@@ -73,8 +73,8 @@ public final class NavbarTest {
             query.command(null);
             throw new AssertionError("query paths need the origin");
         } catch (IllegalStateException expected) { passed++; }
-        eq("showCameraView", NavTarget.parse("camera:front").command(null).name);
-        eq("front", NavTarget.parse("camera:front").command(null).arguments.get("viewId"));
+        eq("showCameraView", NavTarget.parse("84981591289e0d2f116e8744ccbad468").command(null).name);
+        eq("84981591289e0d2f116e8744ccbad468", NavTarget.parse("84981591289e0d2f116e8744ccbad468").command(null).arguments.get("viewId"));
         eq("showMusicAssistant", NavTarget.parse("music").command(null).name);
         eq("showNowPlaying", NavTarget.parse("nowplaying").command(null).name);
         eq("startScreensaver", NavTarget.parse("screensaver").command(null).name);
@@ -91,8 +91,8 @@ public final class NavbarTest {
 
     private static void menus() {
         NavItem menu = NavItem.menu("Climate", "mdi:weather-partly-cloudy",
-            "Weather|mdi:weather-partly-cloudy|/bedroom-wall-tablet/weather; Health and air|mdi:home-heart|/bedroom-wall-tablet/health-and-air;\n"
-                + "Music||music");
+            "Weather = /bedroom-wall-tablet/weather = mdi:weather-partly-cloudy; Health and air=/bedroom-wall-tablet/health-and-air=mdi:home-heart;\n"
+                + "Music = music");
         eq(NavItem.Type.MENU, menu.type);
         eq(3, menu.children.size());
         eq(NavItem.Type.ACTION, menu.children.get(2).type);
@@ -102,42 +102,53 @@ public final class NavbarTest {
         check(!menu.matches("/bedroom-wall-tablet/toggles"));
         check(!menu.matches(null));
         rejectsMenu("");
-        rejectsMenu("Weather|mdi:x");
-        rejectsMenu("|mdi:x|/a");
-        rejectsMenu("Bad|mdi:x|nowhere");
+        rejectsMenu("Weather");
+        rejectsMenu(" = /a/b");
+        rejectsMenu("Bad = nowhere");
+        rejectsMenu("Old|mdi:x|/a/b");
+        // Only the first = ends the label, so a page keeps = in its query.
+        eq("/a/b?x=1", NavItem.menu("M", "", "A = /a/b?x=1").children.get(0).target.value);
+        eq("mdi:door", NavItem.menu("M", "", "A = /a/b?x=1 = mdi:door").children.get(0).icon);
+        eq("mdi:weather-partly-cloudy", menu.children.get(0).icon);
+        eq("mdi:home-heart", menu.children.get(1).icon);
         StringBuilder many = new StringBuilder();
-        for (int i = 0; i <= NavItem.MAX_CHILDREN; i++) many.append("E").append(i).append("||/a/b").append(i).append(';');
+        for (int i = 0; i <= NavItem.MAX_CHILDREN; i++) many.append("E").append(i).append(" = /a/b").append(i).append(';');
         rejectsMenu(many.toString());
-        String cameras = "Front porch|mdi:door|camera:front_porch;Garage|mdi:garage|camera:garage;Driveway|mdi:road-variant|camera:driveway;"
-            + "Living|mdi:sofa|camera:living;Patio|mdi:patio-heater|camera:patio;South|mdi:grass|camera:south;East|mdi:sun-angle|camera:east;"
-            + "Garage interior|mdi:garage|camera:garage_interior;Blue bedroom|mdi:sofa|camera:blue_bedroom";
-        check(cameras.length() <= 512);
-        eq(9, NavItem.menu("Cameras", "mdi:cctv", cameras).children.size());
+        // Twelve cameras with real-length view IDs fit in one setting.
+        StringBuilder cams = new StringBuilder();
+        String[] names = {"Exterior", "Interior", "Front porch", "Garage", "Driveway", "Living", "Patio", "South", "East",
+            "Garage interior", "Blue bedroom", "Trey"};
+        for (int i = 0; i < names.length; i++) {
+            if (i > 0) cams.append(';');
+            cams.append(names[i]).append('=').append(String.format("%032x", i + 1));
+        }
+        check(cams.length() <= 512);
+        eq(12, NavItem.menu("Cameras", "mdi:cctv", cams.toString()).children.size());
         // Camera entries without an icon get a camera icon. Other entries get the generic one.
-        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Cam 9||camera:8c65;Garage|mdi:door|camera:feb;Zork||/a/z;Driveway||camera:d");
+        String cam = "8c65cf7cebe2af4c301a5cf41d402cc9";
+        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Cam 9 = " + cam + "; Garage = " + cam + " = mdi:door; Zork = /a/z; Driveway = " + cam);
         eq(NavItem.CAMERA_ICON, bare.children.get(0).icon);
         eq("mdi:door", bare.children.get(1).icon);
         eq(NavItem.DEFAULT_ICON, bare.children.get(2).icon);
         eq("mdi:road-variant", bare.children.get(3).icon);
-        eq("mdi:weather-partly-cloudy", NavItem.menu("Weather", "", "A||/a/a").icon);
+        eq("mdi:weather-partly-cloudy", NavItem.menu("Weather", "", "A = /a/a").icon);
         eq("mdi:home", NavItem.leaf("Home", "", "mdi:home", "/a/b").iconSelected);
         eq("mdi:home-outline", NavItem.leaf("Home", "", "", "/a/b").icon);
-        eq(NavItem.CAMERA_ICON, NavItem.leaf("C", "|mdi:x", "", "camera:a").icon);
-        eq("mdi:x", NavItem.leaf("C", "|mdi:x", "", "camera:a").iconSelected);
-        String[] icons = NavItem.icons("mdi:home-outline|mdi:home");
-        eq("mdi:home-outline", icons[0]);
-        eq("mdi:home", icons[1]);
-        eq("mdi:cctv", NavItem.icons("mdi:cctv")[1]);
-        eq(NavItem.DEFAULT_ICON, NavItem.icons("")[0]);
-        // Separate fields win, a blank selected icon falls back to a legacy pipe, then to the icon.
-        eq("mdi:home", NavItem.icons("mdi:home-outline", "mdi:home")[1]);
-        eq("mdi:home", NavItem.icons("mdi:home-outline|mdi:home", "")[1]);
-        eq("mdi:x", NavItem.icons("mdi:home-outline|mdi:home", "mdi:x")[1]);
-        eq("mdi:cctv", NavItem.icons("mdi:cctv", "  ")[1]);
+        eq(NavItem.CAMERA_ICON, NavItem.leaf("C", "", "mdi:x", cam).icon);
+        eq("mdi:x", NavItem.leaf("C", "", "mdi:x", cam).iconSelected);
+        // A blank icon uses the fallback, a blank selected icon the normal icon.
+        eq(NavItem.DEFAULT_ICON, NavItem.icons("", "", NavItem.DEFAULT_ICON)[0]);
+        eq("mdi:home", NavItem.icons("mdi:home-outline", "mdi:home", "x")[1]);
+        eq("mdi:cctv", NavItem.icons("mdi:cctv", "  ", "x")[1]);
         eq("mdi:home", NavItem.leaf("Home", "mdi:home-outline", "mdi:home", "/a/b").iconSelected);
-        eq("mdi:sun", NavItem.menu("M", "mdi:cloud", "mdi:sun", "A||/a/b").iconSelected);
+        eq("mdi:sun", NavItem.menu("M", "mdi:cloud", "mdi:sun", "A = /a/b").iconSelected);
+        // Menus are recognized by their entries. A page or URL with = in its query is not a menu.
+        check(NavConfig.isMenu("Weather = /a/b"));
+        check(NavConfig.isMenu("A = /a; B = /b"));
+        check(!NavConfig.isMenu("/a/b?x=1"));
+        check(!NavConfig.isMenu("https://x.example/?a=b"));
+        check(!NavConfig.isMenu("music"));
     }
-
     private static void guesses() {
         eq("mdi:garage-variant", IconGuess.forLabel("Garage interior"));
         eq("mdi:garage", IconGuess.forLabel("Garage"));
@@ -168,10 +179,10 @@ public final class NavbarTest {
         settings.put("scale", "120%");
         item(settings, 1, "Home", "mdi:home-outline", "/wall-tablet/0");
         settings.put("item1IconSelected", "mdi:home");
-        item(settings, 2, "Climate", "mdi:weather-partly-cloudy", "Weather||/bedroom-wall-tablet/weather");
+        item(settings, 2, "Climate", "mdi:weather-partly-cloudy", "Weather = /bedroom-wall-tablet/weather");
         item(settings, 3, "", "mdi:x", "/ignored");
         item(settings, 4, "Toggles", "", "/bedroom-wall-tablet/toggles");
-        item(settings, 5, "Cameras", "mdi:cctv", "camera:front");
+        item(settings, 5, "Cameras", "mdi:cctv", "8c65cf7cebe2af4c301a5cf41d402cc9");
         item(settings, 6, "Broken", "", "");
         item(settings, 7, "Bad", "", "nowhere");
         NavConfig cfg = NavConfig.parse(settings);
@@ -203,8 +214,8 @@ public final class NavbarTest {
         check(!cfg.visibleAt("/developer-tools/yaml"));
         check(!cfg.visibleAt("/profile"));
         check(cfg.visibleAt("/profiles"));
-        check(NavConfig.isMenu("A||/a;B||/b"));
-        check(NavConfig.isMenu("A|mdi:x|/a"));
+        check(NavConfig.isMenu("A=/a;B=/b"));
+        check(NavConfig.isMenu("A = /a = mdi:x"));
         check(!NavConfig.isMenu("/a/b"));
 
         Map<String, Object> wider = new HashMap<>(settings);
@@ -216,9 +227,9 @@ public final class NavbarTest {
         check(!NavConfig.parse(wider).sameLook(cfg));
 
         StringBuilder seven = new StringBuilder();
-        for (int i = 0; i < 7; i++) seven.append("E").append(i).append("||/a/e").append(i).append(';');
+        for (int i = 0; i < 7; i++) seven.append("E").append(i).append(" = /a/e").append(i).append(';');
         NavItem longMenu = NavItem.menu("M", "", seven.toString());
-        NavItem shortMenu = NavItem.menu("M", "", "A||/a/a;B||/a/b");
+        NavItem shortMenu = NavItem.menu("M", "", "A = /a/a; B = /a/b");
         NavConfig auto = NavConfig.parse(new HashMap<String, Object>());
         eq(NavConfig.MenuLayout.AUTO, auto.menuLayout);
         check(auto.grid(longMenu));

@@ -31,46 +31,37 @@ final class NavItem {
         this.children = Collections.unmodifiableList(new ArrayList<>(children));
     }
 
-    /** A page or action from a target string. The type follows the target. */
-    static NavItem leaf(String label, String iconSpec, String target) {
-        return leaf(label, iconSpec, "", target);
+    /** A page or action from a target string, with an optional icon. The type follows the target. */
+    static NavItem leaf(String label, String icon, String target) {
+        return leaf(label, icon, "", target);
     }
 
-    /**
-     * A page or action with an optional icon for its selected state. An empty selected icon uses the
-     * normal one. A legacy {@code mdi:a|mdi:b} icon is still understood when no selected icon is set.
-     */
+    /** A page or action with an optional icon for its selected state, which defaults to the normal one. */
     static NavItem leaf(String label, String icon, String selectedIcon, String target) {
         NavTarget parsed = NavTarget.parse(target);
         String fallback = fallbackIcon(label, parsed.kind == NavTarget.Kind.CAMERA ? CAMERA_ICON : DEFAULT_ICON);
-        String trimmed = icon == null ? "" : icon.trim();
-        // A legacy "|mdi:x" means no normal icon but a selected one.
-        String given = trimmed.isEmpty() || trimmed.startsWith("|") ? fallback + trimmed : trimmed;
-        String[] icons = icons(given, selectedIcon);
+        String[] icons = icons(icon, selectedIcon, fallback);
         Type type = parsed.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
         return new NavItem(type, label, icons[0], icons[1], parsed, Collections.<NavItem>emptyList());
     }
 
     /**
-     * A menu from {@code Label|mdi:icon|target; Label|mdi:icon|target; ...}. Entries may also be
-     * separated by new lines. The icon may be empty.
+     * A menu from {@code Label = target; Label = target = mdi:icon; ...}. Entries may also be
+     * separated by new lines.
      */
-    static NavItem menu(String label, String iconSpec, String entries) {
-        return menu(label, iconSpec, "", entries);
+    static NavItem menu(String label, String icon, String entries) {
+        return menu(label, icon, "", entries);
     }
 
     /** A menu with an optional icon for when one of its pages is shown. */
     static NavItem menu(String label, String icon, String selectedIcon, String entries) {
-        String trimmed = icon == null ? "" : icon.trim();
-        String given = trimmed.isEmpty() || trimmed.startsWith("|") ? fallbackIcon(label, DEFAULT_ICON) + trimmed : trimmed;
-        String[] icons = icons(given, selectedIcon);
+        String[] icons = icons(icon, selectedIcon, fallbackIcon(label, DEFAULT_ICON));
         List<NavItem> children = new ArrayList<>();
-        for (String entry : (entries == null ? "" : entries).split("[;\\n]")) {
-            if (entry.trim().isEmpty()) continue;
-            String[] fields = entry.split("\\|", -1);
-            if (fields.length != 3) throw new IllegalArgumentException("menu entry '" + entry.trim() + "' needs Label|icon|target");
+        for (String text : (entries == null ? "" : entries).split("[;\\n]")) {
+            if (text.trim().isEmpty()) continue;
+            String[] fields = entry(text);
             String childLabel = fields[0].trim();
-            if (childLabel.isEmpty()) throw new IllegalArgumentException("menu entry '" + entry.trim() + "' has no label");
+            if (childLabel.isEmpty()) throw new IllegalArgumentException("menu entry '" + text.trim() + "' has no label");
             try {
                 children.add(leaf(childLabel, fields[1], fields[2]));
             } catch (IllegalArgumentException error) {
@@ -82,6 +73,24 @@ final class NavItem {
         return new NavItem(Type.MENU, label, icons[0], icons[1], null, children);
     }
 
+    private static final java.util.regex.Pattern TRAILING_ICON =
+        java.util.regex.Pattern.compile("^(.*?)\\s*=\\s*(mdi:[A-Za-z0-9-]+)\\s*$");
+
+    /**
+     * Label, icon and target of one menu entry: {@code Label = target}, optionally followed by
+     * {@code = mdi:icon}. Only the first {@code =} ends the label, so a page may keep {@code =} in
+     * its query.
+     */
+    static String[] entry(String text) {
+        String entry = text.trim();
+        int eq = entry.indexOf('=');
+        if (eq < 0) throw new IllegalArgumentException("menu entry '" + entry + "' needs Label = target");
+        String label = entry.substring(0, eq);
+        String rest = entry.substring(eq + 1).trim();
+        java.util.regex.Matcher icon = TRAILING_ICON.matcher(rest);
+        if (icon.matches()) return new String[] {label, icon.group(2), icon.group(1)};
+        return new String[] {label, "", rest};
+    }
     /**
      * The icon for an item with no Icon set: one picked from its label when a rule matches, then the
      * given default, which is a camera icon for camera entries.
@@ -102,18 +111,9 @@ final class NavItem {
         return own != null && own.equals(Paths.normalize(path));
     }
 
-    /** {@code mdi:a} or {@code mdi:a|mdi:b} for the unselected and selected icon. */
-    static String[] icons(String spec) {
-        return icons(spec, "");
-    }
-
-    /** The normal and selected icon. A blank selected icon falls back to a legacy pipe, then to the normal icon. */
-    static String[] icons(String icon, String selectedIcon) {
-        String text = icon == null ? "" : icon.trim();
-        String[] parts = text.split("\\|", -1);
-        String normal = parts[0].trim().isEmpty() ? DEFAULT_ICON : parts[0].trim();
-        String selected = selectedIcon != null && !selectedIcon.trim().isEmpty() ? selectedIcon.trim()
-            : parts.length > 1 && !parts[1].trim().isEmpty() ? parts[1].trim() : normal;
+    /** The normal and selected icon. A blank icon uses the fallback, a blank selected icon the normal one. */
+    static String[] icons(String icon, String selectedIcon, String fallback) {
+        String normal = icon == null || icon.trim().isEmpty() ? fallback : icon.trim();
+        String selected = selectedIcon == null || selectedIcon.trim().isEmpty() ? normal : selectedIcon.trim();
         return new String[] {normal, selected};
-    }
-}
+    }}

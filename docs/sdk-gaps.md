@@ -12,17 +12,20 @@ These are gaps in the Kiosk Satellite plugin SDK (SDK 1, KS 2026.10.21) that cam
 
 ## 2. No structured or long settings
 
-**Need:** A list of items, where each menu holds a list of entries.
+**Need:** A list of items, where each menu holds a list of entries, that is comfortable to edit on a wall panel.
 
-**Today:** Strings and secrets are capped at 512 characters, and a plugin has at most 50 settings. We flattened the configuration into 7 fixed slots of 4 fields each, and packed menus into one string (`Label|icon|target; …`). With KS camera view IDs at 32 characters each, a 9-camera menu does not fit.
+**Today:**
+- A plugin has at most 50 settings, and strings are capped at 512 characters.
+- Every string setting is a single line: a `TextFormField` without `maxLines` on the kiosk (`plugin_settings.dart`) and an `<input type=text>` in Remote Admin (`plugins.js`). Line breaks cannot be typed.
+- So a menu is packed into one long line (`Label = target; Label = target`). With 32-character camera view IDs, at most about 12 cameras fit, and editing that line on a tablet is hard.
+- One setting per menu entry does not fit either. Each entry needs a label and a target, and the bar already needs 35 settings, which leaves room for about 7 entries across all menus.
 
 **Suggestion:** Any one of these would work:
-- a multiline `text` type with a larger limit, such as 8 KB
+- a multiline `text` type with a larger limit, such as 8 KB, edited in a text area
+- a `list` type with per-row sub-fields, for example label, icon and target
 - a `json` type, validated by the plugin, with a code editor in Remote Admin
-- a `list` type with per-row sub-fields
 
 Each option should keep fleet sync working.
-
 ## 3. Camera views cannot be listed
 
 **Need:** Let users pick a camera view by name, or show the view's name in a menu.

@@ -26,7 +26,7 @@ final class NavTarget {
 
     /** The exact path syntax haNavigate accepts, after trailing slashes are removed. */
     static final Pattern NAVIGABLE = Pattern.compile("^/?[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*$");
-    private static final Pattern VIEW_ID = Pattern.compile("^[^\\s|;]{1,120}$");
+    private static final Pattern VIEW_ID = Pattern.compile("^[0-9a-fA-F]{32}$");
 
     final Kind kind;
     /** The path for PAGE, the URL for URL and the view ID for CAMERA. Empty otherwise. */
@@ -42,19 +42,12 @@ final class NavTarget {
         if (text.isEmpty()) throw new IllegalArgumentException("target is empty");
         if (text.startsWith("/")) return new NavTarget(Kind.PAGE, text);
         String lower = text.toLowerCase(java.util.Locale.ROOT);
-        if (lower.startsWith("url:")) {
-            text = text.substring(4).trim();
-            lower = text.toLowerCase(java.util.Locale.ROOT);
-        }
         if (lower.startsWith("http://") || lower.startsWith("https://")) {
             if (text.contains("@")) throw new IllegalArgumentException("URLs cannot contain credentials");
             return new NavTarget(Kind.URL, text);
         }
-        if (lower.startsWith("camera:")) {
-            String id = text.substring(7).trim();
-            if (!VIEW_ID.matcher(id).matches()) throw new IllegalArgumentException("camera needs a view ID, as in camera:front-door");
-            return new NavTarget(Kind.CAMERA, id);
-        }
+        // A KS camera view is named by its ID, the 32 hex characters KS gives every view.
+        if (VIEW_ID.matcher(text).matches()) return new NavTarget(Kind.CAMERA, text);
         switch (lower) {
             case "music": return new NavTarget(Kind.MUSIC, "");
             case "nowplaying": case "now-playing": return new NavTarget(Kind.NOW_PLAYING, "");
@@ -64,7 +57,7 @@ final class NavTarget {
             case "home": return new NavTarget(Kind.HOME, "");
             default:
                 throw new IllegalArgumentException("unknown target '" + raw.trim()
-                    + "'. Use a /dashboard/view path, a URL, camera:<view>, music, nowplaying, screensaver, apps, reload or home");
+                    + "'. Use a /dashboard/view path, a URL, a camera view ID, music, nowplaying, screensaver, apps, reload or home");
         }
     }
 

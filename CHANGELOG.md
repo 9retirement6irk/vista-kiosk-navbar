@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+
+- **Readable menus.** Menu entries are written `Label = target`, with an optional `= mdi:icon` at the end, instead of `Label|icon|target`.
+- **Camera view IDs on their own.** A target that is a 32-character KS camera view ID opens that camera, with no `camera:` prefix. Twelve cameras fit in one menu.
+- **Short setting descriptions.** The settings page gives a one-line hint, and the README has the details.
+- The older pipe syntax and the `camera:` and `url:` prefixes are gone.
+
 ## 0.8.0
 
 - **Simpler settings.** The bar shows on every page. An optional **Hide on** replaces Show on. Items have no **Type**: an item is on when it has a label, and what it does follows its target. **Edge distance** and **Menu layout** are gone. The edge distance is fixed, and menus switch to a grid on their own above 6 entries. 43 settings down to 35.

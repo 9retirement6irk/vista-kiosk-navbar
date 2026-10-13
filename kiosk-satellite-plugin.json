@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -25,7 +25,7 @@
         "Top"
       ],
       "group": "Bar",
-      "description": "Where the bar floats over the dashboard."
+      "description": "Top or bottom of the screen."
     },
     {
       "key": "labels",
@@ -38,7 +38,7 @@
         "Never"
       ],
       "group": "Bar",
-      "description": "Show item labels under the icons."
+      "description": "Text under the icons."
     },
     {
       "key": "scale",
@@ -54,7 +54,7 @@
         "140%"
       ],
       "group": "Bar",
-      "description": "Scale of the bar and its menus."
+      "description": "Size of the bar and its menus."
     },
     {
       "key": "opacity",
@@ -65,7 +65,7 @@
       "max": 100,
       "step": 5,
       "group": "Bar",
-      "description": "Lower values let the dashboard show through the bar. Icons, labels and menus stay easy to read.",
+      "description": "How much of the dashboard shows through.",
       "unit": "%"
     },
     {
@@ -79,7 +79,7 @@
         "Start collapsed"
       ],
       "group": "Bar",
-      "description": "Swipe the bar toward its edge to fold it into a small tab, and swipe the tab back or tap it to open the bar. Start open shows the bar until someone swipes it away. Start collapsed shows only the tab. Off turns the swipe off."
+      "description": "Swipe the bar toward the edge to tuck it into a tab."
     },
     {
       "key": "autoCollapse",
@@ -90,7 +90,7 @@
       "max": 300,
       "step": 5,
       "group": "Bar",
-      "description": "Folds the bar back into its tab after this long without a tap. 0 keeps it open until someone swipes it away.",
+      "description": "Tuck the bar away after this long without a tap. 0 never does.",
       "unit": "s"
     },
     {
@@ -99,7 +99,7 @@
       "title": "Hide on",
       "default": "",
       "group": "Bar",
-      "description": "Optional. Pages where the bar stays hidden, separated by commas, such as /developer-tools,/profile. Each path includes the pages below it. The bar shows everywhere else."
+      "description": "Optional. Pages without the bar, such as /profile."
     },
     {
       "key": "item1Label",
@@ -107,7 +107,7 @@
       "title": "Label",
       "default": "Home",
       "group": "Item 1",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item1Icon",
@@ -115,7 +115,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 1",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item1IconSelected",
@@ -123,7 +123,7 @@
       "title": "Selected icon",
       "default": "mdi:home",
       "group": "Item 1",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item1Target",
@@ -131,7 +131,7 @@
       "title": "Target",
       "default": "/lovelace/0",
       "group": "Item 1",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item2Label",
@@ -139,7 +139,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 2",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item2Icon",
@@ -147,7 +147,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 2",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item2IconSelected",
@@ -155,7 +155,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 2",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item2Target",
@@ -163,7 +163,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 2",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item3Label",
@@ -171,7 +171,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 3",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item3Icon",
@@ -179,7 +179,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 3",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item3IconSelected",
@@ -187,7 +187,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 3",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item3Target",
@@ -195,7 +195,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 3",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item4Label",
@@ -203,7 +203,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 4",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item4Icon",
@@ -211,7 +211,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 4",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item4IconSelected",
@@ -219,7 +219,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 4",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item4Target",
@@ -227,7 +227,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 4",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item5Label",
@@ -235,7 +235,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 5",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item5Icon",
@@ -243,7 +243,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 5",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item5IconSelected",
@@ -251,7 +251,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 5",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item5Target",
@@ -259,7 +259,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 5",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item6Label",
@@ -267,7 +267,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 6",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item6Icon",
@@ -275,7 +275,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 6",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item6IconSelected",
@@ -283,7 +283,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 6",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item6Target",
@@ -291,7 +291,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 6",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     },
     {
       "key": "item7Label",
@@ -299,7 +299,7 @@
       "title": "Label",
       "default": "",
       "group": "Item 7",
-      "description": "Name shown under the icon. Leave empty to turn this item off."
+      "description": "Leave empty to turn this item off."
     },
     {
       "key": "item7Icon",
@@ -307,7 +307,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 7",
-      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
+      "description": "Optional, such as mdi:home-outline."
     },
     {
       "key": "item7IconSelected",
@@ -315,7 +315,7 @@
       "title": "Selected icon",
       "default": "",
       "group": "Item 7",
-      "description": "Optional. The icon while this item's page is shown, often the filled version, such as mdi:home. Leave empty to keep Icon."
+      "description": "Optional. Shown while this page is open."
     },
     {
       "key": "item7Target",
@@ -323,7 +323,7 @@
       "title": "Target",
       "default": "",
       "group": "Item 7",
-      "description": "What a tap does. A dashboard page, such as /lovelace/0. A kiosk action: camera:<view id>, music, nowplaying, screensaver, apps, reload or home. A web address. Or a menu, as entries Label|icon|target separated by semicolons, such as Weather||/lovelace/weather; Garage||camera:<view id>."
+      "description": "A page such as /lovelace/0, an action or a menu. The README lists them all."
     }
   ],
   "commands": [

@@ -94,9 +94,17 @@ final class NavConfig {
         return new NavConfig(top, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, hideOn, items, problems);
     }
 
-    /** A target listing entries, as in Label|icon|target; Label|icon|target, makes a menu. */
+    /**
+     * A target listing entries makes a menu: {@code Label = target; Label = target}. A page or URL
+     * may hold {@code =} in its query, so only text that starts as a label counts.
+     */
     static boolean isMenu(String target) {
-        return target != null && (target.contains("|") || target.contains(";"));
+        if (target == null) return false;
+        String text = target.trim();
+        if (text.contains(";") || text.contains("\n")) return true;
+        if (text.indexOf('=') <= 0) return false;
+        String lower = text.toLowerCase(java.util.Locale.ROOT);
+        return !text.startsWith("/") && !lower.startsWith("http://") && !lower.startsWith("https://");
     }
 
     /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
