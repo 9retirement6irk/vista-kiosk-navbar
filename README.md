@@ -43,9 +43,11 @@ Settings save as you edit them. The bar redraws immediately.
 | --- | --- |
 | Type | **Off**, **Page**, **Action** or **Menu** |
 | Label | Text under the icon, also read by accessibility services |
-| Icon | An MDI name, such as `mdi:home-outline` |
+| Icon | Optional. An MDI name, such as `mdi:home-outline`. Leave it empty to pick one from the label (see below) |
 | Selected icon | Optional. The icon while the item's page is shown, often the filled version, such as `mdi:home` |
 | Target | See below |
+
+**Icons from labels.** An item or menu entry with no icon gets one from its label. "Driveway" gets a road, "Garage" a garage, "Living room" a sofa, "Blue bedroom" a bed, "Exterior" and "Interior" a house with an arrow out or in, and "South" an arrow pointing down. There are about 70 rules for common rooms, outdoor spaces and features. A label that matches none gets a camera icon for a camera entry and a plain circle otherwise. This also keeps long camera menus short enough to fit in the setting.
 
 **Page** targets are dashboard paths, such as `/wall-tablet/kitchen`. The item is highlighted while that view is shown. A dashboard's first view matches both `/dash/0` and `/dash`. A path with a query string, such as `/dash/cameras?camera=garage`, still works. It loads as a full URL on the kiosk's current server, and the highlight ignores the query.
 

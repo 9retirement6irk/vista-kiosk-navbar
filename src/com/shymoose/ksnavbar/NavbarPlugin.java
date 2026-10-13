@@ -218,14 +218,19 @@ public final class NavbarPlugin implements KioskPlugin {
         StringBuilder text = new StringBuilder();
         boolean error = !cfg.problems.isEmpty();
         for (String problem : cfg.problems) text.append(problem).append('\n');
-        if (cfg.items.isEmpty()) text.append("No items are configured. Set an item's Type to Page, Action or Menu.");
-        else {
+        if (cfg.items.isEmpty()) {
+            text.append("Add an item to show the bar: set an item's Type to Page, Action or Menu.");
+        } else if (userHidden) {
+            text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
+        } else if (!cfg.visibleAt(path)) {
+            text.append("Hidden on this page (").append(path).append("). Add its dashboard to Show on to show the bar here.");
+        } else {
+            int count = cfg.items.size();
+            text.append("Showing ").append(count).append(count == 1 ? " item. " : " items. ");
             int active = cfg.activeIndex(path);
-            text.append(cfg.items.size()).append(cfg.items.size() == 1 ? " item. " : " items. ")
-                .append("Page: ").append(path == null ? "unknown" : path)
-                .append(active >= 0 ? " (" + cfg.items.get(active).label + ")" : "");
-            if (userHidden) text.append(". Hidden by the Hide navbar action.");
-            else if (!cfg.visibleAt(path)) text.append(". Hidden here by Show on.");
+            if (path == null) text.append("Waiting for the dashboard to load.");
+            else if (active >= 0) text.append(cfg.items.get(active).label).append(" is selected.");
+            else text.append("No item is for this page (").append(path).append(").");
         }
         String message = text.length() > 1000 ? text.substring(0, 1000) : text.toString();
         if (message.equals(lastStatus)) return;

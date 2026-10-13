@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0
+
+- **Icons from labels.** An empty icon is picked from the label, such as Driveway → road, Garage → garage, Living → sofa, Exterior → house with an arrow out. Camera menus no longer show the same icon on every entry.
+- Plainer plugin page. A short description, a status line in plain words, and units on the sliders (dp, %, s).
+
 ## 0.5.1
 
 - Menus stay at least 95% opaque so their entries stay readable over a busy dashboard. The bar keeps its own Opacity.

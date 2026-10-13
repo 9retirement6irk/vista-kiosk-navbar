@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
-  "description": "A native navigation bar that floats over the dashboard in the Kiosk Satellite design language. It highlights the item for the page being shown, opens dashboard views, kiosk actions and menus, and needs no Home Assistant token. Inspired by lovelace-navbar-card.",
+  "description": "A navigation bar for your dashboards, drawn by Kiosk Satellite itself. It shows which page you are on and opens pages, menus and kiosk actions.",
   "author": "dimatx",
   "license": "Apache-2.0",
   "capabilities": [
@@ -46,7 +46,7 @@
       "title": "Show on",
       "default": "",
       "group": "Bar",
-      "description": "Comma-separated dashboard paths where the bar appears, such as /wall-tablet,/bedroom-wall-tablet. Their views are included. Empty shows it everywhere."
+      "description": "Dashboards where the bar appears, separated by commas, such as /wall-tablet,/bedroom-wall-tablet. All their views are included. Leave empty to show it everywhere."
     },
     {
       "key": "scale",
@@ -73,7 +73,8 @@
       "max": 48,
       "step": 2,
       "group": "Bar",
-      "description": "Distance from the screen edge, in dp."
+      "description": "Space between the bar and the edge of the screen.",
+      "unit": "dp"
     },
     {
       "key": "opacity",
@@ -84,7 +85,8 @@
       "max": 100,
       "step": 5,
       "group": "Bar",
-      "description": "Background opacity in percent. Lower values let the dashboard show through. Icons and labels stay solid."
+      "description": "Lower values let the dashboard show through the bar. Icons, labels and menus stay easy to read.",
+      "unit": "%"
     },
     {
       "key": "collapse",
@@ -108,7 +110,8 @@
       "max": 300,
       "step": 5,
       "group": "Bar",
-      "description": "Seconds without a tap before an open bar folds back into its tab. 0 keeps it open until someone swipes it away."
+      "description": "Folds the bar back into its tab after this long without a tap. 0 keeps it open until someone swipes it away.",
+      "unit": "s"
     },
     {
       "key": "menuLayout",
@@ -151,7 +154,7 @@
       "title": "Icon",
       "default": "mdi:home-outline",
       "group": "Item 1",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item1IconSelected",
@@ -197,7 +200,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 2",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item2IconSelected",
@@ -243,7 +246,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 3",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item3IconSelected",
@@ -289,7 +292,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 4",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item4IconSelected",
@@ -335,7 +338,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 5",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item5IconSelected",
@@ -381,7 +384,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 6",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item6IconSelected",
@@ -427,7 +430,7 @@
       "title": "Icon",
       "default": "",
       "group": "Item 7",
-      "description": "Material Design Icon name, such as mdi:home-outline. Browse names at pictogrammers.com/library/mdi."
+      "description": "Optional. A Material Design Icon name, such as mdi:home-outline. Leave empty to pick one from the label."
     },
     {
       "key": "item7IconSelected",

@@ -42,8 +42,7 @@ final class NavItem {
      */
     static NavItem leaf(String label, String icon, String selectedIcon, String target) {
         NavTarget parsed = NavTarget.parse(target);
-        // Camera entries are usually many, so they get a camera icon unless one is set.
-        String fallback = parsed.kind == NavTarget.Kind.CAMERA ? CAMERA_ICON : DEFAULT_ICON;
+        String fallback = fallbackIcon(label, parsed.kind == NavTarget.Kind.CAMERA ? CAMERA_ICON : DEFAULT_ICON);
         String trimmed = icon == null ? "" : icon.trim();
         // A legacy "|mdi:x" means no normal icon but a selected one.
         String given = trimmed.isEmpty() || trimmed.startsWith("|") ? fallback + trimmed : trimmed;
@@ -62,7 +61,9 @@ final class NavItem {
 
     /** A menu with an optional icon for when one of its pages is shown. */
     static NavItem menu(String label, String icon, String selectedIcon, String entries) {
-        String[] icons = icons(icon, selectedIcon);
+        String trimmed = icon == null ? "" : icon.trim();
+        String given = trimmed.isEmpty() || trimmed.startsWith("|") ? fallbackIcon(label, DEFAULT_ICON) + trimmed : trimmed;
+        String[] icons = icons(given, selectedIcon);
         List<NavItem> children = new ArrayList<>();
         for (String entry : (entries == null ? "" : entries).split("[;\\n]")) {
             if (entry.trim().isEmpty()) continue;
@@ -79,6 +80,15 @@ final class NavItem {
         if (children.isEmpty()) throw new IllegalArgumentException("menu has no entries");
         if (children.size() > MAX_CHILDREN) throw new IllegalArgumentException("menu has more than " + MAX_CHILDREN + " entries");
         return new NavItem(Type.MENU, label, icons[0], icons[1], null, children);
+    }
+
+    /**
+     * The icon for an item with no Icon set: one picked from its label when a rule matches, then the
+     * given default, which is a camera icon for camera entries.
+     */
+    static String fallbackIcon(String label, String otherwise) {
+        String guessed = IconGuess.forLabel(label);
+        return guessed != null ? guessed : otherwise;
     }
 
     /** Whether this item, or one of its menu entries, is the page at {@code path}. */

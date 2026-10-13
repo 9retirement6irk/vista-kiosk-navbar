@@ -14,6 +14,7 @@ public final class NavbarTest {
         targets();
         commands();
         menus();
+        guesses();
         config();
         icons();
         System.out.println("NavbarTest: " + passed + " checks passed");
@@ -95,7 +96,7 @@ public final class NavbarTest {
         eq(NavItem.Type.MENU, menu.type);
         eq(3, menu.children.size());
         eq(NavItem.Type.ACTION, menu.children.get(2).type);
-        eq(NavItem.DEFAULT_ICON, menu.children.get(2).icon);
+        eq("mdi:music", menu.children.get(2).icon);
         check(menu.matches("/bedroom-wall-tablet/weather"));
         check(menu.matches("/bedroom-wall-tablet/health-and-air/"));
         check(!menu.matches("/bedroom-wall-tablet/toggles"));
@@ -113,10 +114,14 @@ public final class NavbarTest {
         check(cameras.length() <= 512);
         eq(9, NavItem.menu("Cameras", "mdi:cctv", cameras).children.size());
         // Camera entries without an icon get a camera icon. Other entries get the generic one.
-        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Driveway||camera:8c65;Garage|mdi:garage|camera:feb;Air||/a/air");
+        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Cam 9||camera:8c65;Garage|mdi:door|camera:feb;Zork||/a/z;Driveway||camera:d");
         eq(NavItem.CAMERA_ICON, bare.children.get(0).icon);
-        eq("mdi:garage", bare.children.get(1).icon);
+        eq("mdi:door", bare.children.get(1).icon);
         eq(NavItem.DEFAULT_ICON, bare.children.get(2).icon);
+        eq("mdi:road-variant", bare.children.get(3).icon);
+        eq("mdi:weather-partly-cloudy", NavItem.menu("Weather", "", "A||/a/a").icon);
+        eq("mdi:home", NavItem.leaf("Home", "", "mdi:home", "/a/b").iconSelected);
+        eq("mdi:home-outline", NavItem.leaf("Home", "", "", "/a/b").icon);
         eq(NavItem.CAMERA_ICON, NavItem.leaf("C", "|mdi:x", "", "camera:a").icon);
         eq("mdi:x", NavItem.leaf("C", "|mdi:x", "", "camera:a").iconSelected);
         String[] icons = NavItem.icons("mdi:home-outline|mdi:home");
@@ -131,6 +136,28 @@ public final class NavbarTest {
         eq("mdi:cctv", NavItem.icons("mdi:cctv", "  ")[1]);
         eq("mdi:home", NavItem.leaf("Home", "mdi:home-outline", "mdi:home", "/a/b").iconSelected);
         eq("mdi:sun", NavItem.menu("M", "mdi:cloud", "mdi:sun", "A||/a/b").iconSelected);
+    }
+
+    private static void guesses() {
+        eq("mdi:garage-variant", IconGuess.forLabel("Garage interior"));
+        eq("mdi:garage", IconGuess.forLabel("Garage"));
+        eq("mdi:road-variant", IconGuess.forLabel("Driveway"));
+        eq("mdi:door", IconGuess.forLabel("Front porch"));
+        eq("mdi:sofa", IconGuess.forLabel("Living room"));
+        eq("mdi:bed", IconGuess.forLabel("Blue bedroom"));
+        eq("mdi:home-export-outline", IconGuess.forLabel("Exterior"));
+        eq("mdi:home-import-outline", IconGuess.forLabel("Interior"));
+        eq("mdi:arrow-down-circle-outline", IconGuess.forLabel("South"));
+        eq("mdi:patio-heater", IconGuess.forLabel("Patio"));
+        eq("mdi:heart-pulse", IconGuess.forLabel("System health"));
+        eq("mdi:air-filter", IconGuess.forLabel("Health and air"));
+        eq("mdi:toggle-switch-outline", IconGuess.forLabel("Toggles"));
+        // Whole words only: these must not match bed, door or air.
+        check(IconGuess.forLabel("Bedside") == null);
+        check(IconGuess.forLabel("Outdoorsy") == null);
+        check(IconGuess.forLabel("Fairy") == null);
+        check(IconGuess.forLabel("Trey") == null);
+        check(IconGuess.forLabel(null) == null);
     }
 
     private static void config() {
