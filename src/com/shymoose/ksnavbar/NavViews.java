@@ -47,6 +47,8 @@ final class NavViews {
         void onMenu(int index, int offsetDp, int barDepthDp);
         /** The view's depth from its edge changed, in dp, for example when the bar hides behind its tab. */
         void onDepth(int depthDp);
+        /** The Close button that shows over a camera view was tapped. */
+        void onCloseCamera();
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -289,22 +291,34 @@ final class NavViews {
         private final SizeGate gate = new SizeGate(this);
         private KsTheme theme;
         private String path;
+        /** The open KS camera view, or null. */
+        private String camera;
         private int active;
         private boolean collapsed;
 
-        Root(Context context, KsTheme theme, NavConfig config, String path, boolean collapsed, Listener listener) {
+        /**
+         * {@code overCamera} builds the bar for showing over a camera view, with a Close button at its
+         * end. KS needs a new overlay to move the bar above or below camera views, so it is fixed.
+         */
+        Root(Context context, KsTheme theme, NavConfig config, String path, String camera, boolean overCamera,
+             boolean collapsed, Listener listener) {
             super(context);
             this.config = config;
             this.listener = listener;
             this.theme = theme;
             this.path = path;
-            this.active = config.activeIndex(path);
+            this.camera = camera;
+            this.active = config.activeIndex(path, camera);
             setOrientation(config.vertical ? HORIZONTAL : VERTICAL);
             setGravity(config.vertical ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
             bar = new Bar(context, theme, config, active, new Bar.Taps() {
                 @Override public void onItem(int index) { tapItem(index); }
                 @Override public boolean onLongItem(int index) { return longPressItem(index); }
-            });
+                @Override public void onClose() {
+                    listener.onInteraction();
+                    listener.onCloseCamera();
+                }
+            }, overCamera);
             tab = new Tab(context, theme, config, active, view -> {
                 listener.onInteraction();
                 listener.onExpand();
@@ -342,18 +356,20 @@ final class NavViews {
             }
         }
 
-        void setPath(String next) {
-            if (java.util.Objects.equals(next, path)) return;
-            path = next;
+        /** The page under the bar and the open camera view, or null. */
+        void setLocation(String nextPath, String nextCamera) {
+            if (java.util.Objects.equals(nextPath, path) && java.util.Objects.equals(nextCamera, camera)) return;
+            path = nextPath;
+            camera = nextCamera;
             removeCallbacks(settle);
-            showActive(config.activeIndex(next));
+            showActive(config.activeIndex(path, camera));
         }
 
         /** Falls back to the real page if a tapped page never loads. */
         private final Runnable settle = this::settle;
 
         private void settle() {
-            showActive(config.activeIndex(path));
+            showActive(config.activeIndex(path, camera));
         }
 
         /**
@@ -529,9 +545,9 @@ final class NavViews {
         private final Menu menu;
         private final SizeGate gate = new SizeGate(this);
 
-        MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Menu.Taps taps) {
+        MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, String camera, Menu.Taps taps) {
             super(context);
-            menu = new Menu(context, theme, config, itemIndex, path, taps);
+            menu = new Menu(context, theme, config, itemIndex, path, camera, taps);
             addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
 
@@ -566,6 +582,7 @@ final class NavViews {
             void onItem(int index);
             /** A long press. True when it did something, which also suppresses the tap. */
             boolean onLongItem(int index);
+            void onClose();
         }
 
         private final NavConfig config;
@@ -579,7 +596,12 @@ final class NavViews {
         /** The item whose menu is open, or -1. */
         private int open = -1;
 
-        Bar(Context context, KsTheme theme, NavConfig config, int active, Taps taps) {
+        /** The Close button over a camera view, or null. Not an item, so it is never highlighted. */
+        private final LinearLayout close;
+        private final ImageView closeIcon;
+        private final TextView closeLabel;
+
+        Bar(Context context, KsTheme theme, NavConfig config, int active, Taps taps, boolean closeButton) {
             super(context);
             this.config = config;
             this.theme = theme;
@@ -618,6 +640,29 @@ final class NavViews {
                 indicators.add(indicator);
                 icons.add(icon);
                 labels.add(label);
+            }
+            if (closeButton) {
+                close = new LinearLayout(context);
+                close.setOrientation(VERTICAL);
+                close.setGravity(Gravity.CENTER);
+                close.setContentDescription("Close camera view");
+                closeIcon = icon(context);
+                closeLabel = new TextView(context);
+                closeLabel.setText("Close");
+                closeLabel.setSingleLine(true);
+                closeLabel.setGravity(Gravity.CENTER);
+                closeLabel.setIncludeFontPadding(false);
+                close.addView(closeIcon);
+                close.addView(closeLabel);
+                close.setOnClickListener(view -> {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                    taps.onClose();
+                });
+                addView(close);
+            } else {
+                close = null;
+                closeIcon = null;
+                closeLabel = null;
             }
             restyle(theme);
         }
@@ -670,6 +715,22 @@ final class NavViews {
                 spacing.topMargin = px(4 * s);
                 label.setLayoutParams(spacing);
             }
+            if (close != null) {
+                close.setBackground(pressable(theme, null, px(theme.radiusRow())));
+                close.setMinimumWidth(px(68 * s));
+                close.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
+                LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(px(24 * s), px(24 * s));
+                iconParams.topMargin = px(4 * s);
+                iconParams.bottomMargin = px(4 * s);
+                closeIcon.setLayoutParams(iconParams);
+                setIcon(closeIcon, theme, "mdi:close", theme.color("onSurfaceVariant"));
+                theme.styleText(closeLabel, 12 * s, 500, "onSurfaceVariant");
+                LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+                spacing.topMargin = px(4 * s);
+                closeLabel.setLayoutParams(spacing);
+                closeLabel.setVisibility(config.labels == NavConfig.Labels.ALWAYS ? VISIBLE
+                    : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE);
+            }
             applySelection();
         }
 
@@ -717,16 +778,18 @@ final class NavViews {
         private final NavConfig config;
         private final NavItem item;
         private final String path;
+        private final String camera;
         private final boolean grid;
         private final int columns;
         /** One per entry, in order. Each holds an icon then a label. */
         private final List<LinearLayout> entries = new ArrayList<>();
         private KsTheme theme;
 
-        Menu(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Taps taps) {
+        Menu(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, String camera, Taps taps) {
             super(context);
             this.config = config;
             this.item = config.items.get(itemIndex);
+            this.camera = camera;
             this.path = path;
             this.theme = theme;
             int count = item.children.size();
@@ -776,7 +839,7 @@ final class NavViews {
             int on = color(theme, "onSecondaryContainer", "onSurface");
             for (int i = 0; i < entries.size(); i++) {
                 NavItem child = item.children.get(i);
-                boolean selected = child.matches(path);
+                boolean selected = camera != null ? child.showsCamera(camera) : child.matches(path);
                 LinearLayout entry = entries.get(i);
                 GradientDrawable background = new GradientDrawable();
                 background.setCornerRadius(px(theme.radiusRow()));

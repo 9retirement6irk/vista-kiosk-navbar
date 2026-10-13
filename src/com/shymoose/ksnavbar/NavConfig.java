@@ -42,12 +42,14 @@ final class NavConfig {
     final MenuLayout menuLayout;
     /** Whether the dashboard keeps clear of the bar. */
     final boolean makeRoom;
+    /** Whether the bar stays on screen over an open camera view, with a button to close it. */
+    final boolean overCameras;
     final List<String> hideOn;
     final List<NavItem> items;
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout, boolean makeRoom,
+    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout, boolean makeRoom, boolean overCameras,
                       List<String> hideOn, List<NavItem> items, List<String> problems) {
         this.edge = edge;
         this.top = edge == Edge.TOP;
@@ -60,6 +62,7 @@ final class NavConfig {
         this.autoCollapse = autoCollapse;
         this.menuLayout = menuLayout;
         this.makeRoom = makeRoom;
+        this.overCameras = overCameras;
         this.hideOn = Collections.unmodifiableList(hideOn);
         this.items = Collections.unmodifiableList(items);
         this.problems = Collections.unmodifiableList(problems);
@@ -104,7 +107,8 @@ final class NavConfig {
             }
         }
         boolean makeRoom = !Boolean.FALSE.equals(settings.get("makeRoom"));
-        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, makeRoom, hideOn, items, problems);
+        boolean overCameras = !Boolean.FALSE.equals(settings.get("overCameras"));
+        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, makeRoom, overCameras, hideOn, items, problems);
     }
     /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
     boolean visibleAt(String path) {
@@ -122,6 +126,16 @@ final class NavConfig {
         return menu.children.size() > AUTO_GRID_ABOVE;
     }
 
+    /**
+     * The item to highlight: while a camera view is open, the first item that opens it or holds an
+     * entry that does, and otherwise the first item for the page at {@code path}. -1 for none.
+     */
+    int activeIndex(String path, String camera) {
+        if (camera == null) return activeIndex(path);
+        for (int i = 0; i < items.size(); i++) if (items.get(i).showsCamera(camera)) return i;
+        return -1;
+    }
+
     /** The first item that is the page at {@code path}, or -1. */
     int activeIndex(String path) {
         for (int i = 0; i < items.size(); i++) if (items.get(i).matches(path)) return i;
@@ -136,7 +150,7 @@ final class NavConfig {
     String describe() {
         StringBuilder text = new StringBuilder();
         text.append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
-            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout).append('|').append(makeRoom);
+            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout).append('|').append(makeRoom).append('|').append(overCameras);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }

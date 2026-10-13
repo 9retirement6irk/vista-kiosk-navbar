@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -319,12 +319,20 @@
       "description": "End the dashboard above the bar instead of under it."
     },
     {
+      "key": "overCameras",
+      "type": "boolean",
+      "title": "Show over camera views",
+      "default": true,
+      "group": "Behavior",
+      "description": "Keep the bar on screen while a camera view is open, with a button to close it."
+    },
+    {
       "key": "hideOn",
       "type": "list",
       "title": "Pages",
       "default": [],
-      "group": "Pages without the bar",
-      "description": "The bar does not show on these pages.",
+      "group": "Hide the bar on",
+      "description": "The bar stays hidden on these pages.",
       "addTitle": "Add page",
       "maxItems": 32,
       "row": {
@@ -365,7 +373,7 @@
       "title": "Behavior"
     },
     {
-      "title": "Pages without the bar"
+      "title": "Hide the bar on"
     }
   ]
 }

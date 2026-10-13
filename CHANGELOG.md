@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+- **Show over camera views**, on by default. While a camera view is open, the bar stays on screen above it with a **Close** button at its end. The item that opens the camera lights up, so you can switch cameras from the grid or leave. Turn it off to keep the bar under camera views as before.
+- **Hide the bar on** replaces *Pages without the bar*, as its own section at the end of the settings page.
+- The README is reorganized for first-time visitors.
+
 ## 0.13.0
 
 - **Tap opens**, optional on a menu item. Pick a page and a tap opens it, while a long press opens the menu. The item lights up on that page as well as on its entries' pages. Left empty, a tap opens the menu as before.

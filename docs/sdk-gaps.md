@@ -2,7 +2,7 @@
 
 Gaps in the Kiosk Satellite plugin SDK that came up while building this plugin. Each open entry describes what we needed, what we do instead and a suggested change, so it can go to the maintainer as written. Numbers stay fixed, so a closed gap keeps its number.
 
-Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
+Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list. Open entries were retested on that version.
 
 ## Resolved
 
@@ -16,10 +16,11 @@ Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
 | 6 | Plugin code could not read bundled assets | `assetPath` and `openAsset` | Not needed any more, see 7 |
 | 7 | No Material Design Icons for native views | `KsTheme.icon` and the `icon` picker | Icons come from KS. The 1.3 MB bundled font is gone and the package shrank from 668 KB to 37 KB |
 | 8 | `haNavigate` rejected query strings | Query strings and fragments accepted | Pages with a query, such as `cameras/0?camera=garage`, stay in the page instead of reloading it |
-| 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items and **Pages without the bar** pick views from a list |
+| 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items, **Tap opens** and **Hide the bar on** pick views from a list |
 | 10 | Threading contract for `showOverlay` was unspecified | Documented: never blocks, safe from any thread, `create` runs after the call | No change needed |
 | 12 | `haNavigate` reported failure after a successful move | Returns true once the page is on the view | The `loadUrl` fallback and its page check are gone |
 | 13 | Overlays had no show, hide or replace transition | `enter`, `exit` and `transitionDuration` | The bar fades in and out, and menus scale in and fade out |
+| 14 | `/api/screenshot` did not show native overlays reliably | Fixed by 2026.10.23 (retested: an open menu shows in the API screenshot as it does in `adb screencap`) | No more need for adb to check the bar |
 | 18 | Settings could not depend on each other | `visibleWhen` | **Hide after** shows only while **Swipe to hide** is on, and each item shows only the fields its **Opens** choice needs |
 
 ## Open
@@ -31,14 +32,6 @@ Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
 **Today:** KS's docs/fleet.md answers this. Plugin Manager stays entirely local, and fleet sync copies no installed plugins, plugin settings, per-plugin enabled states or Enable Plugins master switch. Each display has to be installed and configured on its own, which we script through the remote API.
 
 **Suggestion:** Offer an opt-in sync of installed plugins and their settings from the leader, for followers on the same KS version.
-
-## 14. `/api/screenshot` does not show native overlays reliably
-
-**Need:** Check a plugin overlay remotely, the way we check the dashboard.
-
-**Today:** On KS 2026.10.21 on a ThinkSmart View, the Remote Admin screenshot showed the first bar correctly. It never showed a menu overlay that was on the panel, as confirmed with `adb exec-out screencap`, and it showed a replaced overlay in its old state. This cost us a debugging detour, because the menu looked broken when it was not.
-
-**Suggestion:** Capture the composited screen, including platform-view textures, or document that native overlays may be missing from the screenshot.
 
 ## 15. Creating an overlay is very slow on low-power panels
 
@@ -62,7 +55,7 @@ Two more details, both measured with logging and on-device `screencap`. First, t
 
 **Our workaround:** Redrawing after the resize (listening to the `OverlayFrame` parent) only shortens the glitch, because the stretched frame is still composited first. We now skip drawing (an empty `dispatchDraw`, not alpha) from the moment the size will change until the host frame has the measured size. We stay hidden another 150 ms so the surface catches up, then draw, and redraw again at 300 ms and 800 ms. A 900 ms timeout reveals the view anyway. Menus are their own overlay, so opening one never resizes the bar.
 
-**Still open in 2026.10.23:** the release notes do not mention it, and the plugin keeps the workaround. The new nter transitions animate a view that may still be drawing at the wrong size, so the workaround matters as much as before.
+**Still open in 2026.10.23:** the release notes do not mention it, and the plugin keeps the workaround. The new `enter` transitions animate a view that may still be drawing at the wrong size, so the workaround matters as much as before.
 
 **Suggestion:** Don't composite a resized texture until the view has drawn into it at the new size. For example, keep showing the old size until the first frame at the new size arrives, then swap. Every plugin with a wrapped overlay that changes size hits this, so it belongs in KS rather than in each plugin.
 
@@ -75,7 +68,7 @@ Two more details, both measured with logging and on-device `screencap`. First, t
 
 **Need:** Test a development build on a kiosk that runs the released version, then go back.
 
-**Today:** **Install from ZIP** (and `installPlugin`) refuses a plugin that was installed from a GitHub repository. The plugin has to be removed first, so we save its settings over the remote API and restore them after each swap.
+**Today:** **Install from ZIP** (and `installPlugin`) refuses a plugin that was installed from a GitHub repository with *This plugin ID belongs to another repository. Uninstall it before changing sources.* (retested on 2026.10.23). A ZIP can replace another ZIP and keeps its settings, but not a repository install. The plugin has to be removed first, so we save its settings over the remote API and restore them after each swap.
 
 **Suggestion:** Let a trusted local ZIP replace a repository install of the same plugin ID while keeping its settings, perhaps marking it as a development build until the next repository update.
 
@@ -101,8 +94,7 @@ The same happens with saved values: `configurePlugin` with a menu entry that car
 
 **Need:** Show what a row opens in words, the way its picker does.
 
-**Today:** The pickers show names: a page reads *Navbar demo / Lights* and a camera view its name. A row's `subtitle` shows the stored value instead, so a page row reads `navbar-demo/lights` and a camera row a 32-character view ID. We left camera views out of the subtitles for that reason, so a camera item's row shows no subtitle. The same applies to a list whose row title is a dashboard field: **Pages without the bar** lists its pages as 
-avbar-demo/settings rather than *Navbar demo / Settings*.
+**Today:** The pickers show names: a page reads *Navbar demo / Lights* and a camera view its name. A row's `subtitle` shows the stored value instead, so a page row reads `navbar-demo/lights` and a camera row a 32-character view ID. We left camera views out of the subtitles for that reason, so a camera item's row shows no subtitle. The same applies to a list whose row title is a dashboard field: **Hide the bar on** lists its pages as `navbar-demo/settings` rather than *Navbar demo / Settings*.
 
 **Suggestion:** Render `dashboard` and `cameraView` fields in a row subtitle the way their pickers do, with the dashboard and view titles and the camera view's name.
 
@@ -118,6 +110,14 @@ avbar-demo/settings rather than *Navbar demo / Settings*.
 
 **Need:** Explain a list setting above its rows, the way other settings put their description under the title.
 
-**Today:** A top-level `list` setting in its own group renders its rows first and its description in small text below the **Add** row. With **Pages without the bar** empty, the page reads *Add page* followed by *The bar does not show on these pages.*, so the explanation comes after the button it explains.
+**Today:** A top-level `list` setting in its own group renders its rows first and its description in small text below the **Add** row. With **Hide the bar on** empty, the page reads *Add page* followed by *The bar stays hidden on these pages.*, so the explanation comes after the button it explains.
 
 **Suggestion:** Render a list's title and description above its rows, or let the group carry a description.
+
+## 25. A bar cannot follow a camera view without being rebuilt
+
+**Need:** Keep the bar above a camera view while it is open, and back under KS's own menus and the screensaver once it closes.
+
+**Today:** `onTop` is fixed when the overlay is shown. To move the bar above a camera view, the plugin listens for `camera.view`, then replaces its own overlay with `onTop(true)`, and replaces it again when the view closes. Each replacement is a new overlay, which is slow on a low-power panel (gap 15). An `onTop` overlay also sits over the screensaver, so the plugin has to watch `screensaver.state` and drop back down for it.
+
+**Suggestion:** A layer that sits above camera views but below the screensaver and KS's menu, such as `OverlaySpec.layer(ABOVE_CAMERA)`, or a way to change an existing overlay's layer without replacing it.

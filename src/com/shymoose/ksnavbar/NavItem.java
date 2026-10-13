@@ -115,6 +115,12 @@ final class NavItem {
         return guessed != null ? guessed : otherwise;
     }
 
+    /** Whether this item opens the KS camera view {@code viewId}, or holds a menu entry that does. */
+    boolean showsCamera(String viewId) {
+        if (viewId == null) return false;
+        for (NavItem child : children) if (child.showsCamera(viewId)) return true;
+        return target != null && target.kind == NavTarget.Kind.CAMERA && target.value.equals(viewId);
+    }
     /** A menu whose tap opens a page, so the menu needs a long press. */
     boolean longPressMenu() { return type == Type.MENU && target != null; }
 

@@ -249,6 +249,20 @@ public final class NavbarTest {
         check(cfg.visibleAt("/panel/settings/sub"));
         check(!cfg.visibleAt("/lovelace/kiosk"));
 
+        // While a camera view is open, the item that opens it lights up, not the page under it.
+        check(cfg.overCameras);
+        eq(3, cfg.activeIndex("/panel/toggles", CAM));
+        eq(2, cfg.activeIndex("/panel/toggles", null));
+        eq(-1, cfg.activeIndex("/panel/toggles", "ffffffffffffffffffffffffffffffff"));
+        check(cfg.items.get(3).showsCamera(CAM));
+        check(!cfg.items.get(0).showsCamera(CAM));
+        check(!cfg.items.get(3).showsCamera(null));
+        NavItem camMenu = NavItem.fromRow(menuRow("Cams", "", page("A", "a/a", ""), camera("Front", "")), true);
+        check(camMenu.showsCamera(CAM));
+        Map<String, Object> noCameras = new HashMap<>(settings);
+        noCameras.put("overCameras", false);
+        check(!NavConfig.parse(noCameras).overCameras);
+        check(!NavConfig.parse(noCameras).sameLook(cfg));
         Map<String, Object> wider = new HashMap<>(settings);
         wider.put("hideOn", new ArrayList<Object>());
         NavConfig everywhere = NavConfig.parse(wider);

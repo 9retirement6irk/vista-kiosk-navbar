@@ -1,74 +1,72 @@
 # Navbar for Kiosk Satellite
 
-A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) wall panels. KS draws it itself, with its own colors, type and icons, so it looks like part of the kiosk rather than part of the dashboard.
+**A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) wall panels.** It highlights the page you're on, opens menus and camera grids, and keeps your Home Assistant dashboard clear of it. Kiosk Satellite draws it with its own colors, type and icons, so it looks like part of the kiosk.
 
-<p align="center"><img src="docs/images/bar.png" alt="The navbar over a dashboard" width="720"></p>
-
-- **Knows where you are.** The current page's item lights up, however you got there.
-- **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras.
-- **Kiosk actions.** Open camera views, Music Assistant, Now Playing, the screensaver or the app launcher.
-- **Any edge.** A bar along the bottom or top, or a rail down the left or right side.
-- **Keeps the dashboard clear.** The page ends above the bar, so no card is ever stuck underneath it.
-- **Gets out of the way.** Translucent, and a swipe hides it behind a small tab.
-- **Light.** Native Android views, no WebView, no Home Assistant token.
+<p align="center"><img src="docs/images/bar.png" alt="The navbar along the bottom of a dashboard" width="720"></p>
 
 | Grid menu | List menu | Hidden |
 | :---: | :---: | :---: |
-| <img src="docs/images/grid.png" alt="A camera grid menu" width="280"> | <img src="docs/images/list.png" alt="A list menu of kiosk actions" width="280"> | <img src="docs/images/tab.png" alt="The bar hidden behind a tab" width="280"> |
+| <img src="docs/images/grid.png" alt="A camera grid menu" width="260"> | <img src="docs/images/list.png" alt="A list menu of kiosk actions" width="260"> | <img src="docs/images/tab.png" alt="The bar hidden behind a tab" width="260"> |
 | Long menus, such as cameras, show as tiles | Short menus show as a list | Swipe down to hide the bar behind a tab |
+
+## Why use it
+
+- **Knows where you are.** The item for the page on screen lights up, however you got there.
+- **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras. Optionally, a tap opens a page and a long press opens the menu.
+- **More than pages.** Items can open camera views, Music Assistant, Now Playing, the screensaver, the app launcher or a web address.
+- **Keeps the dashboard clear.** The dashboard ends above the bar, so no card hides under it. No card-mod needed.
+- **Works over camera views.** The bar stays on screen while a camera view is open, with a **Close** button, so you can switch cameras or leave without reaching for the camera view's own controls.
+- **Any edge.** A bar along the bottom or top, or a rail down the left or right side.
+- **Out of the way.** Set how translucent it is, and swipe it away behind a small tab.
+- **Set up without typing.** Pages, camera views and icons each have a picker.
+- **Light.** Native Android views, no WebView and no Home Assistant token.
 
 ## Install
 
 Needs Kiosk Satellite **2026.10.23** or newer.
 
 1. In Kiosk Satellite, open **Settings > Plugin Manager > Add plugin**.
-2. Paste `https://github.com/dimatx/kiosk-satellite-navbar` and tap **Preview**, then **Trust and install**.
-3. Enable **Navbar**. It starts with a Home item. Add your own under **Items**.
+2. Paste `https://github.com/dimatx/kiosk-satellite-navbar`, tap **Preview**, then **Trust and install**.
+3. Turn on **Navbar**. It starts with a Home item.
+4. Open **Navbar** and add your own items under **Items**.
 
-## Set it up
+Settings are on the plugin's page, on the kiosk or in Remote Admin, and take effect as you save them.
 
-Everything is set on the plugin's page, on the kiosk or in Remote Admin. Pages, camera views and icons each have a picker, so only labels are typed.
+## Items
 
-<p align="center"><img src="docs/images/settings.png" alt="The Navbar settings page" width="560"></p>
+Each item has a **Label**, what it **Opens**, and optional icons.
 
-Each item has a **Label**, an optional **Icon** and **Selected icon**, and what it **Opens**:
-
-| Opens | You pick | It does |
+| Opens | You pick | A tap |
 | --- | --- | --- |
-| Page | A dashboard view | Opens the view, and lights up while it's shown |
+| Page | A dashboard view | Opens the view. The item lights up while it's shown |
 | Camera view | One of the kiosk's camera views | Opens the camera view |
-| Menu | A list of entries | Opens a menu over the item. Over 6 entries show as a grid. Optionally, a tap opens a page and a long press the menu |
+| Menu | Up to 16 entries | Opens the menu over the item. More than 6 entries show as a grid |
 | Kiosk action | Music, Now playing, Screensaver, App launcher, Reload or Start page | Runs it |
 | Web address | An `https://` address | Loads it in the kiosk |
 
-| Editing an item | Editing a menu |
+| Editing a page item | Editing a menu |
 | :---: | :---: |
 | <img src="docs/images/editor-page.png" alt="Editing a page item" width="380"> | <img src="docs/images/editor-menu.png" alt="Editing a menu item and its entries" width="380"> |
 
-Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items, and a menu up to 16 entries.
+- **Icons.** Leave an icon empty and one is picked from the label, then filled in for you: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. **Selected icon** is shown while the item's page is open, often the filled version.
+- **Tap opens.** On a menu item, pick a page here and a tap opens that page while a long press opens the menu. Leave it empty and a tap opens the menu.
+- **Order.** Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items.
 
-**Tap opens** is optional on a menu item. Set it to a page and a tap opens that page, while a long press opens the menu. Leave it empty and a tap opens the menu.
+## Settings
 
-**Pages without the bar**, the last section, lists pages where the bar does not show. Add them with the same page picker.
+<p align="center"><img src="docs/images/settings.png" alt="The Navbar settings page" width="560"></p>
 
-> [!TIP]
-> Leave an icon empty and the navbar picks one from the label, then fills it in: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. Change it any time.
-
-<details>
-<summary><b>Appearance and behavior</b></summary>
-
-| Setting | Options |
+| Setting | What it does |
 | --- | --- |
-| Position | Bottom, Top, Left or Right |
+| Position | Bottom, Top, Left or Right. Left and Right make a vertical rail |
 | Labels | Always, Active only or Never |
 | Size | 80% to 140% |
 | Opacity | How much of the dashboard shows through |
 | Swipe to hide | Start visible, Start hidden or Off |
 | Hide after | Seconds without a tap before the bar hides. 0 keeps it visible |
 | Keep the dashboard clear | The dashboard ends above the bar instead of under it. On by default |
-
-
-</details>
+| Show over camera views | Keep the bar on screen while a camera view is open, with a Close button. On by default |
+| Hide the bar on | Pages where the bar stays hidden, picked from your dashboards |
 
 <details>
 <summary><b>Left and right rails</b></summary>
@@ -82,14 +80,14 @@ On the left or right, the bar becomes a rail. Menus open beside it, a sideways s
 <details>
 <summary><b>Hiding the bar</b></summary>
 
-Swipe the bar toward its edge to hide it behind a small tab. Swipe the tab back, or tap it, to show the bar again. The tab shows the current page's icon. While the bar is hidden, the dashboard only keeps clear of the tab.
+Swipe the bar toward its edge to hide it behind a small tab. Swipe the tab back, or tap it, to show the bar again. The tab shows the current page's icon. While the bar is hidden, the dashboard keeps clear of the tab only.
 
 </details>
 
 <details>
 <summary><b>Gestures and the kiosk drawer</b></summary>
 
-**Show navbar**, **Hide navbar** and **Toggle navbar** can be mapped to a gesture or added to the kiosk drawer.
+**Show navbar**, **Hide navbar** and **Toggle navbar** can be mapped to a gesture or added to the kiosk drawer, under the plugin's **Actions**.
 
 </details>
 
@@ -103,7 +101,7 @@ python3 tools/test.py
 python3 tools/build.py
 ```
 
-The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > Install from ZIP**. To release, publish a GitHub release tagged `vX.Y.Z`. CI tests, builds and attaches the files KS verifies.
+The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > Install from ZIP**. To release, publish a GitHub release tagged `vX.Y.Z`. CI tests, builds and attaches the files Kiosk Satellite verifies. See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 </details>
 
