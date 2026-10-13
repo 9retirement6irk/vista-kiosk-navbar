@@ -8,7 +8,7 @@ Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
 
 | # | Gap | Resolved by | How the navbar uses it |
 | --- | --- | --- | --- |
-| 1 | Overlays could not reserve space in the dashboard | `setContentInsets` | **Keep the dashboard clear** reserves the bar's depth, or the tab's while it is tucked away. No card-mod padding |
+| 1 | Overlays could not reserve space in the dashboard | `setContentInsets` | **Keep the dashboard clear** reserves the bar's depth, or the tab's while the bar is hidden. No card-mod padding |
 | 2 | No structured or long settings | `list` settings with nested lists | Items are a list, and a menu's entries a nested list, edited in a form instead of a 512-character string |
 | 3 | Camera views could not be listed | `cameraView` picker and `getCameraViews` | Camera items and entries pick a view by name |
 | 4 | Overlay positioning was limited to one inset | Per-edge insets and `offset` | A menu opens over its item, clear of the bar, and KS keeps it on screen |
@@ -16,11 +16,11 @@ Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
 | 6 | Plugin code could not read bundled assets | `assetPath` and `openAsset` | Not needed any more, see 7 |
 | 7 | No Material Design Icons for native views | `KsTheme.icon` and the `icon` picker | Icons come from KS. The 1.3 MB bundled font is gone and the package shrank from 668 KB to 37 KB |
 | 8 | `haNavigate` rejected query strings | Query strings and fragments accepted | Pages with a query, such as `cameras/0?camera=garage`, stay in the page instead of reloading it |
-| 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items pick a view from a list |
+| 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items and **Pages without the bar** pick views from a list |
 | 10 | Threading contract for `showOverlay` was unspecified | Documented: never blocks, safe from any thread, `create` runs after the call | No change needed |
 | 12 | `haNavigate` reported failure after a successful move | Returns true once the page is on the view | The `loadUrl` fallback and its page check are gone |
 | 13 | Overlays had no show, hide or replace transition | `enter`, `exit` and `transitionDuration` | The bar fades in and out, and menus scale in and fade out |
-| 18 | Settings could not depend on each other | `visibleWhen` | **Tuck away after** shows only while tucking is on, and each item shows only the fields its **Opens** choice needs |
+| 18 | Settings could not depend on each other | `visibleWhen` | **Hide after** shows only while **Swipe to hide** is on, and each item shows only the fields its **Opens** choice needs |
 
 ## Open
 
@@ -101,6 +101,15 @@ The same happens with saved values: `configurePlugin` with a menu entry that car
 
 **Need:** Show what a row opens in words, the way its picker does.
 
-**Today:** The pickers show names: a page reads *Navbar demo / Lights* and a camera view its name. A row's `subtitle` shows the stored value instead, so a page row reads `navbar-demo/lights` and a camera row a 32-character view ID. We left camera views out of the subtitles for that reason, so a camera item's row shows no subtitle.
+**Today:** The pickers show names: a page reads *Navbar demo / Lights* and a camera view its name. A row's `subtitle` shows the stored value instead, so a page row reads `navbar-demo/lights` and a camera row a 32-character view ID. We left camera views out of the subtitles for that reason, so a camera item's row shows no subtitle. The same applies to a list whose row title is a dashboard field: **Pages without the bar** lists its pages as 
+avbar-demo/settings rather than *Navbar demo / Settings*.
 
 **Suggestion:** Render `dashboard` and `cameraView` fields in a row subtitle the way their pickers do, with the dashboard and view titles and the camera view's name.
+
+## 23. An icon field cannot show a fallback
+
+**Need:** Leave an item's icon empty and have the settings page show the icon the bar picks for it from the label.
+
+**Today:** An empty `icon` field reads *Choose an icon*, even though the bar draws an icon picked from the label. Users read that as "no icon". We now save the picked icon back with `saveSettings`, which works but turns a choice the plugin made into one the user appears to have made: renaming *Garage* to *Driveway* later keeps the garage icon.
+
+**Suggestion:** Let a plugin supply a placeholder for an empty `icon` field, such as a `placeholderIcon` the plugin can update at runtime, shown greyed in the picker until the user chooses one.

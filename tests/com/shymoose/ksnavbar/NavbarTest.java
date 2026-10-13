@@ -30,10 +30,6 @@ public final class NavbarTest {
         eq("/", Paths.normalize(""));
         eq("/a/b", Paths.normalize("a/b"));
         eq("/a/b/0", Paths.normalize("/a/b/0"));
-        check(Paths.within("/panel/weather", "/panel"));
-        check(Paths.within("/panel", "/panel/"));
-        check(!Paths.within("/panel-2/x", "/panel"));
-        check(!Paths.within("/lovelace/0", "/panel"));
 
     }
 
@@ -123,7 +119,21 @@ public final class NavbarTest {
         Map<String, Object> web = row("Zork", "Web address");
         web.put("url", "https://x.example");
         eq("mdi:web", NavItem.fromRow(web, true).icon);
-        // KS fills in every field, including hidden ones. Only the fields Opens selects count.
+        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
+        List<Object> withEmpty = list(page("Garage", "a/g", ""), page("Kept", "a/k", "mdi:star"),
+            menuRow("Cams", "", camera("Zork", ""), camera("Driveway", "")), page("", "a/x", ""), page("Bad", "", ""));
+        List<Map<String, Object>> filledRows = NavItem.withIcons(withEmpty);
+        eq("mdi:garage", filledRows.get(0).get("icon"));
+        eq("mdi:star", filledRows.get(1).get("icon"));
+        eq(NavItem.DEFAULT_ICON, filledRows.get(2).get("icon"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> filledEntries = (List<Map<String, Object>>) filledRows.get(2).get("entries");
+        eq(NavItem.CAMERA_ICON, filledEntries.get(0).get("icon"));
+        eq("mdi:road-variant", filledEntries.get(1).get("icon"));
+        eq("", filledRows.get(3).get("icon"));
+        eq("", filledRows.get(4).get("icon"));
+        check(NavItem.withIcons(filledRows) == null);
+        check(NavItem.withIcons(null) == null);        // KS fills in every field, including hidden ones. Only the fields Opens selects count.
         Map<String, Object> filled = page("Lights", "panel/lights", "");
         filled.put("camera", "");
         filled.put("url", "");
@@ -163,7 +173,7 @@ public final class NavbarTest {
         Map<String, Object> settings = new HashMap<>();
         settings.put("position", "Top");
         settings.put("labels", "Active only");
-        settings.put("hideOn", "/developer-tools, /profile/");
+        settings.put("hideOn", list(hidePage("panel/settings"), hidePage("/lovelace/kiosk/")));
         settings.put("scale", "120%");
         Map<String, Object> home = page("Home", "lovelace/0", "mdi:home-outline");
         home.put("iconSelected", "mdi:home");
@@ -192,7 +202,7 @@ public final class NavbarTest {
         eq(NavConfig.Labels.ACTIVE, cfg.labels);
         eq(1.2f, cfg.scale);
         eq(NavConfig.DEFAULT_INSET, cfg.inset);
-        eq(Arrays.asList("/developer-tools", "/profile"), cfg.hideOn);
+        eq(Arrays.asList("/panel/settings", "/lovelace/kiosk"), cfg.hideOn);
         eq("mdi:home", cfg.items.get(0).iconSelected);
         eq("mdi:home-outline", cfg.items.get(0).icon);
         eq(4, cfg.items.size());
@@ -212,14 +222,17 @@ public final class NavbarTest {
         // Shown everywhere except Hide on.
         check(cfg.visibleAt("/panel/cars"));
         check(cfg.visibleAt(null));
-        check(!cfg.visibleAt("/developer-tools/yaml"));
-        check(!cfg.visibleAt("/profile"));
-        check(cfg.visibleAt("/profiles"));
+        // A picked page hides the bar on that view only, not on the views beside or below it.
+        check(!cfg.visibleAt("/panel/settings"));
+        check(!cfg.visibleAt("/panel/settings?tab=2"));
+        check(cfg.visibleAt("/panel/settings-2"));
+        check(cfg.visibleAt("/panel/settings/sub"));
+        check(!cfg.visibleAt("/lovelace/kiosk"));
 
         Map<String, Object> wider = new HashMap<>(settings);
-        wider.put("hideOn", "");
+        wider.put("hideOn", new ArrayList<Object>());
         NavConfig everywhere = NavConfig.parse(wider);
-        check(everywhere.visibleAt("/developer-tools/yaml"));
+        check(everywhere.visibleAt("/panel/settings"));
         check(everywhere.sameLook(cfg));
         wider.put("makeRoom", false);
         NavConfig floating = NavConfig.parse(wider);
@@ -254,13 +267,13 @@ public final class NavbarTest {
 
         Map<String, Object> folding = new HashMap<>(settings);
         folding.put("opacity", 70.0);
-        folding.put("collapse", "Start tucked away");
+        folding.put("collapse", "Start hidden");
         folding.put("autoCollapse", 30.0);
         NavConfig fold = NavConfig.parse(folding);
         eq(0.7f, fold.opacity);
         eq(NavConfig.Collapse.START_COLLAPSED, fold.collapse);
         eq(30, fold.autoCollapse);
-        folding.put("collapse", "Start open");
+        folding.put("collapse", "Start visible");
         eq(NavConfig.Collapse.START_OPEN, NavConfig.parse(folding).collapse);
         folding.put("collapse", "Off");
         // A countdown without collapsing would have nothing to do.
@@ -279,6 +292,12 @@ public final class NavbarTest {
         mixed.add(page("Ok", "a/b", ""));
         odd.put("items", mixed);
         eq(1, NavConfig.parse(odd).items.size());
+    }
+
+    private static Map<String, Object> hidePage(String page) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("page", page);
+        return row;
     }
 
     private static Map<String, Object> row(String label, String opens) {

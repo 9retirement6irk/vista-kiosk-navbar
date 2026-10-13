@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
-  "description": "A native navigation bar for your dashboards. It shows which page you're on and opens pages, menus and kiosk actions.",
+  "description": "A navigation bar for your dashboards that highlights the page you're on.",
   "author": "dimatx",
   "license": "Apache-2.0",
   "capabilities": [
@@ -20,8 +20,8 @@
       "type": "select",
       "title": "Position",
       "default": "Bottom",
-      "group": "Look",
-      "description": "The screen edge the bar sits on.",
+      "group": "Appearance",
+      "description": "The edge of the screen the bar sits on.",
       "options": [
         "Bottom",
         "Top",
@@ -34,8 +34,8 @@
       "type": "select",
       "title": "Labels",
       "default": "Always",
-      "group": "Look",
-      "description": "Text under the icons.",
+      "group": "Appearance",
+      "description": "When item names show under their icons.",
       "options": [
         "Always",
         "Active only",
@@ -47,7 +47,8 @@
       "type": "select",
       "title": "Size",
       "default": "100%",
-      "group": "Look",
+      "group": "Appearance",
+      "description": "The size of the bar and its menus.",
       "options": [
         "80%",
         "90%",
@@ -62,8 +63,8 @@
       "type": "number",
       "title": "Opacity",
       "default": 100,
-      "group": "Look",
-      "description": "Lower lets the dashboard show through.",
+      "group": "Appearance",
+      "description": "How much of the dashboard shows through.",
       "min": 20,
       "max": 100,
       "step": 5,
@@ -154,7 +155,7 @@
           "key": "url",
           "type": "string",
           "title": "Web address",
-          "description": "Starts with https://",
+          "description": "An address starting with https://.",
           "required": true,
           "visibleWhen": {
             "key": "opens",
@@ -162,22 +163,10 @@
           }
         },
         {
-          "key": "icon",
-          "type": "icon",
-          "title": "Icon",
-          "description": "Picked from the label when empty."
-        },
-        {
-          "key": "iconSelected",
-          "type": "icon",
-          "title": "Selected icon",
-          "description": "Shown while this item's page is open. Optional."
-        },
-        {
           "key": "entries",
           "type": "list",
           "title": "Menu entries",
-          "description": "More than 6 show as a grid.",
+          "description": "Menus with more than 6 entries show as a grid.",
           "addTitle": "Add entry",
           "minItems": 1,
           "maxItems": 16,
@@ -253,7 +242,7 @@
               "key": "url",
               "type": "string",
               "title": "Web address",
-              "description": "Starts with https://",
+              "description": "An address starting with https://.",
               "required": true,
               "visibleWhen": {
                 "key": "opens",
@@ -264,32 +253,44 @@
               "key": "icon",
               "type": "icon",
               "title": "Icon",
-              "description": "Picked from the label when empty."
+              "description": "Leave empty to have one picked from the label."
             }
           ]
+        },
+        {
+          "key": "icon",
+          "type": "icon",
+          "title": "Icon",
+          "description": "Leave empty to have one picked from the label."
+        },
+        {
+          "key": "iconSelected",
+          "type": "icon",
+          "title": "Selected icon",
+          "description": "The icon while this item's page is open. Uses Icon when empty."
         }
       ]
     },
     {
       "key": "collapse",
       "type": "select",
-      "title": "Swipe to tuck away",
-      "default": "Start open",
+      "title": "Swipe to hide",
+      "default": "Start visible",
       "group": "Behavior",
-      "description": "Swipe the bar toward the edge to tuck it into a small tab.",
+      "description": "Swipe the bar toward its edge to hide it behind a small tab.",
       "options": [
-        "Start open",
-        "Start tucked away",
+        "Start visible",
+        "Start hidden",
         "Off"
       ]
     },
     {
       "key": "autoCollapse",
       "type": "number",
-      "title": "Tuck away after",
+      "title": "Hide after",
       "default": 0,
       "group": "Behavior",
-      "description": "Without a tap. 0 keeps it open.",
+      "description": "How long the bar stays visible without a tap. 0 keeps it visible.",
       "min": 0,
       "max": 300,
       "step": 5,
@@ -305,15 +306,28 @@
       "title": "Keep the dashboard clear",
       "default": true,
       "group": "Behavior",
-      "description": "The dashboard ends above the bar instead of under it."
+      "description": "End the dashboard above the bar instead of under it."
     },
     {
       "key": "hideOn",
-      "type": "string",
-      "title": "Hide on",
-      "default": "",
+      "type": "list",
+      "title": "Pages without the bar",
+      "default": [],
       "group": "Behavior",
-      "description": "Pages without the bar, separated by commas, such as /profile."
+      "description": "The bar does not show on these pages.",
+      "addTitle": "Add page",
+      "maxItems": 32,
+      "row": {
+        "title": "page"
+      },
+      "fields": [
+        {
+          "key": "page",
+          "type": "dashboard",
+          "title": "Page",
+          "required": true
+        }
+      ]
     }
   ],
   "commands": [
@@ -332,7 +346,7 @@
   ],
   "groups": [
     {
-      "title": "Look"
+      "title": "Appearance"
     },
     {
       "title": "Items"

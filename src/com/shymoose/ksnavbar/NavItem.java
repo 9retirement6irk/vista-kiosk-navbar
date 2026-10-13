@@ -127,8 +127,49 @@ final class NavItem {
         return new String[] {normal, selected};
     }
 
-    /** The rows of a list setting. Anything that is not a list of maps reads as empty. */
-    static List<Map<?, ?>> rows(Object value) {
+    /**
+     * The Items rows with every empty Icon filled in with the icon the bar draws for it, picked from
+     * the label or what the item opens. Saved back, so the settings page shows the icon in use
+     * instead of an empty picker. Null when nothing was empty.
+     */
+    static List<Map<String, Object>> withIcons(Object items) {
+        boolean changed = false;
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<?, ?> row : rows(items)) {
+            Map<String, Object> copy = copy(row);
+            if (row.get("entries") instanceof List) {
+                List<Map<String, Object>> entries = new ArrayList<>();
+                for (Map<?, ?> entry : rows(row.get("entries"))) {
+                    Map<String, Object> entryCopy = copy(entry);
+                    changed |= fillIcon(entryCopy, false);
+                    entries.add(entryCopy);
+                }
+                copy.put("entries", entries);
+            }
+            changed |= fillIcon(copy, true);
+            result.add(copy);
+        }
+        return changed ? result : null;
+    }
+
+    private static boolean fillIcon(Map<String, Object> row, boolean allowMenu) {
+        if (!text(row, "icon").isEmpty() || text(row, "label").isEmpty()) return false;
+        try {
+            row.put("icon", fromRow(row, allowMenu).icon);
+            return true;
+        } catch (IllegalArgumentException unfinished) {
+            // An item that cannot be used yet keeps its empty icon until it is fixed.
+            return false;
+        }
+    }
+
+    private static Map<String, Object> copy(Map<?, ?> row) {
+        Map<String, Object> copy = new java.util.LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : row.entrySet()) copy.put(String.valueOf(entry.getKey()), entry.getValue());
+        return copy;
+    }
+
+    /** The rows of a list setting. Anything that is not a list of maps reads as empty. */    static List<Map<?, ?>> rows(Object value) {
         List<Map<?, ?>> rows = new ArrayList<>();
         if (value instanceof List) {
             for (Object row : (List<?>) value) if (row instanceof Map) rows.add((Map<?, ?>) row);

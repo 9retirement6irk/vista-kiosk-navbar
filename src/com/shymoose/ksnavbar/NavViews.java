@@ -45,7 +45,7 @@ final class NavViews {
         void onLatency(long downMs, long upMs);
         /** A menu item was tapped. {@code offsetDp} is its distance from the screen's center along the bar. */
         void onMenu(int index, int offsetDp, int barDepthDp);
-        /** The view's depth from its edge changed, in dp, for example when the bar tucks away. */
+        /** The view's depth from its edge changed, in dp, for example when the bar hides behind its tab. */
         void onDepth(int depthDp);
     }
 

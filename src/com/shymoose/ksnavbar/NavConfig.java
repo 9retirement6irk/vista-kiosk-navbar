@@ -81,13 +81,15 @@ final class NavConfig {
         float opacity = number(settings, "opacity", 20, 100, 100) / 100f;
         String collapseSetting = text(settings, "collapse");
         Collapse collapse = "Off".equals(collapseSetting) ? Collapse.OFF
-            : "Start tucked away".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.START_OPEN;
+            : "Start hidden".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.START_OPEN;
         int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
         // Menus pick their own layout: a list, or a grid once a list would get long.
         MenuLayout menuLayout = MenuLayout.AUTO;
+        // Pages picked with the dashboard picker. Each hides the bar on that view only.
         List<String> hideOn = new ArrayList<>();
-        for (String prefix : text(settings, "hideOn").split(",")) {
-            if (!prefix.trim().isEmpty()) hideOn.add(Paths.normalize(prefix.trim()));
+        for (Map<?, ?> row : NavItem.rows(settings.get("hideOn"))) {
+            String page = NavItem.text(row, "page");
+            if (!page.isEmpty()) hideOn.add(Paths.normalize(page));
         }
         List<NavItem> items = new ArrayList<>();
         List<String> problems = new ArrayList<>();
@@ -108,7 +110,8 @@ final class NavConfig {
     boolean visibleAt(String path) {
         if (items.isEmpty()) return false;
         if (path == null) return true;
-        for (String prefix : hideOn) if (Paths.within(path, prefix)) return false;
+        String here = Paths.normalize(path);
+        for (String page : hideOn) if (page.equals(here)) return false;
         return true;
     }
 

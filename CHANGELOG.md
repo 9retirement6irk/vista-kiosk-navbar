@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0
+
+- **Plainer wording.** Settings now match Kiosk Satellite's own pages: the **Look** group is **Appearance**, and every setting has a short description. **Swipe to tuck away** is now **Swipe to hide**, with Start visible, Start hidden or Off, and **Tuck away after** is now **Hide after**.
+- **Pages without the bar** replaces **Hide on**. Pick pages with the dashboard picker instead of typing paths. Each picked page hides the bar on that view only.
+- **Icons fill themselves in.** An item or menu entry left without an icon gets the one the bar picked for it, so the settings page shows the icon in use.
+- **Quieter status.** The plugin page shows a status line only when something needs attention, such as an item that cannot be used.
+- Menu entries come right after **Opens**, ahead of the icons.
+
+**Upgrading:** choose **Swipe to hide** again if it was Start tucked away, and add any **Hide on** pages under **Pages without the bar**.
+
 ## 0.11.0
 
 Rebuilt on the plugin SDK in Kiosk Satellite 2026.10.23. Needs that version or newer.

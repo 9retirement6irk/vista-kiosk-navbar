@@ -27,14 +27,6 @@ final class Paths {
         return result;
     }
 
-    /** Whether {@code path} is {@code prefix} or sits below it. Both are normalized first. */
-    static boolean within(String path, String prefix) {
-        String p = normalize(path);
-        String root = normalize(prefix);
-        if ("/".equals(root)) return true;
-        return p.equals(root) || p.startsWith(root + "/");
-    }
-
     private static int indexOfAny(String text, char a, char b) {
         int first = text.indexOf(a);
         int second = text.indexOf(b);

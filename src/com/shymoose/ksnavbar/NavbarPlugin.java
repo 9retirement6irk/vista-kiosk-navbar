@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,7 +24,7 @@ import me.jxl.kiosk.plugins.PluginHost;
  *
  * One overlay holds the bar and its tab, and an open menu gets a second one that KS places over its
  * item. Building a KS overlay is slow on low-power panels, so the bar's is only replaced when the
- * configuration changes, and tucking it away is a change inside the view. The plugin reserves the
+ * configuration changes, and hiding it behind its tab is a change inside the view. The plugin reserves the
  * bar's depth with setContentInsets, so the dashboard ends above it.
  *
  * Threads: plugin callbacks and command results run on the KS plugin worker, which keeps the
@@ -97,6 +98,7 @@ public final class NavbarPlugin implements KioskPlugin {
 
     @Override
     public synchronized void configure(Map<String, Object> settings) {
+        fillIcons(settings);
         NavConfig previous = config;
         NavConfig next = NavConfig.parse(settings);
         config = next;
@@ -108,6 +110,26 @@ public final class NavbarPlugin implements KioskPlugin {
         if (!next.sameLook(previous)) rebuild.set(true);
         sync();
         report();
+    }
+
+    /**
+     * Saves the icon the bar picked for any item left without one, so the settings page shows it.
+     * KS does not call configure for the save, and the bar already draws the same picks, so nothing
+     * else changes. The next configure finds nothing left to fill.
+     */
+    private void fillIcons(Map<String, Object> settings) {
+        PluginHost current = host;
+        if (current == null || settings == null) return;
+        List<Map<String, Object>> filled = NavItem.withIcons(settings.get("items"));
+        if (filled == null) return;
+        Map<String, Object> values = new java.util.LinkedHashMap<>(settings);
+        values.put("items", filled);
+        try {
+            current.saveSettings(values);
+        } catch (RuntimeException error) {
+            // The bar still draws the picked icons. Only the settings page keeps showing them empty.
+            current.log("Could not save the picked icons: " + error.getMessage());
+        }
     }
 
     @Override
@@ -328,6 +350,10 @@ public final class NavbarPlugin implements KioskPlugin {
         }
     }
 
+    /**
+     * The status line on the plugin page. It is empty while the bar works as set up, and explains
+     * only what needs attention: an item that cannot be used, or why the bar is not showing.
+     */
     private void report() {
         PluginHost current = host;
         if (current == null) return;
@@ -336,25 +362,18 @@ public final class NavbarPlugin implements KioskPlugin {
         boolean error = !cfg.problems.isEmpty();
         for (String problem : cfg.problems) text.append(problem).append('\n');
         if (cfg.items.isEmpty()) {
-            text.append("Add an item under Items to show the bar.");
+            text.append("Add an item to show the bar.");
         } else if (userHidden) {
             text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
         } else if (!cfg.visibleAt(path)) {
-            text.append("Hidden on this page (").append(path).append(") by Hide on.");
-        } else {
-            int count = cfg.items.size();
-            text.append("Showing ").append(count).append(count == 1 ? " item. " : " items. ");
-            int active = cfg.activeIndex(path);
-            if (path == null) text.append("Waiting for the dashboard to load.");
-            else if (active >= 0) text.append(cfg.items.get(active).label).append(" is selected.");
-            else text.append("No item matches this page (").append(path).append(").");
+            text.append("Hidden on this page, which is in Pages without the bar.");
         }
-        String message = text.length() > 1000 ? text.substring(0, 1000) : text.toString();
+        String message = text.toString().trim();
+        if (message.length() > 1000) message = message.substring(0, 1000);
         if (message.equals(lastStatus)) return;
         lastStatus = message;
         current.status(message, error);
     }
-
     /** Main thread. A failure is only reported if no newer tap or session has happened since. */
     private void run(NavTarget target) {
         PluginHost current = host;

@@ -60,6 +60,17 @@ class ManifestSchemaTest(unittest.TestCase):
         check_fields(self, settings)
         self.assertLessEqual(len(json.dumps(next(s for s in settings if s['key'] == 'items')['default'])), 32 * 1024)
 
+    def test_descriptions_are_sentences(self):
+        # Kiosk Satellite's own settings describe each one in a sentence that ends with a period.
+        def walk(fields):
+            for field in fields:
+                if 'description' in field:
+                    with self.subTest(key=field['key']):
+                        self.assertTrue(field['description'].endswith('.'))
+                        self.assertLessEqual(len(field['description']), 100)
+                walk(field.get('fields', []))
+        walk(MANIFEST['settings'])
+
     def test_keys_match_the_code(self):
         keys = {s['key'] for s in MANIFEST['settings']}
         for key in ('position', 'labels', 'hideOn', 'scale', 'opacity', 'collapse', 'autoCollapse', 'makeRoom', 'items'):
@@ -80,10 +91,10 @@ class ManifestSchemaTest(unittest.TestCase):
         by_key = {s['key']: s for s in MANIFEST['settings']}
         self.assertEqual(by_key['position']['options'], ['Bottom', 'Top', 'Left', 'Right'])
         self.assertEqual(by_key['labels']['options'], ['Always', 'Active only', 'Never'])
-        self.assertEqual(by_key['collapse']['options'], ['Start open', 'Start tucked away', 'Off'])
+        self.assertEqual(by_key['collapse']['options'], ['Start visible', 'Start hidden', 'Off'])
         for key in ('position', 'labels', 'collapse'):
             for option in by_key[key]['options']:
-                if option not in ('Bottom', 'Always', 'Start open'):  # the fallbacks
+                if option not in ('Bottom', 'Always', 'Start visible'):  # the fallbacks
                     self.assertIn(f'"{option}"', SOURCES['NavConfig'])
         for option in by_key['scale']['options']:
             self.assertRegex(option, r'^[0-9]+%$')
