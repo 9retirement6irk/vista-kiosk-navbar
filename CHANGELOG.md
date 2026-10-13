@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- **Collapsing** now defaults to **Start open**. The bar starts expanded with a collapse chevron, and stays open until someone taps it. **Collapse after** still defaults to 0, which never collapses the bar on its own.
+
 ## 0.3.1
 
 - The bar repaints when KS resizes its overlay. On a ThinkSmart View it could show as a blank box, or as the tab stretched to the size of the bar.

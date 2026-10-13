@@ -33,7 +33,7 @@ Settings save as you edit them. The bar redraws immediately.
 | Size | Scale of the bar and its menus |
 | Edge distance | Distance from the screen edge, in dp |
 | Opacity | Background opacity in percent. Lower values let the dashboard show through, while icons and labels stay solid |
-| Collapsing | **Off**, **Start open** or **Start collapsed**. See below |
+| Collapsing | **Start open** (default), **Start collapsed** or **Off**. See below |
 | Collapse after | Seconds without a tap before an open bar folds back into its tab. 0 keeps it open |
 
 ### Items 1 to 7
@@ -70,7 +70,7 @@ Problems, such as an unknown target, are listed on the plugin page, and the item
 
 ### Collapsing
 
-With **Collapsing** on, a chevron at the end of the bar folds it into a small tab flush with the screen edge. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
+By default the bar starts open with a chevron at its end. Tapping the chevron folds the bar into a small tab flush with the screen edge, and it stays open until someone does. The tab shows the current page's icon, and tapping it opens the bar again. **Start collapsed** suits wall panels where the dashboard should have the whole screen until someone reaches for the bar. Pair it with **Collapse after** so the bar tucks itself away again once it has been used.
 
 ### Actions
 
