@@ -101,6 +101,8 @@ The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > I
 
 ## Credits
 
-Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) and built from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
+Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jxlarrea](https://github.com/jxlarrea), whose native plugin SDK, overlays and theme make a bar like this possible. Thank you! Started from his [plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world).
+
+Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) by [@joseluis9595](https://github.com/joseluis9595). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
 
 Apache-2.0. Material Design Icons: see [third_party/mdi/LICENSE](third_party/mdi/LICENSE).
