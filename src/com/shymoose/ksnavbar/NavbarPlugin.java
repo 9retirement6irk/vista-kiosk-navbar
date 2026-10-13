@@ -241,8 +241,10 @@ public final class NavbarPlugin implements KioskPlugin {
         String base = origin;
         try {
             NavTarget.Command command = target.command(base);
+            current.log("Tap: " + command.name + " " + describe(target));
             current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
                 if (host != current || navigation.get() != revision) return;
+                if (!ok) current.log(command.name + " failed: " + error);
                 if (ok && !Boolean.FALSE.equals(data)) return;
                 // haNavigate can report false after it has already moved the page, for example to
                 // another dashboard. Reloading then would only flash the page, so check first.

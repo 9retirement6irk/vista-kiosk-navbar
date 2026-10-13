@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- Menus stay at least 95% opaque so their entries stay readable over a busy dashboard. The bar keeps its own Opacity.
+- Every tap logs the command it runs, and logs it if the command fails.
+
 ## 0.5.0
 
 - **Grid menus.** **Menu layout** can be Auto, List or Grid. Grid shows tiles with an icon over a label, and Auto uses a grid above 6 entries.

@@ -54,10 +54,17 @@ final class NavViews {
 
     /** The KS card background at the configured opacity. Content drawn on it stays opaque. */
     static GradientDrawable surface(KsTheme theme, NavConfig config) {
+        return surface(theme, config.opacity);
+    }
+
+    static GradientDrawable surface(KsTheme theme, float opacity) {
         GradientDrawable card = theme.card();
-        card.setAlpha(Math.round(255 * config.opacity));
+        card.setAlpha(Math.round(255 * opacity));
         return card;
     }
+
+    /** Menus cover more of the dashboard than the bar, so they stay nearly opaque to keep entries readable. */
+    static final float MENU_MIN_OPACITY = 0.95f;
 
     /**
      * Pressed feedback without animation: an onSurface wash that appears on touch down and goes on
@@ -569,7 +576,7 @@ final class NavViews {
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
-            setBackground(surface(theme, config));
+            setBackground(surface(theme, Math.max(config.opacity, MENU_MIN_OPACITY)));
             setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int on = color(theme, "onSecondaryContainer", "onSurface");
