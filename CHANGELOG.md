@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- The bar repaints when KS resizes its overlay. On a ThinkSmart View it could show as a blank box, or as the tab stretched to the size of the bar.
+
 ## 0.3.0
 
 - The bar, its tab and its menus now live in one overlay. Collapsing, expanding and opening a menu are now instant. Before, each change created a new KS overlay, which could take several seconds to appear on a ThinkSmart View.

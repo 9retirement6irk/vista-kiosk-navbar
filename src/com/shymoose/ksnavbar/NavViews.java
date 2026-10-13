@@ -126,6 +126,46 @@ final class NavViews {
             restyle(theme);
         }
 
+        /**
+         * KS resizes a wrapped overlay after measuring it, but nothing then redraws the view into the
+         * resized surface, so the old frame shows stretched. Seen on a ThinkSmart View (Android 8.1):
+         * a 1 px first frame stretched into a blank box, and a tab stretched to the size of the bar.
+         * Redrawing whenever the host frame changes size fixes both.
+         */
+        private final View.OnLayoutChangeListener hostResized = (view, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) redraw();
+        };
+
+        @Override protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            if (getParent() instanceof View) ((View) getParent()).addOnLayoutChangeListener(hostResized);
+            redraw();
+        }
+
+        @Override protected void onDetachedFromWindow() {
+            if (getParent() instanceof View) ((View) getParent()).removeOnLayoutChangeListener(hostResized);
+            removeCallbacks(redrawTree);
+            super.onDetachedFromWindow();
+        }
+
+        private final Runnable redrawTree = () -> invalidateTree(this);
+
+        /** Redraw now and again shortly after, once KS has applied a new size. */
+        void redraw() {
+            invalidateTree(this);
+            removeCallbacks(redrawTree);
+            postDelayed(redrawTree, 150);
+            postDelayed(redrawTree, 600);
+        }
+
+        private static void invalidateTree(View view) {
+            view.invalidate();
+            if (view instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) view;
+                for (int i = 0; i < group.getChildCount(); i++) invalidateTree(group.getChildAt(i));
+            }
+        }
+
         void setPath(String next) {
             if (java.util.Objects.equals(next, path)) return;
             path = next;
@@ -143,6 +183,7 @@ final class NavViews {
             collapsed = value && config.collapse != NavConfig.Collapse.OFF;
             bar.setVisibility(collapsed ? GONE : VISIBLE);
             tab.setVisibility(collapsed ? VISIBLE : GONE);
+            redraw();
         }
 
         boolean isCollapsed() { return collapsed; }
@@ -153,6 +194,7 @@ final class NavViews {
             menu = null;
             menuHolder.removeAllViews();
             menuHolder.setVisibility(GONE);
+            redraw();
         }
 
         private void tapItem(int index) {
@@ -176,6 +218,7 @@ final class NavViews {
             menuHolder.removeAllViews();
             menuHolder.addView(menu, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
             menuHolder.setVisibility(VISIBLE);
+            redraw();
             // Line the menu up with its item once both are laid out, within the overlay's width.
             final Menu shown = menu;
             shown.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {

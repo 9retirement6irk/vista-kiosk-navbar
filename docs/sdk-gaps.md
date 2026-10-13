@@ -131,7 +131,17 @@ Each option should keep fleet sync working.
 
 **Suggestion:** Document the cost, so plugin authors reuse overlays rather than replace them. Consider reusing the platform view when an overlay is replaced at the same key.
 
-## 16. Template tooling on Windows
+## 16. A resized `WRAP` overlay shows a stale, stretched frame
+
+**Need:** A wrapped overlay that changes size, such as a bar collapsing to a tab or a menu opening, should repaint at its new size.
+
+**Today:** Measured with `adb screencap` on a ThinkSmart View (Android 8.1, KS 2026.10.21). When the plugin view's measured size changes, KS resizes the platform view, but the content is not redrawn into the resized surface, so the previous frame is scaled to the new size. This also explains a new wrapped overlay that first appears as a blank box in its background color: its first frame was drawn at the 1 px placeholder size. The overlay stays like that until something else invalidates the view.
+
+**Our workaround:** Listen for layout changes on the `OverlayFrame` parent, and invalidate the whole view tree when its size changes, again after 150 ms and again after 600 ms.
+
+**Suggestion:** Have `OverlayFrame` invalidate its child tree after `onLayout` when its size changed, so every plugin gets this fix for free.
+
+## 17. Template tooling on Windows
 
 - `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. We added the `.bat` glob.
 - `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. We skip those two tests on Windows.
