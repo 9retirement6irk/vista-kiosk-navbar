@@ -13,6 +13,7 @@ import android.view.MotionEvent;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -41,6 +42,8 @@ final class NavViews {
          * Flutter before reaching a plugin view, so delivery time is KS's share of any lag.
          */
         void onLatency(long downMs, long upMs, long drawMs);
+        /** A menu item was tapped. {@code offsetPx} is its distance from the bar's center, {@code barHeightDp} the bar's height. */
+        void onMenu(int index, float offsetPx, int barHeightDp);
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -104,20 +107,89 @@ final class NavViews {
     }
 
     /**
-     * Stacks the menu, the bar and the tab, edge last. Taps on its transparent space close an open
-     * menu. Every method runs on the main thread.
+     * Hides an overlay's content while its size is changing, so a frame drawn at the wrong size is
+     * never shown. KS draws a plugin overlay into a texture that it resizes only after measuring the
+     * view. Whatever the texture held is scaled to the new size until the view redraws, which shows
+     * as a stretched copy of the previous state. The gate keeps the content transparent from the
+     * moment its size will change until the host surface has exactly the measured size, then
+     * reveals it. A timeout reveals it anyway, so a size that never arrives cannot hide the bar.
+     */
+    static final class SizeGate {
+        private static final long TIMEOUT_MS = 700;
+
+        private final ViewGroup owner;
+        private boolean waiting;
+        private final Runnable timeout = this::open;
+        private final View.OnLayoutChangeListener hostListener = (view, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) invalidateTree(owner());
+            check();
+        };
+
+        SizeGate(ViewGroup owner) { this.owner = owner; }
+
+        private ViewGroup owner() { return owner; }
+
+        private View host() {
+            return owner.getParent() instanceof View ? (View) owner.getParent() : null;
+        }
+
+        void attach() {
+            View host = host();
+            if (host != null) host.addOnLayoutChangeListener(hostListener);
+        }
+
+        void detach() {
+            View host = host();
+            if (host != null) host.removeOnLayoutChangeListener(hostListener);
+            owner.removeCallbacks(timeout);
+        }
+
+        /** The owner's size is about to change. Hide it until the host matches. */
+        void close() {
+            waiting = true;
+            owner.setAlpha(0f);
+            owner.removeCallbacks(timeout);
+            owner.postDelayed(timeout, TIMEOUT_MS);
+        }
+
+        /** Reveal once the host surface has the owner's measured size. */
+        void check() {
+            if (!waiting) return;
+            View host = host();
+            int width = owner.getMeasuredWidth();
+            int height = owner.getMeasuredHeight();
+            if (host != null && width > 1 && height > 1 && host.getWidth() == width && host.getHeight() == height) open();
+        }
+
+        private void open() {
+            waiting = false;
+            owner.removeCallbacks(timeout);
+            owner.setAlpha(1f);
+            invalidateTree(owner);
+        }
+    }
+
+    static void invalidateTree(View view) {
+        view.invalidate();
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) invalidateTree(group.getChildAt(i));
+        }
+    }
+
+    /**
+     * The bar and the tab it collapses into, edge last. Menus live in their own overlay, so opening
+     * one never resizes this view. Every method runs on the main thread.
      */
     static final class Root extends LinearLayout {
         private final NavConfig config;
         private final Listener listener;
         private final Bar bar;
         private final Tab tab;
-        private final FrameLayout menuHolder;
-        private Menu menu;
+        private final SizeGate gate = new SizeGate(this);
         private KsTheme theme;
         private String path;
         private int active;
-        private int openMenu = -1;
         private boolean collapsed;
 
         Root(Context context, KsTheme theme, NavConfig config, String path, boolean collapsed, Listener listener) {
@@ -129,67 +201,35 @@ final class NavViews {
             this.active = config.activeIndex(path);
             setOrientation(VERTICAL);
             setGravity(Gravity.CENTER_HORIZONTAL);
-            setClipChildren(false);
             bar = new Bar(context, theme, config, active, this::tapItem);
             tab = new Tab(context, theme, config, active, view -> {
                 listener.onInteraction();
                 listener.onExpand();
             });
-            menuHolder = new FrameLayout(context);
-            menuHolder.setVisibility(GONE);
-            // The menu sits on the side away from the edge: above a bottom bar, below a top bar.
-            if (config.top) {
-                addView(bar);
-                addView(tab);
-                addView(menuHolder);
-            } else {
-                addView(menuHolder);
-                addView(bar);
-                addView(tab);
-            }
-            setOnClickListener(view -> closeMenu());
-            setCollapsed(collapsed);
+            addView(bar);
+            addView(tab);
+            this.collapsed = collapsed && config.collapse != NavConfig.Collapse.OFF;
+            bar.setVisibility(this.collapsed ? GONE : VISIBLE);
+            tab.setVisibility(this.collapsed ? VISIBLE : GONE);
             restyle(theme);
         }
 
-        /**
-         * KS resizes a wrapped overlay after measuring it, but nothing then redraws the view into the
-         * resized surface, so the old frame shows stretched. Seen on a ThinkSmart View (Android 8.1):
-         * a 1 px first frame stretched into a blank box, and a tab stretched to the size of the bar.
-         * Redrawing whenever the host frame changes size fixes both.
-         */
-        private final View.OnLayoutChangeListener hostResized = (view, l, t, r, b, ol, ot, or, ob) -> {
-            if (r - l != or - ol || b - t != ob - ot) redraw();
-        };
-
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            if (getParent() instanceof View) ((View) getParent()).addOnLayoutChangeListener(hostResized);
-            redraw();
+            gate.attach();
+            // The first frame is drawn before KS knows the size.
+            gate.close();
         }
 
         @Override protected void onDetachedFromWindow() {
-            if (getParent() instanceof View) ((View) getParent()).removeOnLayoutChangeListener(hostResized);
-            removeCallbacks(redrawTree);
+            gate.detach();
+            removeCallbacks(settle);
             super.onDetachedFromWindow();
         }
 
-        private final Runnable redrawTree = () -> invalidateTree(this);
-
-        /** Redraw now and again shortly after, once KS has applied a new size. */
-        void redraw() {
-            invalidateTree(this);
-            removeCallbacks(redrawTree);
-            postDelayed(redrawTree, 150);
-            postDelayed(redrawTree, 600);
-        }
-
-        private static void invalidateTree(View view) {
-            view.invalidate();
-            if (view instanceof android.view.ViewGroup) {
-                android.view.ViewGroup group = (android.view.ViewGroup) view;
-                for (int i = 0; i < group.getChildCount(); i++) invalidateTree(group.getChildAt(i));
-            }
+        @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            super.onLayout(changed, l, t, r, b);
+            gate.check();
         }
 
         void setPath(String next) {
@@ -197,7 +237,6 @@ final class NavViews {
             path = next;
             removeCallbacks(settle);
             showActive(config.activeIndex(next));
-            closeMenu();
         }
 
         /** Falls back to the real page if a tapped page never loads. */
@@ -212,7 +251,7 @@ final class NavViews {
          * Home Assistant to report the new page. If the page has not changed after a few seconds,
          * the highlight goes back to where the dashboard really is.
          */
-        private void preview(int index) {
+        void preview(int index) {
             showActive(index);
             removeCallbacks(settle);
             postDelayed(settle, 5000);
@@ -226,8 +265,8 @@ final class NavViews {
         }
 
         private long downDelay = -1;
-        private long upDelay = -1;
         private long downAt;
+        private long drawDelay = -1;
         private boolean measureDraw;
 
         /** Measures how late touches arrive. The event time is when the finger actually moved. */
@@ -237,19 +276,15 @@ final class NavViews {
             if (action == MotionEvent.ACTION_DOWN) {
                 downDelay = now - event.getEventTime();
                 downAt = now;
-                upDelay = -1;
                 measureDraw = true;
             } else if (action == MotionEvent.ACTION_UP && downDelay >= 0) {
-                upDelay = now - event.getEventTime();
-                long draw = drawDelay;
+                long up = now - event.getEventTime();
                 long down = downDelay;
                 downDelay = -1;
-                try { listener.onLatency(down, upDelay, draw); } catch (RuntimeException ignored) {}
+                try { listener.onLatency(down, up, drawDelay); } catch (RuntimeException ignored) {}
             }
             return super.dispatchTouchEvent(event);
         }
-
-        private long drawDelay = -1;
 
         @Override protected void dispatchDraw(android.graphics.Canvas canvas) {
             super.dispatchDraw(canvas);
@@ -260,57 +295,29 @@ final class NavViews {
         }
 
         void setCollapsed(boolean value) {
-            closeMenu();
-            collapsed = value && config.collapse != NavConfig.Collapse.OFF;
+            boolean next = value && config.collapse != NavConfig.Collapse.OFF;
+            if (next == collapsed) return;
+            collapsed = next;
+            // Swapping the bar for the tab changes the overlay's size.
+            gate.close();
             bar.setVisibility(collapsed ? GONE : VISIBLE);
             tab.setVisibility(collapsed ? VISIBLE : GONE);
-            redraw();
         }
 
         boolean isCollapsed() { return collapsed; }
 
-        void closeMenu() {
-            if (openMenu < 0) return;
-            openMenu = -1;
-            menu = null;
-            menuHolder.removeAllViews();
-            menuHolder.setVisibility(GONE);
-            redraw();
-        }
-
         private void tapItem(int index) {
             listener.onInteraction();
             NavItem item = config.items.get(index);
-            if (item.type != NavItem.Type.MENU) {
-                closeMenu();
-                if (item.type == NavItem.Type.PAGE) preview(index);
-                listener.onTarget(item.target);
+            if (item.type == NavItem.Type.MENU) {
+                // Where the item sits relative to the center, where both overlays are centered.
+                float offset = bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
+                float density = getResources().getDisplayMetrics().density;
+                listener.onMenu(index, offset, Math.round(getHeight() / density));
                 return;
             }
-            if (openMenu == index) {
-                closeMenu();
-                return;
-            }
-            openMenu = index;
-            menu = new Menu(getContext(), theme, config, index, path, child -> {
-                listener.onInteraction();
-                closeMenu();
-                NavItem entry = item.children.get(child);
-                if (entry.type == NavItem.Type.PAGE) preview(index);
-                listener.onTarget(entry.target);
-            });
-            menuHolder.removeAllViews();
-            menuHolder.addView(menu, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
-            menuHolder.setVisibility(VISIBLE);
-            redraw();
-            // Line the menu up with its item once both are laid out, within the overlay's width.
-            final Menu shown = menu;
-            shown.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
-                if (menu != shown) return;
-                float center = bar.getLeft() + bar.itemCenter(index);
-                float x = Math.max(0, Math.min(menuHolder.getWidth() - shown.getWidth(), center - shown.getWidth() / 2f));
-                shown.setTranslationX(x);
-            });
+            if (item.type == NavItem.Type.PAGE) preview(index);
+            listener.onTarget(item.target);
         }
 
         private float startX;
@@ -348,13 +355,9 @@ final class NavViews {
                 if (action == MotionEvent.ACTION_DOWN) {
                     startX = event.getX();
                     startY = event.getY();
-                } else if (action == MotionEvent.ACTION_MOVE && checkSwipe(event)) {
-                    MotionEvent cancel = MotionEvent.obtain(event);
-                    cancel.setAction(MotionEvent.ACTION_CANCEL);
-                    super.onTouchEvent(cancel);
-                    cancel.recycle();
                     return true;
                 }
+                if (action == MotionEvent.ACTION_MOVE && checkSwipe(event)) return true;
             }
             return super.onTouchEvent(event);
         }
@@ -375,30 +378,61 @@ final class NavViews {
 
         void restyle(KsTheme next) {
             theme = next;
-            float s = config.scale;
             int edge = theme.px(config.inset);
-            int gap = theme.px(8 * s);
             bar.restyle(theme);
             tab.restyle(theme);
-            if (menu != null) menu.restyle(theme);
             LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-            LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
             // Insets are inside the view: the overlay itself sits flush so the tab can touch the edge.
             barParams.leftMargin = edge;
             barParams.rightMargin = edge;
-            if (config.top) {
-                barParams.topMargin = edge;
-                menuParams.topMargin = gap;
-            } else {
-                barParams.bottomMargin = edge;
-                menuParams.bottomMargin = gap;
-            }
+            if (config.top) barParams.topMargin = edge;
+            else barParams.bottomMargin = edge;
             bar.setLayoutParams(barParams);
-            menuHolder.setLayoutParams(menuParams);
             tab.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
     }
 
+    /**
+     * A menu's own overlay: the full width of the kiosk above (or below) the bar, transparent except
+     * for the menu card, which sits over its item. Taps on the transparent space close the menu.
+     */
+    static final class MenuPanel extends FrameLayout {
+        private final Menu menu;
+        private final float offset;
+        private final SizeGate gate = new SizeGate(this);
+
+        MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, float offset,
+                  Menu.Taps taps, Runnable close) {
+            super(context);
+            this.offset = offset;
+            menu = new Menu(context, theme, config, itemIndex, path, taps);
+            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT,
+                config.top ? Gravity.TOP : Gravity.BOTTOM));
+            setOnClickListener(view -> close.run());
+        }
+
+        void restyle(KsTheme theme) { menu.restyle(theme); }
+
+        @Override protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            gate.attach();
+            gate.close();
+        }
+
+        @Override protected void onDetachedFromWindow() {
+            gate.detach();
+            super.onDetachedFromWindow();
+        }
+
+        @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            super.onLayout(changed, l, t, r, b);
+            // Both overlays are centered, so the item's offset from the center places the card.
+            float center = getWidth() / 2f + offset;
+            float x = Math.max(0, Math.min(getWidth() - menu.getWidth(), center - menu.getWidth() / 2f));
+            menu.setTranslationX(x);
+            gate.check();
+        }
+    }
     /** A horizontal pill of items. Each item is an icon in an indicator above an optional label. */
     static final class Bar extends LinearLayout {
         interface Taps {

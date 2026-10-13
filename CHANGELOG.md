@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0
+
+- **No more stretched frames.** The bar, its tab and menus stay hidden while their overlay is being resized, and appear once KS has applied the new size. Before, the previous frame showed stretched to the new size for a moment.
+- Menus open in their own overlay, so opening one no longer resizes or redraws the bar. A menu card still sits over its item, and tapping the space beside it closes it.
+
 ## 0.6.0
 
 - **Icons from labels.** An empty icon is picked from the label, such as Driveway → road, Garage → garage, Living → sofa, Exterior → house with an arrow out. Camera menus no longer show the same icon on every entry.

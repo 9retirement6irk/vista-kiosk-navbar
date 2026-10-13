@@ -137,9 +137,9 @@ Each option should keep fleet sync working.
 
 **Today:** Measured with `adb screencap` on a ThinkSmart View (Android 8.1, KS 2026.10.21). When the plugin view's measured size changes, KS resizes the platform view, but the content is not redrawn into the resized surface, so the previous frame is scaled to the new size. This also explains a new wrapped overlay that first appears as a blank box in its background color: its first frame was drawn at the 1 px placeholder size. The overlay stays like that until something else invalidates the view.
 
-**Our workaround:** Listen for layout changes on the `OverlayFrame` parent, and invalidate the whole view tree when its size changes, again after 150 ms and again after 600 ms.
+**Our workaround:** Redrawing after the resize (listening to the `OverlayFrame` parent) only shortens the glitch, because the stretched frame is still composited first. We now keep the view transparent from the moment its size will change until the host frame has exactly the measured size, then reveal it. A 700 ms timeout reveals it anyway. We also moved menus into their own fixed-size overlay so the bar never resizes.
 
-**Suggestion:** Have `OverlayFrame` invalidate its child tree after `onLayout` when its size changed, so every plugin gets this fix for free.
+**Suggestion:** Don't composite a resized texture until the view has drawn into it at the new size. For example, keep showing the old size until the first frame at the new size arrives, then swap. Every plugin with a wrapped overlay that changes size hits this, so it belongs in KS rather than in each plugin.
 
 ## 17. Template tooling on Windows
 

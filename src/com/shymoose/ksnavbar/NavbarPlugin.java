@@ -33,6 +33,9 @@ import me.jxl.kiosk.plugins.PluginHost;
  */
 public final class NavbarPlugin implements KioskPlugin {
     static final String BAR = "bar";
+    static final String MENU = "menu";
+    /** Space between the bar and an open menu, in dp. */
+    private static final int MENU_GAP = 8;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile PluginHost host;
@@ -52,6 +55,8 @@ public final class NavbarPlugin implements KioskPlugin {
     private String lastStatus;
     // Main-thread-only state.
     private boolean shown;
+    private int openMenu = -1;
+    private View menuView;
 
     @Override
     public synchronized void start(PluginHost host, Map<String, Object> settings) {
@@ -136,6 +141,7 @@ public final class NavbarPlugin implements KioskPlugin {
                 boolean moved = !Objects.equals(nextPath, path);
                 path = nextPath;
                 if (moved) {
+                    main.post(this::closeMenu);
                     sync();
                     report();
                 }
@@ -156,6 +162,7 @@ public final class NavbarPlugin implements KioskPlugin {
         boolean visible = !userHidden && cfg.visibleAt(path);
         try {
             if (!visible) {
+                closeMenu();
                 main.removeCallbacks(autoCollapse);
                 if (shown) {
                     current.hideOverlay(BAR);
@@ -164,6 +171,7 @@ public final class NavbarPlugin implements KioskPlugin {
                 return;
             }
             if (!shown || rebuild.getAndSet(false)) {
+                closeMenu();
                 String anchor = cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM;
                 // Flush with the edge: the view keeps the bar's distance itself, so the tab can touch it.
                 current.showOverlay(BAR, OverlaySpec.at(anchor).closeOnBack(false), new RootFactory());
@@ -191,6 +199,7 @@ public final class NavbarPlugin implements KioskPlugin {
 
     /** Main thread. */
     private void setCollapsed(boolean value) {
+        closeMenu();
         collapsed = value && config.collapse != NavConfig.Collapse.OFF;
         NavViews.Root view = root.get();
         if (view != null) view.setCollapsed(collapsed);
@@ -209,6 +218,33 @@ public final class NavbarPlugin implements KioskPlugin {
     private void forgetOverlay() {
         main.removeCallbacks(autoCollapse);
         shown = false;
+        openMenu = -1;
+        menuView = null;
+    }
+
+    /** Main thread. */
+    private void closeMenu() {
+        PluginHost current = host;
+        boolean open = openMenu >= 0 || menuView != null;
+        openMenu = -1;
+        if (!open || current == null) return;
+        try { current.hideOverlay(MENU); } catch (RuntimeException sessionEnded) {}
+    }
+
+    /**
+     * Main thread. A menu gets its own overlay so opening it never resizes the bar. It fills the
+     * kiosk's width beside the bar, and the menu card inside it sits over its item.
+     */
+    private void openMenu(int index, float offsetPx, int barHeightDp) {
+        PluginHost current = host;
+        if (current == null) return;
+        NavConfig cfg = config;
+        int inset = Math.min(200, barHeightDp + MENU_GAP);
+        OverlaySpec spec = OverlaySpec.at(cfg.top ? OverlaySpec.TOP : OverlaySpec.BOTTOM)
+            .size(OverlaySpec.FILL, OverlaySpec.WRAP).inset(inset);
+        // Replacing the overlay at the same key swaps one open menu for another.
+        current.showOverlay(MENU, spec, new MenuFactory(cfg, index, offsetPx));
+        openMenu = index;
     }
 
     private void report() {
@@ -290,7 +326,7 @@ public final class NavbarPlugin implements KioskPlugin {
     /** Taps from the overlay, on the main thread. */
     private final class Taps implements NavViews.Listener {
         @Override public void onTarget(NavTarget target) {
-            try { run(target); } catch (RuntimeException error) { log(host, "Tap failed", error); }
+            try { closeMenu(); run(target); } catch (RuntimeException error) { log(host, "Tap failed", error); }
         }
 
         @Override public void onCollapse() {
@@ -299,6 +335,13 @@ public final class NavbarPlugin implements KioskPlugin {
 
         @Override public void onExpand() {
             try { setCollapsed(false); } catch (RuntimeException error) { log(host, "Could not open the bar", error); }
+        }
+
+        @Override public void onMenu(int index, float offsetPx, int barHeightDp) {
+            try {
+                if (openMenu == index) closeMenu();
+                else openMenu(index, offsetPx, barHeightDp);
+            } catch (RuntimeException error) { log(host, "Could not open the menu", error); }
         }
 
         @Override public void onInteraction() {
@@ -331,6 +374,53 @@ public final class NavbarPlugin implements KioskPlugin {
 
         @Override public void onDestroy(View view) {
             root.compareAndSet((NavViews.Root) view, null);
+        }
+    }
+
+    /** Built and destroyed on the main thread, which also owns the menu state. */
+    private final class MenuFactory implements OverlayFactory {
+        private final NavConfig cfg;
+        private final int index;
+        private final float offset;
+
+        MenuFactory(NavConfig cfg, int index, float offset) {
+            this.cfg = cfg;
+            this.index = index;
+            this.offset = offset;
+        }
+
+        @Override public View create(Context context, KsTheme theme) {
+            NavItem item = cfg.items.get(index);
+            View view = new NavViews.MenuPanel(context, theme, cfg, index, path, offset, child -> {
+                try {
+                    scheduleAutoCollapse();
+                    closeMenu();
+                    NavItem entry = item.children.get(child);
+                    NavViews.Root bar = root.get();
+                    if (entry.type == NavItem.Type.PAGE && bar != null) bar.preview(index);
+                    run(entry.target);
+                } catch (RuntimeException error) {
+                    log(host, "Tap on a menu entry failed", error);
+                }
+            }, () -> {
+                try { closeMenu(); } catch (RuntimeException ignored) {}
+            });
+            menuView = view;
+            // Also set here, in case KS destroys the previous menu after showOverlay returned.
+            openMenu = index;
+            return view;
+        }
+
+        @Override public void onThemeChanged(View view, KsTheme theme) {
+            ((NavViews.MenuPanel) view).restyle(theme);
+        }
+
+        @Override public void onDestroy(View view) {
+            // Back, a replacement or hideOverlay removed this menu. A newer menu keeps its state.
+            if (menuView == view) {
+                menuView = null;
+                openMenu = -1;
+            }
         }
     }
 }
