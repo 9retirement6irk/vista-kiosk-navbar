@@ -58,6 +58,11 @@ public final class NavbarPlugin implements KioskPlugin {
     private int openMenu = -1;
     /** A tap that reaches the bar this late, in ms, is logged. */
     private static final long SLOW_TAP_MS = 150;
+    /** An open menu closes after this long, so a wall panel is not left with a menu up. */
+    private static final long MENU_TIMEOUT_MS = 30_000;
+    private final Runnable menuTimeout = () -> {
+        try { closeMenu(); } catch (RuntimeException ignored) {}
+    };
     private View menuView;
 
     @Override
@@ -219,6 +224,7 @@ public final class NavbarPlugin implements KioskPlugin {
     /** Main thread. The overlay went with the old session, so only the bookkeeping is reset. */
     private void forgetOverlay() {
         main.removeCallbacks(autoCollapse);
+        main.removeCallbacks(menuTimeout);
         shown = false;
         openMenu = -1;
         menuView = null;
@@ -231,6 +237,7 @@ public final class NavbarPlugin implements KioskPlugin {
         boolean open = openMenu >= 0 || menuView != null;
         openMenu = -1;
         markMenu(-1);
+        main.removeCallbacks(menuTimeout);
         if (!open || current == null) return;
         try { current.hideOverlay(MENU); } catch (RuntimeException sessionEnded) {}
     }
@@ -250,6 +257,8 @@ public final class NavbarPlugin implements KioskPlugin {
         current.showOverlay(MENU, spec, new MenuFactory(cfg, index, offsetPx));
         openMenu = index;
         markMenu(index);
+        main.removeCallbacks(menuTimeout);
+        main.postDelayed(menuTimeout, MENU_TIMEOUT_MS);
     }
 
     /** Main thread. Shows which item a menu belongs to while it is open. */
@@ -369,7 +378,7 @@ public final class NavbarPlugin implements KioskPlugin {
             try { scheduleAutoCollapse(); } catch (RuntimeException ignored) {}
         }
 
-        @Override public void onLatency(long downMs, long upMs, long drawMs) {
+        @Override public void onLatency(long downMs, long upMs) {
             // Only slow deliveries are worth a log line; every tap would flood the KS log.
             long late = Math.max(downMs, upMs);
             if (late < SLOW_TAP_MS) return;

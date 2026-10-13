@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2
+
+- With Labels set to Active only, the bar keeps the same size as you move between pages, so it no longer redraws from scratch on each change.
+- Long labels end with an ellipsis instead of widening their item.
+- An open menu closes by itself after 30 seconds.
+- TalkBack reads which item is selected.
+
 ## 0.10.1
 
 - While a menu is open, its item shows a lighter pill, so it is clear where the menu came from.

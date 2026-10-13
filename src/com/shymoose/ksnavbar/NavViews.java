@@ -38,10 +38,10 @@ final class NavViews {
         /** Any tap, to restart the auto-collapse countdown. */
         void onInteraction();
         /**
-         * How late a tap reached the view and when the view next drew, in ms. Touches pass through
-         * Flutter before reaching a plugin view, so delivery time is KS's share of any lag.
+         * How late a tap reached the view, in ms. Touches pass through Flutter before reaching a
+         * plugin view, so this is KS's share of any lag.
          */
-        void onLatency(long downMs, long upMs, long drawMs);
+        void onLatency(long downMs, long upMs);
         /** A menu item was tapped. {@code offsetPx} is its distance from the bar's center, {@code barHeightDp} the bar's height. */
         void onMenu(int index, float offsetPx, int barHeightDp);
     }
@@ -333,9 +333,6 @@ final class NavViews {
         }
 
         private long downDelay = -1;
-        private long downAt;
-        private long drawDelay = -1;
-        private boolean measureDraw;
 
         /** Measures how late touches arrive. The event time is when the finger actually moved. */
         @Override public boolean dispatchTouchEvent(MotionEvent event) {
@@ -343,13 +340,11 @@ final class NavViews {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
                 downDelay = now - event.getEventTime();
-                downAt = now;
-                measureDraw = true;
             } else if (action == MotionEvent.ACTION_UP && downDelay >= 0) {
                 long up = now - event.getEventTime();
                 long down = downDelay;
                 downDelay = -1;
-                try { listener.onLatency(down, up, drawDelay); } catch (RuntimeException ignored) {}
+                try { listener.onLatency(down, up); } catch (RuntimeException ignored) {}
             }
             return super.dispatchTouchEvent(event);
         }
@@ -357,10 +352,6 @@ final class NavViews {
         @Override protected void dispatchDraw(android.graphics.Canvas canvas) {
             if (gate.hiding()) return;
             super.dispatchDraw(canvas);
-            if (measureDraw) {
-                measureDraw = false;
-                drawDelay = SystemClock.uptimeMillis() - downAt;
-            }
         }
 
         void setCollapsed(boolean value) {
@@ -565,6 +556,7 @@ final class NavViews {
                 TextView label = new TextView(context);
                 label.setText(item.label);
                 label.setSingleLine(true);
+                label.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 label.setGravity(Gravity.CENTER);
                 label.setIncludeFontPadding(false);
                 cell.addView(indicator);
@@ -622,6 +614,7 @@ final class NavViews {
                 icons.get(i).setTextSize(TypedValue.COMPLEX_UNIT_PX, px(24 * s));
                 TextView label = labels.get(i);
                 theme.styleText(label, 12 * s, 500, "onSurfaceVariant");
+                label.setMaxWidth(px(96 * s));
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 spacing.topMargin = px(4 * s);
                 label.setLayoutParams(spacing);
@@ -651,7 +644,11 @@ final class NavViews {
                 TextView label = labels.get(i);
                 label.setTextColor(selected ? strong : off);
                 boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
-                int visibility = show ? VISIBLE : GONE;
+                // Active only hides the other labels but keeps their space, so the bar never changes
+                // size when the page changes. A resize would make the overlay redraw from scratch.
+                int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
+                View cell = cells.get(i);
+                if (cell.isSelected() != selected) cell.setSelected(selected);
                 if (label.getVisibility() != visibility) label.setVisibility(visibility);
             }
         }
