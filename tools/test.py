@@ -8,7 +8,6 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from android_sdk import android_platform
-from gen_mdi import generate as generate_icons
 
 root = Path(__file__).resolve().parents[1]
 java_home = os.environ.get('JAVA_HOME')
@@ -21,11 +20,9 @@ try:
     platform = str(android_platform(sdk_root))
 except ValueError as error:
     raise SystemExit(str(error)) from error
-generate_icons()
 sources = [
     *sorted((root / 'sdk/src').rglob('*.java')),
     *sorted((root / 'src').rglob('*.java')),
-    *sorted((root / 'build/generated').rglob('*.java')),
     *sorted((root / 'tests').rglob('*.java')),
 ]
 with tempfile.TemporaryDirectory(prefix='kiosk-plugin-test-') as directory:

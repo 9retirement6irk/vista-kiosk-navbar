@@ -15,6 +15,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.ArrayList;
@@ -42,8 +43,10 @@ final class NavViews {
          * plugin view, so this is KS's share of any lag.
          */
         void onLatency(long downMs, long upMs);
-        /** A menu item was tapped. {@code offsetPx} is its distance from the bar's center, {@code barHeightDp} the bar's height. */
-        void onMenu(int index, float offsetPx, int barHeightDp);
+        /** A menu item was tapped. {@code offsetDp} is its distance from the screen's center along the bar. */
+        void onMenu(int index, int offsetDp, int barDepthDp);
+        /** The view's depth from its edge changed, in dp, for example when the bar tucks away. */
+        void onDepth(int depthDp);
     }
 
     /** A Material 3 role with a fallback for KS versions that do not provide it. */
@@ -101,7 +104,7 @@ final class NavViews {
             case RIGHT: away = towardEdge ? "right" : "left"; break;
             default: away = towardEdge ? "down" : "up"; break;
         }
-        return MdiFont.glyph("mdi:chevron-" + away);
+        return "mdi:chevron-" + away;
     }
 
     /**
@@ -117,14 +120,43 @@ final class NavViews {
         }
     }
 
-    static TextView icon(Context context) {
-        TextView icon = new TextView(context);
-        icon.setGravity(Gravity.CENTER);
-        icon.setIncludeFontPadding(false);
-        icon.setTypeface(MdiFont.typeface(context));
+    static ImageView icon(Context context) {
+        ImageView icon = new ImageView(context);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         return icon;
     }
 
+    /**
+     * Draws a Material Design Icon from KS's own set in a color. An unknown name draws a plain
+     * circle, so a typo shows as a placeholder rather than an empty space.
+     */
+    static void setIcon(ImageView view, KsTheme theme, String name, int color) {
+        Drawable drawable = null;
+        try {
+            drawable = theme.icon(name, "onSurface");
+            if (drawable == null) drawable = theme.icon(NavItem.DEFAULT_ICON, "onSurface");
+        } catch (LinkageError olderHost) {
+            // Kiosk Satellite before 2026.10.23 has no icons for plugins. The manifest needs a
+            // newer one anyway, so this only guards against a mismatched host.
+        }
+        if (drawable != null) {
+            drawable = drawable.mutate();
+            drawable.setTint(color);
+        }
+        view.setImageDrawable(drawable);
+    }
+
+    /** Sizes an icon view to a square of {@code px}. */
+    static void sizeIcon(View view, int px) {
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params == null) {
+            view.setLayoutParams(new LinearLayout.LayoutParams(px, px));
+        } else {
+            params.width = px;
+            params.height = px;
+            view.setLayoutParams(params);
+        }
+    }
     /**
      * Hides an overlay's content while its size is changing, so a frame drawn at the wrong size is
      * never shown. KS draws a plugin overlay into a texture that it resizes only after measuring the
@@ -295,9 +327,16 @@ final class NavViews {
             super.onDetachedFromWindow();
         }
 
+        private int reportedDepth = -1;
+
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
             super.onLayout(changed, l, t, r, b);
             gate.check();
+            int depth = depthDp();
+            if (depth > 1 && depth != reportedDepth) {
+                reportedDepth = depth;
+                try { listener.onDepth(depth); } catch (RuntimeException ignored) {}
+            }
         }
 
         void setPath(String next) {
@@ -369,16 +408,23 @@ final class NavViews {
         /** Marks the item whose menu is open, or none for -1. */
         void setOpenMenu(int index) { bar.setOpen(index); }
 
+        /** How far this view reaches from its edge, in dp: the bar with its margin, or the tab. */
+        int depthDp() {
+            float density = getResources().getDisplayMetrics().density;
+            return Math.round((config.vertical ? getWidth() : getHeight()) / density);
+        }
+
         private void tapItem(int index) {
             listener.onInteraction();
             NavItem item = config.items.get(index);
             if (item.type == NavItem.Type.MENU) {
-                // Where the item sits along the bar relative to its center, where both overlays are centered.
+                // The bar's overlay is centered on its edge like the menu's, so the item's distance
+                // from this view's center is its distance from the screen's center.
                 float offset = config.vertical
                     ? bar.getTop() + bar.itemCenter(index) - getHeight() / 2f
                     : bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
                 float density = getResources().getDisplayMetrics().density;
-                listener.onMenu(index, offset, Math.round((config.vertical ? getWidth() : getHeight()) / density));
+                listener.onMenu(index, Math.round(offset / density), depthDp());
                 return;
             }
             if (item.type == NavItem.Type.PAGE) preview(index);
@@ -461,30 +507,17 @@ final class NavViews {
     }
 
     /**
-     * A menu's own overlay: the full length of the kiosk beside the bar, transparent except for the
-     * menu card, which sits next to its item. Taps on the transparent space close the menu.
+     * A menu's own overlay: just the menu card. KS places it beside the bar, over its item, and
+     * closes it on a tap anywhere else.
      */
     static final class MenuPanel extends FrameLayout {
         private final Menu menu;
-        private final float offset;
-        private final boolean vertical;
         private final SizeGate gate = new SizeGate(this);
 
-        MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, float offset,
-                  Menu.Taps taps, Runnable close) {
+        MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, Menu.Taps taps) {
             super(context);
-            this.offset = offset;
-            this.vertical = config.vertical;
             menu = new Menu(context, theme, config, itemIndex, path, taps);
-            int gravity;
-            switch (config.edge) {
-                case TOP: gravity = Gravity.TOP; break;
-                case LEFT: gravity = Gravity.LEFT; break;
-                case RIGHT: gravity = Gravity.RIGHT; break;
-                default: gravity = Gravity.BOTTOM; break;
-            }
-            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, gravity));
-            setOnClickListener(view -> close.run());
+            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
 
         void restyle(KsTheme theme) { menu.restyle(theme); }
@@ -506,14 +539,6 @@ final class NavViews {
 
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
             super.onLayout(changed, l, t, r, b);
-            // Both overlays are centered, so the item's offset from the center places the card.
-            if (vertical) {
-                float center = getHeight() / 2f + offset;
-                menu.setTranslationY(Math.max(0, Math.min(getHeight() - menu.getHeight(), center - menu.getHeight() / 2f)));
-            } else {
-                float center = getWidth() / 2f + offset;
-                menu.setTranslationX(Math.max(0, Math.min(getWidth() - menu.getWidth(), center - menu.getWidth() / 2f)));
-            }
             gate.check();
         }
     }
@@ -530,7 +555,7 @@ final class NavViews {
         private final List<LinearLayout> cells = new ArrayList<>();
         private final List<FrameLayout> indicators = new ArrayList<>();
         private final List<GradientDrawable> indicatorShapes = new ArrayList<>();
-        private final List<TextView> icons = new ArrayList<>();
+        private final List<ImageView> icons = new ArrayList<>();
         private final List<TextView> labels = new ArrayList<>();
         private KsTheme theme;
         private int active;
@@ -551,8 +576,8 @@ final class NavViews {
                 cell.setGravity(Gravity.CENTER);
                 cell.setContentDescription(item.label);
                 FrameLayout indicator = new FrameLayout(context);
-                TextView icon = icon(context);
-                indicator.addView(icon, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+                ImageView icon = icon(context);
+                indicator.addView(icon, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
                 TextView label = new TextView(context);
                 label.setText(item.label);
                 label.setSingleLine(true);
@@ -611,7 +636,11 @@ final class NavViews {
                 FrameLayout frame = indicators.get(i);
                 frame.setBackground(indicator);
                 frame.setLayoutParams(new LinearLayout.LayoutParams(px(56 * s), px(32 * s)));
-                icons.get(i).setTextSize(TypedValue.COMPLEX_UNIT_PX, px(24 * s));
+                ImageView glyph = icons.get(i);
+                FrameLayout.LayoutParams glyphParams = (FrameLayout.LayoutParams) glyph.getLayoutParams();
+                glyphParams.width = px(24 * s);
+                glyphParams.height = px(24 * s);
+                glyph.setLayoutParams(glyphParams);
                 TextView label = labels.get(i);
                 theme.styleText(label, 12 * s, 500, "onSurfaceVariant");
                 label.setMaxWidth(px(96 * s));
@@ -638,9 +667,7 @@ final class NavViews {
                 boolean opened = i == open && !selected;
                 int faint = Color.argb(110, Color.red(pill), Color.green(pill), Color.blue(pill));
                 indicatorShapes.get(i).setColor(selected ? pill : opened ? faint : Color.TRANSPARENT);
-                TextView icon = icons.get(i);
-                icon.setText(MdiFont.glyph(selected ? item.iconSelected : item.icon));
-                icon.setTextColor(selected || opened ? on : off);
+                setIcon(icons.get(i), theme, selected ? item.iconSelected : item.icon, selected || opened ? on : off);
                 TextView label = labels.get(i);
                 label.setTextColor(selected ? strong : off);
                 boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
@@ -733,14 +760,13 @@ final class NavViews {
                 background.setCornerRadius(px(theme.radiusRow()));
                 background.setColor(selected ? pill : Color.TRANSPARENT);
                 entry.setBackground(pressable(theme, background, px(theme.radiusRow())));
-                TextView icon = (TextView) entry.getChildAt(0);
-                icon.setText(MdiFont.glyph(selected ? child.iconSelected : child.icon));
-                icon.setTextColor(selected ? on : theme.color("onSurfaceVariant"));
+                ImageView icon = (ImageView) entry.getChildAt(0);
+                setIcon(icon, theme, selected ? child.iconSelected : child.icon, selected ? on : theme.color("onSurfaceVariant"));
                 TextView label = (TextView) entry.getChildAt(1);
                 LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 if (grid) {
                     // Tiles: a large icon over a short label, all the same size so the grid lines up.
-                    icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28 * s));
+                    sizeIcon(icon, px(28 * s));
                     theme.styleText(label, 12.5f * s, 500, "onSurface");
                     labelParams.topMargin = px(6 * s);
                     label.setMaxWidth(px(92 * s));
@@ -749,7 +775,7 @@ final class NavViews {
                     tile.setMargins(px(2 * s), px(2 * s), px(2 * s), px(2 * s));
                     entry.setLayoutParams(tile);
                 } else {
-                    icon.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(22 * s));
+                    sizeIcon(icon, px(22 * s));
                     theme.styleText(label, 15 * s, 500, "onSurface");
                     labelParams.leftMargin = px(14 * s);
                     entry.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
@@ -771,8 +797,8 @@ final class NavViews {
      */
     static final class Tab extends LinearLayout {
         private final NavConfig config;
-        private final TextView current;
-        private final TextView chevron;
+        private final ImageView current;
+        private final ImageView chevron;
         private int active;
         private KsTheme theme;
 
@@ -827,16 +853,14 @@ final class NavViews {
             current.setVisibility(active >= 0 ? VISIBLE : GONE);
             if (active >= 0) {
                 NavItem item = config.items.get(active);
-                current.setText(MdiFont.glyph(item.iconSelected));
-                current.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(20 * s));
-                current.setTextColor(theme.color("onSurface"));
-                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+                setIcon(current, theme, item.iconSelected, theme.color("onSurface"));
+                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(theme.px(20 * s), theme.px(20 * s));
                 if (config.vertical) gap.bottomMargin = theme.px(8 * s);
                 else gap.rightMargin = theme.px(8 * s);
                 current.setLayoutParams(gap);
             }
-            chevron.setText(chevron(config, false));
-            chevron.setTextSize(TypedValue.COMPLEX_UNIT_PX, theme.px(22 * s));
-            chevron.setTextColor(theme.color("onSurfaceVariant"));
-        }    }
+            setIcon(chevron, theme, chevron(config, false), theme.color("onSurfaceVariant"));
+            sizeIcon(chevron, theme.px(22 * s));
+        }
+    }
 }

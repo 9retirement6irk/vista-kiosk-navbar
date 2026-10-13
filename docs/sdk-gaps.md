@@ -1,101 +1,28 @@
 # Plugin SDK gaps
 
-These are gaps in the Kiosk Satellite plugin SDK (SDK 1, KS 2026.10.21) that came up while building this plugin. Each entry describes what we needed, what we did instead, and a suggested change, so it can go to the maintainer as written. Items are listed roughly by impact.
+Gaps in the Kiosk Satellite plugin SDK that came up while building this plugin. Each open entry describes what we needed, what we do instead and a suggested change, so it can go to the maintainer as written. Numbers stay fixed, so a closed gap keeps its number.
 
-## 1. Overlays cannot reserve space in the dashboard
+Status as of **Kiosk Satellite 2026.10.23**, which closed most of the list.
 
-**Need:** A bar anchored to an edge should push the dashboard in, like a system bar, so the last cards are not hidden underneath it.
+## Resolved
 
-**Today:** Overlays float over the WebView. A plugin cannot change the WebView's insets or padding, and it cannot run JavaScript or CSS in the page. Every user has to add padding to each dashboard by hand, for example with card-mod.
+| # | Gap | Resolved by | How the navbar uses it |
+| --- | --- | --- | --- |
+| 1 | Overlays could not reserve space in the dashboard | `setContentInsets` | **Keep the dashboard clear** reserves the bar's depth, or the tab's while it is tucked away. No card-mod padding |
+| 2 | No structured or long settings | `list` settings with nested lists | Items are a list, and a menu's entries a nested list, edited in a form instead of a 512-character string |
+| 3 | Camera views could not be listed | `cameraView` picker and `getCameraViews` | Camera items and entries pick a view by name |
+| 4 | Overlay positioning was limited to one inset | Per-edge insets and `offset` | A menu opens over its item, clear of the bar, and KS keeps it on screen |
+| 5 | A small overlay could not detect a tap outside it | `closeOnOutsideTouch` | A tap anywhere else closes a menu without pressing what is under it |
+| 6 | Plugin code could not read bundled assets | `assetPath` and `openAsset` | Not needed any more, see 7 |
+| 7 | No Material Design Icons for native views | `KsTheme.icon` and the `icon` picker | Icons come from KS. The 1.3 MB bundled font is gone and the package shrank from 668 KB to 37 KB |
+| 8 | `haNavigate` rejected query strings | Query strings and fragments accepted | Pages with a query, such as `cameras/0?camera=garage`, stay in the page instead of reloading it |
+| 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items pick a view from a list |
+| 10 | Threading contract for `showOverlay` was unspecified | Documented: never blocks, safe from any thread, `create` runs after the call | No change needed |
+| 12 | `haNavigate` reported failure after a successful move | Returns true once the page is on the view | The `loadUrl` fallback and its page check are gone |
+| 13 | Overlays had no show, hide or replace transition | `enter`, `exit` and `transitionDuration` | The bar fades in and out, and menus scale in and fade out |
+| 18 | Settings could not depend on each other | `visibleWhen` | **Tuck away after** shows only while tucking is on, and each item shows only the fields its **Opens** choice needs |
 
-**Suggestion:** An `OverlaySpec.reserveSpace(true)` option, or a host call such as `setContentInsets(left, top, right, bottom)` in dp, that pads the main WebView while the overlay is shown.
-
-## 2. No structured or long settings
-
-**Need:** A list of items, where each menu holds a list of entries, that is comfortable to edit on a wall panel.
-
-**Today:**
-- A plugin has at most 50 settings, and strings are capped at 512 characters.
-- Every string setting is a single line: a `TextFormField` without `maxLines` on the kiosk (`plugin_settings.dart`) and an `<input type=text>` in Remote Admin (`plugins.js`). Line breaks cannot be typed.
-- So a menu is packed into one long line (`Label = target; Label = target`). With 32-character camera view IDs, at most about 12 cameras fit, and editing that line on a tablet is hard.
-- One setting per menu entry does not fit either. Each entry needs a label and a target, and the bar already needs 35 settings, which leaves room for about 7 entries across all menus.
-
-**Suggestion:** Any one of these would work:
-- a multiline `text` type with a larger limit, such as 8 KB, edited in a text area
-- a `list` type with per-row sub-fields, for example label, icon and target
-- a `json` type, validated by the plugin, with a code editor in Remote Admin
-
-Each option should keep fleet sync working.
-
-## 3. Camera views cannot be listed
-
-**Need:** Let users pick a camera view by name, or show the view's name in a menu.
-
-**Today:** `showCameraView` needs the view ID, and no read command lists the configured views. Users have to find the 32-character IDs in an exported config.
-
-**Suggestion:** KS already has `cameraGetConfig`, but it is not on the plugin allowlist. Expose a sanitized read, `getCameraViews`, that returns `[{id, name, cameraCount}]` with no stream URLs or credentials. With it, a plugin can build a camera menu or grid of every view with no setup. Separately or as well, let `showCameraView` accept the view name. `cameraPutView` already rejects duplicate names (case-insensitive), so a name is unambiguous and short enough to fit in a setting.
-
-## 4. Overlay positioning is limited to nine anchors with one inset
-
-**Need:** Open a menu just above the item that opened it, as lovelace-navbar-card does.
-
-**Today:** `OverlaySpec` offers nine anchors and a single inset that applies to every edge. A menu can only be centered over the bar, and the inset limit of 200 dp caps how far from the edge it can sit.
-
-**Suggestion:** Per-edge insets, such as `inset(left, top, right, bottom)` or `offset(x, y)` in dp. Even better would be a position relative to a point the plugin supplies in screen coordinates.
-
-**Our workaround:** Each menu gets its own overlay that spans the screen beside the bar (FILL along the bar, inset by the bar's depth), and the plugin moves the menu card next to its item inside it.
-
-Because the one inset also applies to the FILL sides, the overlay is shorter than the screen by twice the bar's depth. On a left or right rail, a tall menu such as a 12-camera grid can't line up with an item near the top or bottom; it is pushed toward the middle instead.
-
-## 5. A small overlay cannot detect a tap outside it
-
-**Need:** Close a popup menu when the user taps elsewhere, which is standard popup behavior.
-
-**Today:** A touchable overlay receives only touches inside its rectangle, and touches outside go to the dashboard unseen. A transparent full-screen overlay would catch them, but it blocks the dashboard.
-
-**Our workaround:** The menu's overlay spans the screen beside the bar (see gap 4), so a tap on its transparent space closes the menu. A tap anywhere else on the dashboard does not. The menu also closes on back, on navigation, or when its item is tapped again.
-
-**Suggestion:** `OverlaySpec.closeOnOutsideTouch(true)`, which removes the overlay and sends `overlay.closed`. The touch could optionally pass through to the dashboard as well.
-
-## 6. Plugin code cannot read bundled assets
-
-**Need:** Load an icon font that ships with the plugin.
-
-**Today:** Files under `assets/` are available only to screensaver renderers. To use the Material Design Icons font in a native view, we deflate it and base64-encode it into Java string constants (about 850 KB of generated source). On first use we write it to the cache directory.
-
-**Suggestion:** `host.assetPath(name)`, `host.openAsset(name)` or `host.assetTypeface(name)` for files under `assets/`.
-
-## 7. No Material Design Icons for native views
-
-**Need:** Render `mdi:` icons the way Home Assistant users write them.
-
-**Today:** Every plugin that wants MDI icons has to bundle its own copy of the font. KS already ships icons for its own UI.
-
-**Suggestion:** Add `KsTheme.icon(name)`, returning a Drawable or a glyph and Typeface pair, using KS's own icon set.
-
-## 8. `haNavigate` rejects query strings
-
-**Need:** Open view paths that carry parameters, such as the Advanced Camera Card's `?camera=garage`.
-
-**Today:** `haNavigate` accepts only `^/?seg(/seg)*$`. We fall back to `loadUrl` with the origin of the current URL, which does a full page load instead of HA's in-app navigation.
-
-**Suggestion:** Let `haNavigate` accept a query string and fragment, using the same credential and scheme checks as `loadUrl`.
-
-## 9. No list of Home Assistant dashboards and views
-
-**Need:** Offer the user their dashboards and views to choose from, with titles and icons, instead of typing paths.
-
-**Today:** No read command lists them. The plugin has no HA credentials, by design, so it cannot fetch the Lovelace config itself.
-
-**Suggestion:** A `getDashboards` read command that returns `[{urlPath, title, icon, views: [{path, title, icon}]}]` through KS's HA connection. A `dashboard` setting type with a picker, like `entity`, would be the friendlier version.
-
-## 10. Threading contract for `showOverlay` is unspecified
-
-**Need:** Call `showOverlay` and `hideOverlay` from both the plugin worker and the main thread, for example in click listeners, without deadlocking.
-
-**Today:** The docs say KS builds the view on the main thread through the factory. They do not say whether `showOverlay` blocks until the view exists, or whether `create` and `onDestroy` can run inside the call when it is made from the main thread. We had to design defensively for both orderings. In the end, all our overlay calls run on the main thread.
-
-**Suggestion:** Document it. Something like: "showOverlay never blocks. From the main thread, create runs after the call returns."
+## Open
 
 ## 11. Fleet sync does not carry plugins or their settings
 
@@ -104,22 +31,6 @@ Because the one inset also applies to the FILL sides, the overlay is shorter tha
 **Today:** KS's docs/fleet.md answers this. Plugin Manager stays entirely local, and fleet sync copies no installed plugins, plugin settings, per-plugin enabled states or Enable Plugins master switch. Each display has to be installed and configured on its own, which we script through the remote API.
 
 **Suggestion:** Offer an opt-in sync of installed plugins and their settings from the leader, for followers on the same KS version.
-
-## 12. `haNavigate` reports failure after a successful move to another dashboard
-
-**Need:** Use the boolean result to decide whether to fall back to `loadUrl`.
-
-**Today:** Measured on KS 2026.10.21: `haNavigate {path: /panel/toggles}` from `/lovelace/0` moved the page within 0.4 s, since `browser.state` fired and `getDashboardState` showed the new path. About 4 s later the command resolved `false`. A plugin that trusts the result reloads a page that is already shown. We now compare the reported page to the target before falling back.
-
-**Suggestion:** Resolve `true` once the WebView reports the new path, including for a move to another dashboard, or document what `false` means.
-
-## 13. Overlays have no show, hide or replace transition
-
-**Need:** Slide the bar into its tab and back, and fade a menu in.
-
-**Today:** `showOverlay` and `hideOverlay` swap views instantly. A plugin can animate inside its own view, but not the overlay's appearance or removal, because KS removes the view as soon as `hideOverlay` is called. Changing an overlay's size means replacing it, which also happens instantly.
-
-**Suggestion:** `OverlaySpec.enter(...)` and `exit(...)` with a few stock transitions, such as fade and slide from the anchor edge. Alternatively, call a `factory.onExit(view, done)` hook before removal.
 
 ## 14. `/api/screenshot` does not show native overlays reliably
 
@@ -139,6 +50,8 @@ Because the one inset also applies to the FILL sides, the overlay is shorter tha
 
 **Suggestion:** Document the cost, so plugin authors reuse overlays rather than replace them. Consider reusing the platform view when an overlay is replaced at the same key.
 
+**Still open in 2026.10.23.**
+
 ## 16. A resized `WRAP` overlay shows a stale, stretched frame
 
 **Need:** A wrapped overlay that changes size, such as a bar collapsing to a tab or a menu opening, should repaint at its new size.
@@ -147,7 +60,9 @@ Because the one inset also applies to the FILL sides, the overlay is shorter tha
 
 Two more details, both measured with logging and on-device `screencap`. First, the host `OverlayFrame` reaches the new size before the surface behind it does. A redraw at the moment the host's size matches still lands in the old surface and shows stretched, and nothing redraws after that. Second, a change to `View.setAlpha` alone never reached the screen: content hidden with alpha 0 stayed invisible after alpha went back to 1, while ordinary redraws did arrive.
 
-**Our workaround:** Redrawing after the resize (listening to the `OverlayFrame` parent) only shortens the glitch, because the stretched frame is still composited first. We now skip drawing (an empty `dispatchDraw`, not alpha) from the moment the size will change until the host frame has the measured size. We stay hidden another 150 ms so the surface catches up, then draw, and redraw again at 300 ms and 800 ms. A 900 ms timeout reveals the view anyway. We also moved menus into their own fixed-size overlay so the bar never resizes.
+**Our workaround:** Redrawing after the resize (listening to the `OverlayFrame` parent) only shortens the glitch, because the stretched frame is still composited first. We now skip drawing (an empty `dispatchDraw`, not alpha) from the moment the size will change until the host frame has the measured size. We stay hidden another 150 ms so the surface catches up, then draw, and redraw again at 300 ms and 800 ms. A 900 ms timeout reveals the view anyway. Menus are their own overlay, so opening one never resizes the bar.
+
+**Still open in 2026.10.23:** the release notes do not mention it, and the plugin keeps the workaround. The new nter transitions animate a view that may still be drawing at the wrong size, so the workaround matters as much as before.
 
 **Suggestion:** Don't composite a resized texture until the view has drawn into it at the new size. For example, keep showing the old size until the first frame at the new size arrives, then swap. Every plugin with a wrapped overlay that changes size hits this, so it belongs in KS rather than in each plugin.
 
@@ -156,14 +71,6 @@ Two more details, both measured with logging and on-device `screencap`. First, t
 - `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. We added the `.bat` glob.
 - `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. We skip those two tests on Windows.
 
-## 18. Settings cannot depend on each other
-
-**Need:** Show a setting only when it applies, so the settings page stays short.
-
-**Today:** Every setting is always shown. **Tuck away after** appears even when **Swipe to tuck away** is Off, and the Target and icon fields of an item appear even while its Label is empty and the item is off. Seven item groups are always listed, used or not.
-
-**Suggestion:** A `visibleWhen` (or `dependsOn`) field, such as `{"key": "collapse", "notEquals": "Off"}` or `{"key": "item3Label", "notEmpty": true}`, honored by the kiosk and Remote Admin. Collapsing groups that are empty, or starting them collapsed, would help too.
-
 ## 19. A local ZIP cannot replace a repository install
 
 **Need:** Test a development build on a kiosk that runs the released version, then go back.
@@ -171,3 +78,29 @@ Two more details, both measured with logging and on-device `screencap`. First, t
 **Today:** **Install from ZIP** (and `installPlugin`) refuses a plugin that was installed from a GitHub repository. The plugin has to be removed first, so we save its settings over the remote API and restore them after each swap.
 
 **Suggestion:** Let a trusted local ZIP replace a repository install of the same plugin ID while keeping its settings, perhaps marking it as a development build until the next repository update.
+
+## 20. A rejected manifest does not say which rule failed
+
+**Need:** Find out why Kiosk Satellite rejects a manifest during development.
+
+**Today:** Installing a ZIP whose list `row.subtitle` named five keys failed with only `Invalid list setting`. The validator in `PluginManifest.kt` raises that same message for about ten different rules, such as a subtitle over four keys, a `required` field of the wrong type, a missing `fields` array or a `maxItems` out of range. Finding the cause meant reading the KS source. The template's `tools/plugin_manifest.py` does not check the new setting types at all, so the build passes and the problem shows up only at install time.
+
+The same happens with saved values: `configurePlugin` with a menu entry that carried a field only items have answered `Unknown plugin setting`, without naming the key or the row.
+
+**Suggestion:** Name the setting and the rule in the error, such as `items.row.subtitle: at most 4 keys` or `items[1].entries[0].iconSelected: unknown field`. Teaching the template's manifest checker the same rules would catch them at build time.
+
+## 21. A list row cannot summarize a nested list
+
+**Need:** Show something useful under a menu item's name in the Items list, such as "13 entries".
+
+**Today:** A row's `subtitle` can only name fields that are not lists. A menu item has no page, camera or address, so its row shows the label and icon with no subtitle, and the only way to see what the menu holds is to open it.
+
+**Suggestion:** Let `subtitle` name a nested list and show its row count, such as "13 entries", or a short join of its rows' titles.
+
+## 22. A list row's subtitle shows raw picker values
+
+**Need:** Show what a row opens in words, the way its picker does.
+
+**Today:** The pickers show names: a page reads *Navbar demo / Lights* and a camera view its name. A row's `subtitle` shows the stored value instead, so a page row reads `navbar-demo/lights` and a camera row a 32-character view ID. We left camera views out of the subtitles for that reason, so a camera item's row shows no subtitle.
+
+**Suggestion:** Render `dashboard` and `cameraView` fields in a row subtitle the way their pickers do, with the dashboard and view titles and the camera view's name.

@@ -3,15 +3,15 @@ package com.shymoose.ksnavbar;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
-/**
- * Where a navbar item goes. Parsed from the compact target syntax used in settings:
- * a dashboard path ({@code /lovelace/0}), a URL, or a native KS action keyword.
- */
+/** Where a navbar item goes: a dashboard view, a camera view, a kiosk action or a web address. */
 final class NavTarget {
     enum Kind { PAGE, URL, CAMERA, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME }
+
+    /** The Kiosk action choices in settings, in the order they are offered. */
+    static final String[] ACTIONS = {"Music", "Now playing", "Screensaver", "App launcher", "Reload", "Start page"};
 
     /** A KS host command and its arguments. */
     static final class Command {
@@ -24,10 +24,6 @@ final class NavTarget {
         }
     }
 
-    /** The exact path syntax haNavigate accepts, after trailing slashes are removed. */
-    static final Pattern NAVIGABLE = Pattern.compile("^/?[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*$");
-    private static final Pattern VIEW_ID = Pattern.compile("^[0-9a-fA-F]{32}$");
-
     final Kind kind;
     /** The path for PAGE, the URL for URL and the view ID for CAMERA. Empty otherwise. */
     final String value;
@@ -37,27 +33,44 @@ final class NavTarget {
         this.value = value;
     }
 
-    static NavTarget parse(String raw) {
-        String text = raw == null ? "" : raw.trim();
-        if (text.isEmpty()) throw new IllegalArgumentException("target is empty");
-        if (text.startsWith("/")) return new NavTarget(Kind.PAGE, text);
-        String lower = text.toLowerCase(java.util.Locale.ROOT);
-        if (lower.startsWith("http://") || lower.startsWith("https://")) {
-            if (text.contains("@")) throw new IllegalArgumentException("URLs cannot contain credentials");
-            return new NavTarget(Kind.URL, text);
+    /** A dashboard view, as the dashboard picker stores it ({@code lovelace/0}), with or without a leading slash. */
+    static NavTarget page(String path) {
+        String text = path == null ? "" : path.trim();
+        while (text.startsWith("/")) text = text.substring(1);
+        text = Paths.stripTrailingSlashes(text);
+        if (text.isEmpty()) throw new IllegalArgumentException("pick a page");
+        if (text.contains("://")) throw new IllegalArgumentException("a page is a dashboard view, not a web address");
+        return new NavTarget(Kind.PAGE, text);
+    }
+
+    /** A camera view ID, as the camera view picker stores it. */
+    static NavTarget camera(String viewId) {
+        String id = viewId == null ? "" : viewId.trim();
+        if (id.isEmpty()) throw new IllegalArgumentException("pick a camera view");
+        return new NavTarget(Kind.CAMERA, id);
+    }
+
+    static NavTarget url(String address) {
+        String text = address == null ? "" : address.trim();
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            throw new IllegalArgumentException("a web address starts with https:// or http://");
         }
-        // A KS camera view is named by its ID, the 32 hex characters KS gives every view.
-        if (VIEW_ID.matcher(text).matches()) return new NavTarget(Kind.CAMERA, text);
-        switch (lower) {
-            case "music": return new NavTarget(Kind.MUSIC, "");
-            case "nowplaying": case "now-playing": return new NavTarget(Kind.NOW_PLAYING, "");
-            case "screensaver": return new NavTarget(Kind.SCREENSAVER, "");
-            case "apps": return new NavTarget(Kind.APPS, "");
-            case "reload": return new NavTarget(Kind.RELOAD, "");
-            case "home": return new NavTarget(Kind.HOME, "");
-            default:
-                throw new IllegalArgumentException("unknown target '" + raw.trim()
-                    + "'. Use a /dashboard/view path, a URL, a camera view ID, music, nowplaying, screensaver, apps, reload or home");
+        if (text.contains("@")) throw new IllegalArgumentException("web addresses cannot contain credentials");
+        return new NavTarget(Kind.URL, text);
+    }
+
+    /** One of {@link #ACTIONS}. */
+    static NavTarget action(String name) {
+        String text = name == null ? "" : name.trim();
+        switch (text) {
+            case "Music": return new NavTarget(Kind.MUSIC, "");
+            case "Now playing": return new NavTarget(Kind.NOW_PLAYING, "");
+            case "Screensaver": return new NavTarget(Kind.SCREENSAVER, "");
+            case "App launcher": return new NavTarget(Kind.APPS, "");
+            case "Reload": return new NavTarget(Kind.RELOAD, "");
+            case "Start page": return new NavTarget(Kind.HOME, "");
+            default: throw new IllegalArgumentException("pick a kiosk action");
         }
     }
 
@@ -66,18 +79,11 @@ final class NavTarget {
         return kind == Kind.PAGE ? Paths.normalize(value) : null;
     }
 
-    /**
-     * The KS command that performs this target. {@code origin} is the scheme, host and port of the
-     * page the kiosk is showing, used when a path carries a query string haNavigate cannot take.
-     */
-    Command command(String origin) {
+    /** The KS command that performs this target. */
+    Command command() {
         switch (kind) {
-            case PAGE: {
-                String path = Paths.stripTrailingSlashes(value);
-                if (NAVIGABLE.matcher(path).matches()) return new Command("haNavigate", args("path", path));
-                if (origin == null) throw new IllegalStateException("the dashboard address is not known yet");
-                return new Command("loadUrl", args("url", origin + value));
-            }
+            // haNavigate takes a query string and fragment too, and stays in the page.
+            case PAGE: return new Command("haNavigate", args("path", value));
             case URL: return new Command("loadUrl", args("url", value));
             case CAMERA: return new Command("showCameraView", args("viewId", value));
             case MUSIC: return new Command("showMusicAssistant", Collections.<String, Object>emptyMap());
@@ -88,12 +94,6 @@ final class NavTarget {
             case HOME: return new Command("loadStartUrl", Collections.<String, Object>emptyMap());
             default: throw new IllegalStateException("Unhandled target " + kind);
         }
-    }
-
-    /** The fallback when haNavigate reports it could not move the page. */
-    Command fallback(String origin) {
-        if (kind != Kind.PAGE || origin == null) return null;
-        return new Command("loadUrl", args("url", origin + value));
     }
 
     private static Map<String, Object> args(String key, Object value) {

@@ -13,7 +13,6 @@ import zipfile
 from android_sdk import android_platform
 from plugin_manifest import build_manifest
 from plugin_assets import asset_files, MAX_PACKAGE_BYTES
-from gen_mdi import generate as generate_icons
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -43,8 +42,6 @@ try:
     platform = android_platform(sdk_root, args.android_platform)
 except ValueError as error:
     raise SystemExit(str(error)) from error
-generate_icons()
-generated_root = ROOT / 'build' / 'generated'
 out = plugin / 'dist'
 out.mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='kiosk-plugin-') as temp:
@@ -56,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix='kiosk-plugin-') as temp:
     subprocess.run([java_tool('javac'), '--release', '8', '-cp', str(platform), '-d', str(sdk_classes), *map(str, sorted((ROOT / 'sdk/src').rglob('*.java')))], check=True)
     sdk_jar = out / 'kiosk-plugin-sdk-1.jar'
     subprocess.run([java_tool('jar'), 'cf', str(sdk_jar), '-C', str(sdk_classes), '.'], check=True)
-    subprocess.run([java_tool('javac'), '--release', '8', '-cp', os.pathsep.join([str(sdk_jar), str(platform)]), '-d', str(classes), *map(str, sorted((plugin / 'src').rglob('*.java'))), *map(str, sorted(generated_root.rglob('*.java')))], check=True)
+    subprocess.run([java_tool('javac'), '--release', '8', '-cp', os.pathsep.join([str(sdk_jar), str(platform)]), '-d', str(classes), *map(str, sorted((plugin / 'src').rglob('*.java')))], check=True)
     subprocess.run([str(build_tools[-1]), '--min-api', str(manifest['minAndroidSdk']), '--lib', str(platform), '--classpath', str(sdk_jar), '--output', str(dex), *map(str, sorted(classes.rglob('*.class')))], check=True)
     jar = temp / 'plugin.jar'
     def add(archive, name, data):

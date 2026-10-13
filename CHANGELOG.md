@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.0
+
+Rebuilt on the plugin SDK in Kiosk Satellite 2026.10.23. Needs that version or newer.
+
+- **Items are a list.** Add, edit, reorder and delete items on the plugin's page instead of filling in seven fixed slots. A menu's entries are a list inside its item.
+- **Pickers instead of typing.** Pages come from the dashboard picker, camera views from the camera view picker by name, and icons from the icon picker. No more paths, 32-character IDs or `Label = target` strings.
+- **Settings that apply.** Each item shows only the fields its **Opens** choice needs, and **Tuck away after** shows only while tucking is on.
+- **Keep the dashboard clear.** New setting, on by default. The dashboard ends above the bar, so no card-mod padding is needed.
+- **Menus open over their item** and close on a tap anywhere else, without pressing what is under the tap. Menus scale in and fade out, and the bar fades in.
+- **Icons come from Kiosk Satellite.** The bundled icon font is gone, and the package shrank from 668 KB to 37 KB.
+- **Pages with a query string**, such as `cameras/0?camera=garage`, stay in the page instead of reloading it.
+- A camera menu can now hold every camera: up to 16 entries, with no length limit.
+
+**Upgrading:** the settings changed shape, so the old item slots do not carry over. Add your items again under **Items**.
+
 ## 0.10.2
 
 - With Labels set to Active only, the bar keeps the same size as you move between pages, so it no longer redraws from scratch on each change.

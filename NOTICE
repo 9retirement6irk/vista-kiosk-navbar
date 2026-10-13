@@ -3,5 +3,4 @@ Navbar for Kiosk Satellite
 Built from the Kiosk Satellite plugin template (https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world),
 Apache-2.0. The SDK sources under sdk/ and the build tools under tools/ come from that template.
 
-Includes Material Design Icons 7.4.47 by Pictogrammers (https://pictogrammers.com), Apache-2.0.
-See third_party/mdi/LICENSE.
+Icons are drawn by Kiosk Satellite from its own Material Design Icons set.

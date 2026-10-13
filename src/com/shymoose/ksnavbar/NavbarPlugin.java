@@ -21,9 +21,10 @@ import me.jxl.kiosk.plugins.PluginHost;
  * A native navigation bar for the kiosk. It follows the page the dashboard shows, highlights the
  * matching item and navigates through KS itself, so it needs no Home Assistant token.
  *
- * One overlay holds the bar, its tab and its menus. Building a KS overlay is slow on low-power
- * panels, so it is only replaced when the configuration changes. Everything else is a change inside
- * the view.
+ * One overlay holds the bar and its tab, and an open menu gets a second one that KS places over its
+ * item. Building a KS overlay is slow on low-power panels, so the bar's is only replaced when the
+ * configuration changes, and tucking it away is a change inside the view. The plugin reserves the
+ * bar's depth with setContentInsets, so the dashboard ends above it.
  *
  * Threads: plugin callbacks and command results run on the KS plugin worker, which keeps the
  * configuration and page in volatile fields and takes this object's lock. The main thread owns the
@@ -36,12 +37,15 @@ public final class NavbarPlugin implements KioskPlugin {
     static final String MENU = "menu";
     /** Space between the bar and an open menu, in dp. */
     private static final int MENU_GAP = 8;
+    /** Space a menu keeps from the other screen edges, in dp. */
+    private static final int MENU_MARGIN = 12;
+    private static final int MENU_TRANSITION_MS = 160;
+    private static final int BAR_TRANSITION_MS = 180;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile PluginHost host;
     private volatile NavConfig config = NavConfig.parse(Collections.<String, Object>emptyMap());
     private volatile String path;
-    private volatile String origin;
     private volatile boolean userHidden;
     /** Kept outside the view so a rebuilt overlay comes back in the same state. */
     private volatile boolean collapsed;
@@ -64,12 +68,16 @@ public final class NavbarPlugin implements KioskPlugin {
         try { closeMenu(); } catch (RuntimeException ignored) {}
     };
     private View menuView;
+    /** The space currently reserved for the bar, in dp, and on which edge. */
+    private int reserved;
+    private NavConfig.Edge reservedEdge;
+    /** The bar's last reported depth, in dp. */
+    private int depth;
 
     @Override
     public synchronized void start(PluginHost host, Map<String, Object> settings) {
         // KS may reuse this object for a new session. Nothing from the old one applies.
         path = null;
-        origin = null;
         userHidden = false;
         lastStatus = null;
         readRevision++;
@@ -117,6 +125,8 @@ public final class NavbarPlugin implements KioskPlugin {
     @Override
     public synchronized void onEvent(String event, Map<String, Object> payload) {
         if ("ks.browser.state".equals(event)) readDashboard();
+        // A tap outside the menu closed it. Its overlay is gone; only the bookkeeping is left.
+        else if ("overlay.closed".equals(event) && payload != null && MENU.equals(payload.get("key"))) main.post(this::menuClosed);
     }
 
     @Override
@@ -143,8 +153,7 @@ public final class NavbarPlugin implements KioskPlugin {
                 }
                 Map<?, ?> state = (Map<?, ?>) data;
                 String nextPath = text(state.get("currentPath"));
-                String nextOrigin = Paths.origin(text(state.get("currentUrl")));
-                origin = nextOrigin != null ? nextOrigin : Paths.origin(text(state.get("homeAssistantUrl")));
+
                 boolean moved = !Objects.equals(nextPath, path);
                 path = nextPath;
                 if (moved) {
@@ -175,13 +184,16 @@ public final class NavbarPlugin implements KioskPlugin {
                     current.hideOverlay(BAR);
                     shown = false;
                 }
+                reserve(0);
                 return;
             }
             if (!shown || rebuild.getAndSet(false)) {
                 closeMenu();
                 String anchor = anchor(cfg);
                 // Flush with the edge: the view keeps the bar's distance itself, so the tab can touch it.
-                current.showOverlay(BAR, OverlaySpec.at(anchor).closeOnBack(false), new RootFactory());
+                current.showOverlay(BAR, OverlaySpec.at(anchor).closeOnBack(false)
+                    .enter(OverlaySpec.FADE).exit(OverlaySpec.FADE).transitionDuration(BAR_TRANSITION_MS), new RootFactory());
+                if (depth > 0) reserve(depth);
                 shown = true;
                 scheduleAutoCollapse();
                 return;
@@ -228,6 +240,8 @@ public final class NavbarPlugin implements KioskPlugin {
         shown = false;
         openMenu = -1;
         menuView = null;
+        reserved = 0;
+        reservedEdge = null;
         markMenu(-1);
     }
 
@@ -243,24 +257,61 @@ public final class NavbarPlugin implements KioskPlugin {
     }
 
     /**
-     * Main thread. A menu gets its own overlay so opening it never resizes the bar. It fills the
-     * kiosk's width beside the bar, and the menu card inside it sits over its item.
+     * Main thread. A menu gets its own overlay, so opening it never resizes the bar. KS places it
+     * beside the bar over its item, keeps it on screen, and closes it on a tap anywhere else.
      */
-    private void openMenu(int index, float offsetPx, int barDepthDp) {
+    private void openMenu(int index, int offsetDp, int barDepthDp) {
         PluginHost current = host;
         if (current == null) return;
         NavConfig cfg = config;
-        int inset = Math.min(200, barDepthDp + MENU_GAP);
-        OverlaySpec spec = OverlaySpec.at(anchor(cfg)).inset(inset);
-        spec = cfg.vertical ? spec.size(OverlaySpec.WRAP, OverlaySpec.FILL) : spec.size(OverlaySpec.FILL, OverlaySpec.WRAP);
+        int clear = Math.min(4096, barDepthDp + MENU_GAP);
+        int left = MENU_MARGIN, top = MENU_MARGIN, right = MENU_MARGIN, bottom = MENU_MARGIN;
+        switch (cfg.edge) {
+            case TOP: top = clear; break;
+            case LEFT: left = clear; break;
+            case RIGHT: right = clear; break;
+            default: bottom = clear; break;
+        }
+        OverlaySpec spec = OverlaySpec.at(anchor(cfg))
+            .inset(left, top, right, bottom)
+            .offset(cfg.vertical ? 0 : offsetDp, cfg.vertical ? offsetDp : 0)
+            .closeOnOutsideTouch(true)
+            .enter(OverlaySpec.SCALE).exit(OverlaySpec.FADE).transitionDuration(MENU_TRANSITION_MS);
         // Replacing the overlay at the same key swaps one open menu for another.
-        current.showOverlay(MENU, spec, new MenuFactory(cfg, index, offsetPx));
+        current.showOverlay(MENU, spec, new MenuFactory(cfg, index));
         openMenu = index;
         markMenu(index);
         main.removeCallbacks(menuTimeout);
         main.postDelayed(menuTimeout, MENU_TIMEOUT_MS);
     }
 
+    /**
+     * Main thread. Keeps the dashboard clear of the bar: Home Assistant pads its views by this much,
+     * so the last cards scroll out from under it. Zero gives the space back.
+     */
+    private void reserve(int depthDp) {
+        PluginHost current = host;
+        if (current == null) return;
+        NavConfig cfg = config;
+        int depth = cfg.makeRoom ? Math.max(0, depthDp) : 0;
+        if (depth == reserved && cfg.edge == reservedEdge) return;
+        int left = 0, top = 0, right = 0, bottom = 0;
+        switch (cfg.edge) {
+            case TOP: top = depth; break;
+            case LEFT: left = depth; break;
+            case RIGHT: right = depth; break;
+            default: bottom = depth; break;
+        }
+        try {
+            current.setContentInsets(left, top, right, bottom);
+            reserved = depth;
+            reservedEdge = cfg.edge;
+        } catch (UnsupportedOperationException | LinkageError olderHost) {
+            // A Kiosk Satellite without content insets: the bar floats over the dashboard.
+        } catch (RuntimeException error) {
+            log(current, "Could not make room for the bar", error);
+        }
+    }
     /** Main thread. Shows which item a menu belongs to while it is open. */
     private void markMenu(int index) {
         NavViews.Root view = root.get();
@@ -285,7 +336,7 @@ public final class NavbarPlugin implements KioskPlugin {
         boolean error = !cfg.problems.isEmpty();
         for (String problem : cfg.problems) text.append(problem).append('\n');
         if (cfg.items.isEmpty()) {
-            text.append("Add an item to show the bar: give it a Label and a Target.");
+            text.append("Add an item under Items to show the bar.");
         } else if (userHidden) {
             text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
         } else if (!cfg.visibleAt(path)) {
@@ -304,39 +355,30 @@ public final class NavbarPlugin implements KioskPlugin {
         current.status(message, error);
     }
 
-    /** Main thread. Navigation results only act if no newer tap or session has happened since. */
+    /** Main thread. A failure is only reported if no newer tap or session has happened since. */
     private void run(NavTarget target) {
         PluginHost current = host;
         if (current == null) return;
         int revision = navigation.incrementAndGet();
-        String base = origin;
         try {
-            NavTarget.Command command = target.command(base);
-            current.log("Tap: " + command.name + " " + describe(target));
+            NavTarget.Command command = target.command();
             current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
                 if (host != current || navigation.get() != revision) return;
-                if (!ok) current.log(command.name + " failed: " + error);
                 if (ok && !Boolean.FALSE.equals(data)) return;
-                // haNavigate can report false after it has already moved the page, for example to
-                // another dashboard. Reloading then would only flash the page, so check first.
-                String targetPath = target.matchPath();
-                if (targetPath != null && targetPath.equals(Paths.normalize(path))) return;
-                NavTarget.Command fallback = "haNavigate".equals(command.name) ? target.fallback(base) : null;
-                if (fallback == null) {
-                    current.status("Could not open " + describe(target) + (error == null ? "" : ": " + error), true);
-                    return;
-                }
-                current.executeCommand(fallback.name, fallback.arguments, (ok2, data2, error2) -> {
-                    if (!ok2 && host == current && navigation.get() == revision) {
-                        current.status("Could not open " + describe(target) + ": " + error2, true);
-                    }
-                });
+                current.status("Could not open " + describe(target) + (error == null ? "" : ": " + error), true);
             });
         } catch (RuntimeException error) {
             status(current, "Could not open " + describe(target) + ": " + error.getMessage());
         }
     }
 
+    /** Main thread. */
+    private void menuClosed() {
+        main.removeCallbacks(menuTimeout);
+        openMenu = -1;
+        menuView = null;
+        markMenu(-1);
+    }
     private static String describe(NavTarget target) {
         return target.value.isEmpty() ? target.kind.name().toLowerCase(java.util.Locale.ROOT) : target.value;
     }
@@ -367,11 +409,18 @@ public final class NavbarPlugin implements KioskPlugin {
             try { setCollapsed(false); } catch (RuntimeException error) { log(host, "Could not open the bar", error); }
         }
 
-        @Override public void onMenu(int index, float offsetPx, int barHeightDp) {
+        @Override public void onMenu(int index, int offsetDp, int barDepthDp) {
             try {
                 if (openMenu == index) closeMenu();
-                else openMenu(index, offsetPx, barHeightDp);
+                else openMenu(index, offsetDp, barDepthDp);
             } catch (RuntimeException error) { log(host, "Could not open the menu", error); }
+        }
+
+        @Override public void onDepth(int depthDp) {
+            try {
+                depth = depthDp;
+                if (shown) reserve(depthDp);
+            } catch (RuntimeException error) { log(host, "Could not make room for the bar", error); }
         }
 
         @Override public void onInteraction() {
@@ -413,17 +462,15 @@ public final class NavbarPlugin implements KioskPlugin {
     private final class MenuFactory implements OverlayFactory {
         private final NavConfig cfg;
         private final int index;
-        private final float offset;
 
-        MenuFactory(NavConfig cfg, int index, float offset) {
+        MenuFactory(NavConfig cfg, int index) {
             this.cfg = cfg;
             this.index = index;
-            this.offset = offset;
         }
 
         @Override public View create(Context context, KsTheme theme) {
             NavItem item = cfg.items.get(index);
-            View view = new NavViews.MenuPanel(context, theme, cfg, index, path, offset, child -> {
+            View view = new NavViews.MenuPanel(context, theme, cfg, index, path, child -> {
                 try {
                     scheduleAutoCollapse();
                     closeMenu();
@@ -434,8 +481,6 @@ public final class NavbarPlugin implements KioskPlugin {
                 } catch (RuntimeException error) {
                     log(host, "Tap on a menu entry failed", error);
                 }
-            }, () -> {
-                try { closeMenu(); } catch (RuntimeException ignored) {}
             });
             menuView = view;
             // Also set here, in case KS destroys the previous menu after showOverlay returned.

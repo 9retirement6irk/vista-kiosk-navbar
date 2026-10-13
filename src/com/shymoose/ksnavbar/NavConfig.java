@@ -8,7 +8,8 @@ import java.util.Map;
 
 /** The validated navbar configuration, built from the plugin's KS settings. */
 final class NavConfig {
-    static final int SLOTS = 7;
+    /** The most items a bar holds. More would not fit across a tablet. */
+    static final int MAX_ITEMS = 8;
     static final int DEFAULT_INSET = 12;
 
     /** The screen edge the bar sits against. */
@@ -39,12 +40,14 @@ final class NavConfig {
     /** Seconds without a tap before an open bar collapses again. 0 never does. */
     final int autoCollapse;
     final MenuLayout menuLayout;
+    /** Whether the dashboard keeps clear of the bar. */
+    final boolean makeRoom;
     final List<String> hideOn;
     final List<NavItem> items;
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout,
+    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout, boolean makeRoom,
                       List<String> hideOn, List<NavItem> items, List<String> problems) {
         this.edge = edge;
         this.top = edge == Edge.TOP;
@@ -56,6 +59,7 @@ final class NavConfig {
         this.collapse = collapse;
         this.autoCollapse = autoCollapse;
         this.menuLayout = menuLayout;
+        this.makeRoom = makeRoom;
         this.hideOn = Collections.unmodifiableList(hideOn);
         this.items = Collections.unmodifiableList(items);
         this.problems = Collections.unmodifiableList(problems);
@@ -87,37 +91,19 @@ final class NavConfig {
         }
         List<NavItem> items = new ArrayList<>();
         List<String> problems = new ArrayList<>();
-        for (int slot = 1; slot <= SLOTS; slot++) {
-            // An item is on when it has a label. Its kind follows its target, so there is no Type.
-            String label = text(settings, "item" + slot + "Label");
-            if (label.isEmpty()) continue;
-            String icon = text(settings, "item" + slot + "Icon");
-            String selectedIcon = text(settings, "item" + slot + "IconSelected");
-            String target = text(settings, "item" + slot + "Target");
-            String name = "Item " + slot + " (" + label + ")";
+        List<Map<?, ?>> rows = NavItem.rows(settings.get("items"));
+        for (int i = 0; i < rows.size() && items.size() < MAX_ITEMS; i++) {
+            String label = NavItem.text(rows.get(i), "label");
+            String name = label.isEmpty() ? "Item " + (i + 1) : label;
             try {
-                NavItem item = isMenu(target) ? NavItem.menu(label, icon, selectedIcon, target) : NavItem.leaf(label, icon, selectedIcon, target);
-                items.add(item);
+                items.add(NavItem.fromRow(rows.get(i), true));
             } catch (IllegalArgumentException error) {
                 problems.add(name + ": " + error.getMessage());
             }
         }
-        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, hideOn, items, problems);
+        boolean makeRoom = !Boolean.FALSE.equals(settings.get("makeRoom"));
+        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, makeRoom, hideOn, items, problems);
     }
-
-    /**
-     * A target listing entries makes a menu: {@code Label = target; Label = target}. A page or URL
-     * may hold {@code =} in its query, so only text that starts as a label counts.
-     */
-    static boolean isMenu(String target) {
-        if (target == null) return false;
-        String text = target.trim();
-        if (text.contains(";") || text.contains("\n")) return true;
-        if (text.indexOf('=') <= 0) return false;
-        String lower = text.toLowerCase(java.util.Locale.ROOT);
-        return !text.startsWith("/") && !lower.startsWith("http://") && !lower.startsWith("https://");
-    }
-
     /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
     boolean visibleAt(String path) {
         if (items.isEmpty()) return false;
@@ -147,7 +133,7 @@ final class NavConfig {
     String describe() {
         StringBuilder text = new StringBuilder();
         text.append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
-            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout);
+            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout).append('|').append(makeRoom);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }

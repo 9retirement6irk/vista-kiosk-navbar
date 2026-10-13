@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 package com.shymoose.ksnavbar;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** JVM tests for everything that does not draw. Run by tools/test.py with -ea. */
 public final class NavbarTest {
     private static int passed;
+    private static final String CAM = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
 
     public static void main(String[] args) {
         paths();
@@ -16,7 +20,6 @@ public final class NavbarTest {
         menus();
         guesses();
         config();
-        icons();
         System.out.println("NavbarTest: " + passed + " checks passed");
     }
 
@@ -31,127 +34,109 @@ public final class NavbarTest {
         check(Paths.within("/panel", "/panel/"));
         check(!Paths.within("/panel-2/x", "/panel"));
         check(!Paths.within("/lovelace/0", "/panel"));
-        eq("https://ha.example:8123", Paths.origin("https://ha.example:8123/dash/view"));
-        eq("http://127.0.0.1:18123", Paths.origin("http://127.0.0.1:18123/dash"));
-        eq("https://ha.example", Paths.origin("https://ha.example/x"));
-        check(Paths.origin("javascript:alert(1)") == null);
-        check(Paths.origin(null) == null);
+
     }
 
     private static void targets() {
-        eq(NavTarget.Kind.PAGE, NavTarget.parse(" /lovelace/0 ").kind);
-        eq(NavTarget.Kind.URL, NavTarget.parse("https://example.com/x").kind);
-        eq("0123456789abcdef0123456789abcdef", NavTarget.parse(" 0123456789abcdef0123456789abcdef ").value);
-        eq(NavTarget.Kind.CAMERA, NavTarget.parse("fedcba9876543210fedcba9876543210").kind);
-        eq(NavTarget.Kind.MUSIC, NavTarget.parse("music").kind);
-        eq(NavTarget.Kind.NOW_PLAYING, NavTarget.parse("NowPlaying").kind);
-        eq(NavTarget.Kind.NOW_PLAYING, NavTarget.parse("now-playing").kind);
-        eq(NavTarget.Kind.SCREENSAVER, NavTarget.parse("screensaver").kind);
-        eq(NavTarget.Kind.APPS, NavTarget.parse("apps").kind);
-        eq(NavTarget.Kind.RELOAD, NavTarget.parse("reload").kind);
-        eq(NavTarget.Kind.HOME, NavTarget.parse("home").kind);
-        rejects("");
-        rejects("   ");
-        rejects("camera:0123456789abcdef0123456789abcdef");
-        rejects("4981591289e0d2f116e8744ccbad468");
-        rejects("lovelace");
-        rejects("javascript:alert(1)");
-        rejects("https://user:pw@example.com");
-        eq("/lovelace", NavTarget.parse("/lovelace/0").matchPath());
-        check(NavTarget.parse("music").matchPath() == null);
+        eq(NavTarget.Kind.PAGE, NavTarget.page("lovelace/0").kind);
+        // The dashboard picker stores paths without a leading slash. Both forms work.
+        eq("lovelace/kitchen", NavTarget.page("/lovelace/kitchen/").value);
+        eq("cameras/0?camera=garage", NavTarget.page("cameras/0?camera=garage").value);
+        eq("/lovelace", NavTarget.page("lovelace/0").matchPath());
+        eq("/cameras", NavTarget.page("cameras/0?camera=garage").matchPath());
+        eq(CAM, NavTarget.camera(" " + CAM + " ").value);
+        eq(NavTarget.Kind.URL, NavTarget.url("https://example.com/x").kind);
+        for (String action : NavTarget.ACTIONS) check(NavTarget.action(action).value.isEmpty());
+        eq(NavTarget.Kind.APPS, NavTarget.action("App launcher").kind);
+        eq(NavTarget.Kind.HOME, NavTarget.action("Start page").kind);
+        rejects(() -> NavTarget.page(""));
+        rejects(() -> NavTarget.page("  /  "));
+        rejects(() -> NavTarget.page("https://x.example/a"));
+        rejects(() -> NavTarget.camera(""));
+        rejects(() -> NavTarget.url("example.com"));
+        rejects(() -> NavTarget.url("javascript:alert(1)"));
+        rejects(() -> NavTarget.url("https://user:pw@example.com"));
+        rejects(() -> NavTarget.action("Dance"));
+        check(NavTarget.camera(CAM).matchPath() == null);
     }
 
     private static void commands() {
-        NavTarget.Command nav = NavTarget.parse("/lovelace/kitchen/").command(null);
+        NavTarget.Command nav = NavTarget.page("lovelace/kitchen").command();
         eq("haNavigate", nav.name);
-        eq("/lovelace/kitchen", nav.arguments.get("path"));
-        NavTarget query = NavTarget.parse("/panel/cameras/?camera=garage");
-        NavTarget.Command load = query.command("https://ha.example:8123");
-        eq("loadUrl", load.name);
-        eq("https://ha.example:8123/panel/cameras/?camera=garage", load.arguments.get("url"));
-        try {
-            query.command(null);
-            throw new AssertionError("query paths need the origin");
-        } catch (IllegalStateException expected) { passed++; }
-        eq("showCameraView", NavTarget.parse("0123456789abcdef0123456789abcdef").command(null).name);
-        eq("0123456789abcdef0123456789abcdef", NavTarget.parse("0123456789abcdef0123456789abcdef").command(null).arguments.get("viewId"));
-        eq("showMusicAssistant", NavTarget.parse("music").command(null).name);
-        eq("showNowPlaying", NavTarget.parse("nowplaying").command(null).name);
-        eq("startScreensaver", NavTarget.parse("screensaver").command(null).name);
-        eq("showAppLauncher", NavTarget.parse("apps").command(null).name);
-        eq("reload", NavTarget.parse("reload").command(null).name);
-        eq("loadStartUrl", NavTarget.parse("home").command(null).name);
-        eq("loadUrl", NavTarget.parse("https://x.example/").command(null).name);
-        check(NavTarget.parse("music").command(null).arguments.isEmpty());
-        eq("loadUrl", NavTarget.parse("/a/b").fallback("http://h").name);
-        eq("http://h/a/b", NavTarget.parse("/a/b").fallback("http://h").arguments.get("url"));
-        check(NavTarget.parse("/a/b").fallback(null) == null);
-        check(NavTarget.parse("music").fallback("http://h") == null);
+        eq("lovelace/kitchen", nav.arguments.get("path"));
+        // haNavigate takes query strings now, so a query path stays in the page.
+        NavTarget.Command query = NavTarget.page("cameras/0?camera=garage").command();
+        eq("haNavigate", query.name);
+        eq("cameras/0?camera=garage", query.arguments.get("path"));
+        eq("showCameraView", NavTarget.camera(CAM).command().name);
+        eq(CAM, NavTarget.camera(CAM).command().arguments.get("viewId"));
+        eq("showMusicAssistant", NavTarget.action("Music").command().name);
+        eq("showNowPlaying", NavTarget.action("Now playing").command().name);
+        eq("startScreensaver", NavTarget.action("Screensaver").command().name);
+        eq("showAppLauncher", NavTarget.action("App launcher").command().name);
+        eq("reload", NavTarget.action("Reload").command().name);
+        eq("loadStartUrl", NavTarget.action("Start page").command().name);
+        eq("loadUrl", NavTarget.url("https://x.example/").command().name);
+        check(NavTarget.action("Music").command().arguments.isEmpty());
     }
 
     private static void menus() {
-        NavItem menu = NavItem.menu("Climate", "mdi:weather-partly-cloudy",
-            "Weather = /panel/weather = mdi:weather-partly-cloudy; Health and air=/panel/health-and-air=mdi:home-heart;\n"
-                + "Music = music");
+        Map<String, Object> climate = menuRow("Climate", "mdi:weather-partly-cloudy",
+            page("Weather", "panel/weather", "mdi:weather-partly-cloudy"),
+            page("Health and air", "panel/health-and-air", "mdi:home-heart"),
+            action("Music", "Music"));
+        NavItem menu = NavItem.fromRow(climate, true);
         eq(NavItem.Type.MENU, menu.type);
         eq(3, menu.children.size());
         eq(NavItem.Type.ACTION, menu.children.get(2).type);
         eq("mdi:music", menu.children.get(2).icon);
+        eq("mdi:weather-partly-cloudy", menu.children.get(0).icon);
         check(menu.matches("/panel/weather"));
         check(menu.matches("/panel/health-and-air/"));
         check(!menu.matches("/panel/toggles"));
         check(!menu.matches(null));
-        rejectsMenu("");
-        rejectsMenu("Weather");
-        rejectsMenu(" = /a/b");
-        rejectsMenu("Bad = nowhere");
-        rejectsMenu("Old|mdi:x|/a/b");
-        // Only the first = ends the label, so a page keeps = in its query.
-        eq("/a/b?x=1", NavItem.menu("M", "", "A = /a/b?x=1").children.get(0).target.value);
-        eq("mdi:door", NavItem.menu("M", "", "A = /a/b?x=1 = mdi:door").children.get(0).icon);
-        eq("mdi:weather-partly-cloudy", menu.children.get(0).icon);
-        eq("mdi:home-heart", menu.children.get(1).icon);
-        StringBuilder many = new StringBuilder();
-        for (int i = 0; i <= NavItem.MAX_CHILDREN; i++) many.append("E").append(i).append(" = /a/b").append(i).append(';');
-        rejectsMenu(many.toString());
-        // Twelve cameras with real-length view IDs fit in one setting.
-        StringBuilder cams = new StringBuilder();
-        String[] names = {"Exterior", "Interior", "Front porch", "Garage", "Driveway", "Living", "Patio", "South", "East",
-            "Garage interior", "Blue bedroom", "Porch"};
-        for (int i = 0; i < names.length; i++) {
-            if (i > 0) cams.append(';');
-            cams.append(names[i]).append('=').append(String.format("%032x", i + 1));
-        }
-        check(cams.length() <= 512);
-        eq(12, NavItem.menu("Cameras", "mdi:cctv", cams.toString()).children.size());
-        // Camera entries without an icon get a camera icon. Other entries get the generic one.
-        String cam = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
-        NavItem bare = NavItem.menu("Cameras", "mdi:cctv", "Cam 9 = " + cam + "; Garage = " + cam + " = mdi:door; Zork = /a/z; Driveway = " + cam);
-        eq(NavItem.CAMERA_ICON, bare.children.get(0).icon);
-        eq("mdi:door", bare.children.get(1).icon);
-        eq(NavItem.DEFAULT_ICON, bare.children.get(2).icon);
-        eq("mdi:road-variant", bare.children.get(3).icon);
-        eq("mdi:weather-partly-cloudy", NavItem.menu("Weather", "", "A = /a/a").icon);
-        eq("mdi:home", NavItem.leaf("Home", "", "mdi:home", "/a/b").iconSelected);
-        eq("mdi:home-outline", NavItem.leaf("Home", "", "", "/a/b").icon);
-        eq(NavItem.CAMERA_ICON, NavItem.leaf("C", "", "mdi:x", cam).icon);
-        eq("mdi:x", NavItem.leaf("C", "", "mdi:x", cam).iconSelected);
-        // A blank icon uses the fallback, a blank selected icon the normal icon.
-        eq(NavItem.DEFAULT_ICON, NavItem.icons("", "", NavItem.DEFAULT_ICON)[0]);
-        eq("mdi:home", NavItem.icons("mdi:home-outline", "mdi:home", "x")[1]);
+        // A menu needs entries, and an entry cannot open another menu.
+        rejects(() -> NavItem.fromRow(menuRow("Empty", ""), true));
+        rejects(() -> NavItem.fromRow(menuRow("Deep", "", menuRow("Inner", "", page("A", "a/a", ""))), true));
+        rejects(() -> NavItem.fromRow(menuRow("Bad", "", page("A", "", "")), true));
+        rejects(() -> NavItem.fromRow(page("", "a/b", ""), true));
+        Map<String, Object>[] many = rows(NavItem.MAX_CHILDREN + 1);
+        rejects(() -> NavItem.fromRow(menuRow("Many", "", many), true));
+        eq(NavItem.MAX_CHILDREN, NavItem.fromRow(menuRow("Full", "", rows(NavItem.MAX_CHILDREN)), true).children.size());
+        // Camera entries without an icon get a camera icon, unless the label suggests a better one.
+        NavItem cams = NavItem.fromRow(menuRow("Cameras", "mdi:cctv",
+            camera("Cam 9", ""), camera("Garage", "mdi:door"), page("Zork", "a/z", ""), camera("Driveway", "")), true);
+        eq(NavItem.CAMERA_ICON, cams.children.get(0).icon);
+        eq("mdi:door", cams.children.get(1).icon);
+        eq(NavItem.DEFAULT_ICON, cams.children.get(2).icon);
+        eq("mdi:road-variant", cams.children.get(3).icon);
+        eq("mdi:weather-partly-cloudy", NavItem.fromRow(menuRow("Weather", "", page("A", "a/a", "")), true).icon);
+        // Icons: a blank icon is picked from the label, a blank selected icon follows the icon.
+        Map<String, Object> home = page("Home", "a/b", "");
+        home.put("iconSelected", "mdi:home");
+        eq("mdi:home", NavItem.fromRow(home, true).iconSelected);
+        eq("mdi:home-outline", NavItem.fromRow(home, true).icon);
         eq("mdi:cctv", NavItem.icons("mdi:cctv", "  ", "x")[1]);
-        eq("mdi:home", NavItem.leaf("Home", "mdi:home-outline", "mdi:home", "/a/b").iconSelected);
-        eq("mdi:sun", NavItem.menu("M", "mdi:cloud", "mdi:sun", "A = /a/b").iconSelected);
-        eq("mdi:monitor-shimmer", NavItem.menu("M", "", "Screensaver = screensaver").children.get(0).icon);
-        eq("mdi:apps", NavItem.menu("M", "", "Apps = apps").children.get(0).icon);
-        eq("mdi:web", NavItem.menu("M", "", "Zork = https://x.example").children.get(0).icon);
-        // Menus are recognized by their entries. A page or URL with = in its query is not a menu.
-        check(NavConfig.isMenu("Weather = /a/b"));
-        check(NavConfig.isMenu("A = /a; B = /b"));
-        check(!NavConfig.isMenu("/a/b?x=1"));
-        check(!NavConfig.isMenu("https://x.example/?a=b"));
-        check(!NavConfig.isMenu("music"));
+        eq("x", NavItem.icons(" ", "", "x")[0]);
+        eq("mdi:monitor-shimmer", NavItem.fromRow(action("Saver", "Screensaver"), true).icon);
+        eq("mdi:apps", NavItem.fromRow(action("Launcher", "App launcher"), true).icon);
+        Map<String, Object> web = row("Zork", "Web address");
+        web.put("url", "https://x.example");
+        eq("mdi:web", NavItem.fromRow(web, true).icon);
+        // KS fills in every field, including hidden ones. Only the fields Opens selects count.
+        Map<String, Object> filled = page("Lights", "panel/lights", "");
+        filled.put("camera", "");
+        filled.put("url", "");
+        filled.put("action", "Music");
+        filled.put("entries", new ArrayList<Object>());
+        eq(NavItem.Type.PAGE, NavItem.fromRow(filled, true).type);
+        // A row with no Opens is a page, the list's first choice.
+        Map<String, Object> bare = new LinkedHashMap<>();
+        bare.put("label", "Bare");
+        bare.put("page", "a/b");
+        eq(NavItem.Type.PAGE, NavItem.fromRow(bare, true).type);
     }
+
     private static void guesses() {
         eq("mdi:garage-variant", IconGuess.forLabel("Garage interior"));
         eq("mdi:garage", IconGuess.forLabel("Garage"));
@@ -180,18 +165,20 @@ public final class NavbarTest {
         settings.put("labels", "Active only");
         settings.put("hideOn", "/developer-tools, /profile/");
         settings.put("scale", "120%");
-        item(settings, 1, "Home", "mdi:home-outline", "/lovelace/0");
-        settings.put("item1IconSelected", "mdi:home");
-        item(settings, 2, "Climate", "mdi:weather-partly-cloudy", "Weather = /panel/weather");
-        item(settings, 3, "", "mdi:x", "/ignored");
-        item(settings, 4, "Toggles", "", "/panel/toggles");
-        item(settings, 5, "Cameras", "mdi:cctv", "a1b2c3d4e5f60718293a4b5c6d7e8f90");
-        item(settings, 6, "Broken", "", "");
-        item(settings, 7, "Bad", "", "nowhere");
+        Map<String, Object> home = page("Home", "lovelace/0", "mdi:home-outline");
+        home.put("iconSelected", "mdi:home");
+        settings.put("items", list(
+            home,
+            menuRow("Climate", "mdi:weather-partly-cloudy", page("Weather", "panel/weather", "")),
+            page("Toggles", "panel/toggles", ""),
+            camera("Cameras", "mdi:cctv"),
+            page("Broken", "", ""),
+            action("Bad", "Dance")));
         NavConfig cfg = NavConfig.parse(settings);
         check(cfg.top);
         check(!cfg.vertical);
         eq(NavConfig.Edge.TOP, cfg.edge);
+        check(cfg.makeRoom);
         Map<String, Object> side = new HashMap<>(settings);
         side.put("position", "Left");
         NavConfig left = NavConfig.parse(side);
@@ -208,15 +195,14 @@ public final class NavbarTest {
         eq(Arrays.asList("/developer-tools", "/profile"), cfg.hideOn);
         eq("mdi:home", cfg.items.get(0).iconSelected);
         eq("mdi:home-outline", cfg.items.get(0).icon);
-        // The kind follows the target: a path is a page, entries make a menu, the rest are actions.
         eq(4, cfg.items.size());
         eq(NavItem.Type.PAGE, cfg.items.get(0).type);
         eq(NavItem.Type.MENU, cfg.items.get(1).type);
         eq(NavItem.Type.ACTION, cfg.items.get(3).type);
         eq("mdi:toggle-switch-outline", cfg.items.get(2).icon);
         eq(2, cfg.problems.size());
-        check(cfg.problems.get(0).startsWith("Item 6 (Broken)"));
-        check(cfg.problems.get(1).startsWith("Item 7 (Bad)"));
+        check(cfg.problems.get(0).startsWith("Broken: "));
+        check(cfg.problems.get(1).startsWith("Bad: "));
         eq(0, cfg.activeIndex("/lovelace"));
         eq(0, cfg.activeIndex("/lovelace/0"));
         eq(1, cfg.activeIndex("/panel/weather"));
@@ -229,22 +215,23 @@ public final class NavbarTest {
         check(!cfg.visibleAt("/developer-tools/yaml"));
         check(!cfg.visibleAt("/profile"));
         check(cfg.visibleAt("/profiles"));
-        check(NavConfig.isMenu("A=/a;B=/b"));
-        check(NavConfig.isMenu("A = /a = mdi:x"));
-        check(!NavConfig.isMenu("/a/b"));
 
         Map<String, Object> wider = new HashMap<>(settings);
         wider.put("hideOn", "");
         NavConfig everywhere = NavConfig.parse(wider);
         check(everywhere.visibleAt("/developer-tools/yaml"));
         check(everywhere.sameLook(cfg));
-        wider.put("item4Label", "Switches");
-        check(!NavConfig.parse(wider).sameLook(cfg));
+        wider.put("makeRoom", false);
+        NavConfig floating = NavConfig.parse(wider);
+        check(!floating.makeRoom);
+        check(!floating.sameLook(cfg));
 
-        StringBuilder seven = new StringBuilder();
-        for (int i = 0; i < 7; i++) seven.append("E").append(i).append(" = /a/e").append(i).append(';');
-        NavItem longMenu = NavItem.menu("M", "", seven.toString());
-        NavItem shortMenu = NavItem.menu("M", "", "A = /a/a; B = /a/b");
+        // At most 8 items. Rows past that are left out.
+        settings.put("items", list(rows(12)));
+        eq(NavConfig.MAX_ITEMS, NavConfig.parse(settings).items.size());
+
+        NavItem longMenu = NavItem.fromRow(menuRow("M", "", rows(7)), true);
+        NavItem shortMenu = NavItem.fromRow(menuRow("M", "", rows(2)), true);
         NavConfig auto = NavConfig.parse(new HashMap<String, Object>());
         eq(NavConfig.MenuLayout.AUTO, auto.menuLayout);
         check(auto.grid(longMenu));
@@ -256,10 +243,11 @@ public final class NavbarTest {
         eq(1f, empty.scale);
         eq(NavConfig.DEFAULT_INSET, empty.inset);
         eq(1f, empty.opacity);
-        // Swipe to tuck away is on by default, starting open.
+        // Swipe to tuck away is on by default, starting open, and the dashboard keeps clear.
         eq(NavConfig.Collapse.START_OPEN, empty.collapse);
         eq(NavConfig.Edge.BOTTOM, empty.edge);
         check(!empty.vertical);
+        check(empty.makeRoom);
         eq(0, empty.autoCollapse);
         check(empty.items.isEmpty());
         check(!empty.visibleAt("/anything"));
@@ -272,7 +260,6 @@ public final class NavbarTest {
         eq(0.7f, fold.opacity);
         eq(NavConfig.Collapse.START_COLLAPSED, fold.collapse);
         eq(30, fold.autoCollapse);
-        check(!fold.sameLook(cfg));
         folding.put("collapse", "Start open");
         eq(NavConfig.Collapse.START_OPEN, NavConfig.parse(folding).collapse);
         folding.put("collapse", "Off");
@@ -283,48 +270,70 @@ public final class NavbarTest {
 
         Map<String, Object> odd = new HashMap<>();
         odd.put("scale", "huge");
-        odd.put("item1Label", 5);
-        odd.put("item1Target", "/a");
+        odd.put("items", "not a list");
         NavConfig tolerant = NavConfig.parse(odd);
         eq(1f, tolerant.scale);
         check(tolerant.items.isEmpty());
-    }
-    private static void icons() {
-        Map<String, Integer> names = MdiCodec.names(MdiCodec.decode(MdiData.NAMES));
-        eq(MdiData.ICON_COUNT, names.size());
-        eq(0xF02DC, names.get("home"));
-        check(names.containsKey("home-outline"));
-        check(names.containsKey("help-circle-outline"));
-        check(names.containsKey("circle-outline"));
-        byte[] font = MdiCodec.decode(MdiData.FONT);
-        check(font.length > 1_000_000);
-        // TrueType files start with version 1.0.
-        check(font[0] == 0 && font[1] == 1 && font[2] == 0 && font[3] == 0);
-        eq("home", MdiCodec.bareName("mdi:home"));
-        eq("home", MdiCodec.bareName(" mdi-home "));
-        eq("home", MdiCodec.bareName("home"));
-        check(MdiCodec.bareName("phu:tesla-icon") == null);
-        check(MdiCodec.bareName("mdi:") == null);
-        check(MdiCodec.bareName(null) == null);
+        List<Object> mixed = new ArrayList<>();
+        mixed.add("junk");
+        mixed.add(page("Ok", "a/b", ""));
+        odd.put("items", mixed);
+        eq(1, NavConfig.parse(odd).items.size());
     }
 
-    private static void item(Map<String, Object> settings, int slot, String label, String icon, String target) {
-        settings.put("item" + slot + "Label", label);
-        settings.put("item" + slot + "Icon", icon);
-        settings.put("item" + slot + "Target", target);
+    private static Map<String, Object> row(String label, String opens) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("label", label);
+        row.put("opens", opens);
+        row.put("icon", "");
+        row.put("iconSelected", "");
+        return row;
     }
 
-    private static void rejects(String target) {
+    private static Map<String, Object> page(String label, String path, String icon) {
+        Map<String, Object> row = row(label, NavItem.PAGE);
+        row.put("page", path);
+        row.put("icon", icon);
+        return row;
+    }
+
+    private static Map<String, Object> camera(String label, String icon) {
+        Map<String, Object> row = row(label, NavItem.CAMERA);
+        row.put("camera", CAM);
+        row.put("icon", icon);
+        return row;
+    }
+
+    private static Map<String, Object> action(String label, String action) {
+        Map<String, Object> row = row(label, NavItem.ACTION);
+        row.put("action", action);
+        return row;
+    }
+
+    @SafeVarargs
+    private static Map<String, Object> menuRow(String label, String icon, Map<String, Object>... entries) {
+        Map<String, Object> row = row(label, NavItem.MENU);
+        row.put("icon", icon);
+        row.put("entries", list(entries));
+        return row;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object>[] rows(int count) {
+        Map<String, Object>[] rows = new Map[count];
+        for (int i = 0; i < count; i++) rows[i] = page("E" + i, "a/e" + i, "");
+        return rows;
+    }
+
+    @SafeVarargs
+    private static List<Object> list(Map<String, Object>... rows) {
+        return new ArrayList<Object>(Arrays.asList(rows));
+    }
+
+    private static void rejects(Runnable action) {
         try {
-            NavTarget.parse(target);
-            throw new AssertionError("Expected a rejected target: '" + target + "'");
-        } catch (IllegalArgumentException expected) { passed++; }
-    }
-
-    private static void rejectsMenu(String entries) {
-        try {
-            NavItem.menu("Menu", "", entries);
-            throw new AssertionError("Expected a rejected menu: '" + entries + "'");
+            action.run();
+            throw new AssertionError("Expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) { passed++; }
     }
 

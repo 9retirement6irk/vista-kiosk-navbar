@@ -4,10 +4,18 @@ package com.shymoose.ksnavbar;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** One navbar entry: a page, an action, or a menu of pages and actions. */
 final class NavItem {
     enum Type { PAGE, ACTION, MENU }
+
+    /** The Opens choices in settings, in the order they are offered. */
+    static final String PAGE = "Page";
+    static final String CAMERA = "Camera view";
+    static final String MENU = "Menu";
+    static final String ACTION = "Kiosk action";
+    static final String WEB = "Web address";
 
     static final String DEFAULT_ICON = "mdi:circle-outline";
     static final String CAMERA_ICON = "mdi:cctv";
@@ -31,50 +39,54 @@ final class NavItem {
         this.children = Collections.unmodifiableList(new ArrayList<>(children));
     }
 
-    /** A page or action from a target string, with an optional icon. The type follows the target. */
-    static NavItem leaf(String label, String icon, String target) {
-        return leaf(label, icon, "", target);
-    }
-
-    /** A page or action with an optional icon for its selected state, which defaults to the normal one. */
-    static NavItem leaf(String label, String icon, String selectedIcon, String target) {
-        NavTarget parsed = NavTarget.parse(target);
-        String fallback = fallbackIcon(label, kindIcon(parsed.kind));
-        String[] icons = icons(icon, selectedIcon, fallback);
-        Type type = parsed.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
-        return new NavItem(type, label, icons[0], icons[1], parsed, Collections.<NavItem>emptyList());
-    }
-
     /**
-     * A menu from {@code Label = target; Label = target = mdi:icon; ...}. Entries may also be
-     * separated by new lines.
+     * An item from one row of the Items list, or an entry from a menu's Entries list. KS fills in
+     * every field, including hidden ones, so only the fields {@code opens} selects are read.
      */
-    static NavItem menu(String label, String icon, String entries) {
-        return menu(label, icon, "", entries);
+    static NavItem fromRow(Map<?, ?> row, boolean allowMenu) {
+        String label = text(row, "label");
+        if (label.isEmpty()) throw new IllegalArgumentException("needs a label");
+        String opens = text(row, "opens");
+        if (opens.isEmpty()) opens = PAGE;
+        if (MENU.equals(opens)) {
+            if (!allowMenu) throw new IllegalArgumentException("a menu entry cannot open another menu");
+            return menu(label, text(row, "icon"), text(row, "iconSelected"), rows(row.get("entries")));
+        }
+        NavTarget target;
+        switch (opens) {
+            case PAGE: target = NavTarget.page(text(row, "page")); break;
+            case CAMERA: target = NavTarget.camera(text(row, "camera")); break;
+            case ACTION: target = NavTarget.action(text(row, "action")); break;
+            case WEB: target = NavTarget.url(text(row, "url")); break;
+            default: throw new IllegalArgumentException("unknown Opens choice '" + opens + "'");
+        }
+        return leaf(label, text(row, "icon"), text(row, "iconSelected"), target);
     }
 
-    /** A menu with an optional icon for when one of its pages is shown. */
-    static NavItem menu(String label, String icon, String selectedIcon, String entries) {
+    /** A page or action with optional icons. A blank icon is picked from the label or the target. */
+    static NavItem leaf(String label, String icon, String selectedIcon, NavTarget target) {
+        String fallback = fallbackIcon(label, kindIcon(target.kind));
+        String[] icons = icons(icon, selectedIcon, fallback);
+        Type type = target.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
+        return new NavItem(type, label, icons[0], icons[1], target, Collections.<NavItem>emptyList());
+    }
+
+    /** A menu of entry rows. */
+    static NavItem menu(String label, String icon, String selectedIcon, List<Map<?, ?>> entries) {
         String[] icons = icons(icon, selectedIcon, fallbackIcon(label, DEFAULT_ICON));
         List<NavItem> children = new ArrayList<>();
-        for (String text : (entries == null ? "" : entries).split("[;\\n]")) {
-            if (text.trim().isEmpty()) continue;
-            String[] fields = entry(text);
-            String childLabel = fields[0].trim();
-            if (childLabel.isEmpty()) throw new IllegalArgumentException("menu entry '" + text.trim() + "' has no label");
+        for (Map<?, ?> entry : entries) {
+            String childLabel = text(entry, "label");
             try {
-                children.add(leaf(childLabel, fields[1], fields[2]));
+                children.add(fromRow(entry, false));
             } catch (IllegalArgumentException error) {
-                throw new IllegalArgumentException(childLabel + ": " + error.getMessage());
+                throw new IllegalArgumentException((childLabel.isEmpty() ? "an entry" : childLabel) + " " + error.getMessage());
             }
         }
         if (children.isEmpty()) throw new IllegalArgumentException("menu has no entries");
         if (children.size() > MAX_CHILDREN) throw new IllegalArgumentException("menu has more than " + MAX_CHILDREN + " entries");
         return new NavItem(Type.MENU, label, icons[0], icons[1], null, children);
     }
-
-    private static final java.util.regex.Pattern TRAILING_ICON =
-        java.util.regex.Pattern.compile("^(.*?)\\s*=\\s*(mdi:[A-Za-z0-9-]+)\\s*$");
 
     /** The icon a target's kind suggests when the label suggests none. */
     static String kindIcon(NavTarget.Kind kind) {
@@ -91,25 +103,7 @@ final class NavItem {
         }
     }
 
-    /**
-     * Label, icon and target of one menu entry: {@code Label = target}, optionally followed by
-     * {@code = mdi:icon}. Only the first {@code =} ends the label, so a page may keep {@code =} in
-     * its query.
-     */
-    static String[] entry(String text) {
-        String entry = text.trim();
-        int eq = entry.indexOf('=');
-        if (eq < 0) throw new IllegalArgumentException("menu entry '" + entry + "' needs Label = target");
-        String label = entry.substring(0, eq);
-        String rest = entry.substring(eq + 1).trim();
-        java.util.regex.Matcher icon = TRAILING_ICON.matcher(rest);
-        if (icon.matches()) return new String[] {label, icon.group(2), icon.group(1)};
-        return new String[] {label, "", rest};
-    }
-    /**
-     * The icon for an item with no Icon set: one picked from its label when a rule matches, then the
-     * given default, which is a camera icon for camera entries.
-     */
+    /** An icon picked from the label when a rule matches, otherwise the given default. */
     static String fallbackIcon(String label, String otherwise) {
         String guessed = IconGuess.forLabel(label);
         return guessed != null ? guessed : otherwise;
@@ -131,4 +125,19 @@ final class NavItem {
         String normal = icon == null || icon.trim().isEmpty() ? fallback : icon.trim();
         String selected = selectedIcon == null || selectedIcon.trim().isEmpty() ? normal : selectedIcon.trim();
         return new String[] {normal, selected};
-    }}
+    }
+
+    /** The rows of a list setting. Anything that is not a list of maps reads as empty. */
+    static List<Map<?, ?>> rows(Object value) {
+        List<Map<?, ?>> rows = new ArrayList<>();
+        if (value instanceof List) {
+            for (Object row : (List<?>) value) if (row instanceof Map) rows.add((Map<?, ?>) row);
+        }
+        return rows;
+    }
+
+    static String text(Map<?, ?> row, String key) {
+        Object value = row.get(key);
+        return value instanceof String ? ((String) value).trim() : "";
+    }
+}
