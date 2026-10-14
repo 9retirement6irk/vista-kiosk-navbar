@@ -20,9 +20,6 @@ final class NavConfig {
     /** Whether the bar can shrink to a tab at its edge, and how it starts. */
     enum Collapse { OFF, START_OPEN, START_COLLAPSED }
 
-    /** How a menu shows its entries. Auto uses a grid once a list would get long. */
-    enum MenuLayout { AUTO, LIST, GRID }
-
     /** Auto switches to a grid above this many entries. */
     static final int AUTO_GRID_ABOVE = 6;
 
@@ -39,7 +36,6 @@ final class NavConfig {
     final Collapse collapse;
     /** Seconds without a tap before an open bar collapses again. 0 never does. */
     final int autoCollapse;
-    final MenuLayout menuLayout;
     /** Whether the dashboard keeps clear of the bar. */
     final boolean makeRoom;
     /** Whether the bar stays on screen over an open camera view, with a button to close it. */
@@ -49,7 +45,7 @@ final class NavConfig {
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, MenuLayout menuLayout, boolean makeRoom, boolean overCameras,
+    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, boolean makeRoom, boolean overCameras,
                       List<String> hideOn, List<NavItem> items, List<String> problems) {
         this.edge = edge;
         this.top = edge == Edge.TOP;
@@ -60,7 +56,6 @@ final class NavConfig {
         this.opacity = opacity;
         this.collapse = collapse;
         this.autoCollapse = autoCollapse;
-        this.menuLayout = menuLayout;
         this.makeRoom = makeRoom;
         this.overCameras = overCameras;
         this.hideOn = Collections.unmodifiableList(hideOn);
@@ -86,8 +81,6 @@ final class NavConfig {
         Collapse collapse = "Off".equals(collapseSetting) ? Collapse.OFF
             : "Start hidden".equals(collapseSetting) ? Collapse.START_COLLAPSED : Collapse.START_OPEN;
         int autoCollapse = collapse == Collapse.OFF ? 0 : number(settings, "autoCollapse", 0, 3600, 0);
-        // Menus pick their own layout: a list, or a grid once a list would get long.
-        MenuLayout menuLayout = MenuLayout.AUTO;
         // Pages picked with the dashboard picker. Each hides the bar on that view only.
         List<String> hideOn = new ArrayList<>();
         for (Map<?, ?> row : NavItem.rows(settings.get("hideOn"))) {
@@ -108,7 +101,7 @@ final class NavConfig {
         }
         boolean makeRoom = !Boolean.FALSE.equals(settings.get("makeRoom"));
         boolean overCameras = !Boolean.FALSE.equals(settings.get("overCameras"));
-        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, menuLayout, makeRoom, overCameras, hideOn, items, problems);
+        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, makeRoom, overCameras, hideOn, items, problems);
     }
     /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
     boolean visibleAt(String path) {
@@ -121,8 +114,6 @@ final class NavConfig {
 
     /** Whether a menu shows its entries as a grid of tiles rather than a list. */
     boolean grid(NavItem menu) {
-        if (menuLayout == MenuLayout.GRID) return true;
-        if (menuLayout == MenuLayout.LIST) return false;
         return menu.children.size() > AUTO_GRID_ABOVE;
     }
 
@@ -142,7 +133,7 @@ final class NavConfig {
         return -1;
     }
 
-    /** Whether both configurations draw the same bar. The Show on paths are ignored. */
+    /** Whether both configurations draw the same bar. Hide-on pages and the timer are handled separately. */
     boolean sameLook(NavConfig other) {
         return other != null && describe().equals(other.describe());
     }
@@ -150,7 +141,7 @@ final class NavConfig {
     String describe() {
         StringBuilder text = new StringBuilder();
         text.append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
-            .append('|').append(opacity).append('|').append(collapse).append('|').append(menuLayout).append('|').append(makeRoom).append('|').append(overCameras);
+            .append('|').append(opacity).append('|').append(collapse).append('|').append(makeRoom).append('|').append(overCameras);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }

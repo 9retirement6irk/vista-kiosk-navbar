@@ -28,6 +28,7 @@ sources = [
 with tempfile.TemporaryDirectory(prefix='kiosk-plugin-test-') as directory:
     subprocess.run([tool('javac'), '--release', '8', '-cp', platform, '-d', directory, *map(str, sources)], check=True)
     subprocess.run([tool('java'), '-ea', '-cp', os.pathsep.join([directory, platform]), 'com.shymoose.ksnavbar.NavbarTest'], check=True)
+    subprocess.run([tool('java'), '-ea', '-cp', os.pathsep.join([directory, platform]), 'com.shymoose.ksnavbar.ControllerTest'], check=True)
 
 for script in ('test_android_sdk.py', 'test_plugin_manifest.py', 'test_plugin_assets.py', 'test_manifest_schema.py'):
     subprocess.run([sys.executable, str(root / 'tools' / script)], check=True)

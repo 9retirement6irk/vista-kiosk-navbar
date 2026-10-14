@@ -184,7 +184,8 @@ final class NavItem {
         return copy;
     }
 
-    /** The rows of a list setting. Anything that is not a list of maps reads as empty. */    static List<Map<?, ?>> rows(Object value) {
+    /** The rows of a list setting. Anything that is not a list of maps reads as empty. */
+    static List<Map<?, ?>> rows(Object value) {
         List<Map<?, ?>> rows = new ArrayList<>();
         if (value instanceof List) {
             for (Object row : (List<?>) value) if (row instanceof Map) rows.add((Map<?, ?>) row);

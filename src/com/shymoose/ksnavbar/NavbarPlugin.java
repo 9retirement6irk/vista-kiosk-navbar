@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,8 +25,8 @@ import me.jxl.kiosk.plugins.PluginHost;
  *
  * One overlay holds the bar and its tab, and an open menu gets a second one that KS places over its
  * item. Building a KS overlay is slow on low-power panels, so the bar's is only replaced when the
- * configuration changes, and hiding it behind its tab is a change inside the view. The plugin reserves the
- * bar's depth with setContentInsets, so the dashboard ends above it.
+ * configuration or camera layer changes. Hiding it behind its tab is a change inside the view.
+ * The plugin reserves the bar's depth with setContentInsets.
  *
  * Threads: plugin callbacks and command results run on the KS plugin worker, which keeps the
  * configuration and page in volatile fields and takes this object's lock. The main thread owns the
@@ -43,7 +44,25 @@ public final class NavbarPlugin implements KioskPlugin {
     private static final int MENU_TRANSITION_MS = 160;
     private static final int BAR_TRANSITION_MS = 180;
 
-    private final Handler main = new Handler(Looper.getMainLooper());
+    interface Scheduler {
+        void post(Runnable task);
+        void postDelayed(Runnable task, long delayMs);
+        void removeCallbacks(Runnable task);
+    }
+
+    private final Scheduler main;
+    final NavViews.Listener taps = new Taps();
+
+    public NavbarPlugin() {
+        this(new Scheduler() {
+            private final Handler handler = new Handler(Looper.getMainLooper());
+            public void post(Runnable task) { handler.post(task); }
+            public void postDelayed(Runnable task, long delayMs) { handler.postDelayed(task, delayMs); }
+            public void removeCallbacks(Runnable task) { handler.removeCallbacks(task); }
+        });
+    }
+
+    NavbarPlugin(Scheduler main) { this.main = main; }
     private volatile PluginHost host;
     private volatile NavConfig config = NavConfig.parse(Collections.<String, Object>emptyMap());
     private volatile String path;
@@ -60,18 +79,23 @@ public final class NavbarPlugin implements KioskPlugin {
     private final Runnable autoCollapse = this::autoCollapse;
     // Worker-only state.
     private int readRevision;
-    private String lastStatus;
+    private int cameraRevision;
+    private int screensaverRevision;
     // Main-thread-only state.
+    private String lastStatus;
+    private boolean lastStatusError;
+    private final Map<String, String> errors = new LinkedHashMap<>();
     private boolean shown;
     /** Whether the shown bar was built to sit over camera views. */
     private boolean builtOver;
     private int openMenu = -1;
+    private int menuGeneration;
     /** A tap that reaches the bar this late, in ms, is logged. */
     private static final long SLOW_TAP_MS = 150;
     /** An open menu closes after this long, so a wall panel is not left with a menu up. */
     private static final long MENU_TIMEOUT_MS = 30_000;
     private final Runnable menuTimeout = () -> {
-        try { closeMenu(); } catch (RuntimeException ignored) {}
+        try { closeMenu(); } catch (RuntimeException error) { log(host, "Could not close the menu", error); }
     };
     private View menuView;
     /** The space currently reserved for the bar, in dp, and on which edge. */
@@ -85,10 +109,12 @@ public final class NavbarPlugin implements KioskPlugin {
         // KS may reuse this object for a new session. Nothing from the old one applies.
         path = null;
         camera = null;
-        screensaver = false;
+        // Stay below KS until its current screensaver state is known.
+        screensaver = true;
         userHidden = false;
-        lastStatus = null;
         readRevision++;
+        cameraRevision++;
+        screensaverRevision++;
         navigation.incrementAndGet();
         root.set(null);
         main.post(this::forgetOverlay);
@@ -98,16 +124,18 @@ public final class NavbarPlugin implements KioskPlugin {
         try {
             host.subscribe("browser.state");
         } catch (RuntimeException unsupported) {
-            host.status("This Kiosk Satellite cannot report page changes, so the active item will not follow navigation.", true);
+            issue(host, "browserSubscription", "Could not subscribe to page changes: " + unsupported.getMessage());
         }
-        try {
-            host.subscribe("camera.view");
-            host.subscribe("screensaver.state");
-        } catch (RuntimeException unsupported) {
-            // The bar then stays under camera views, as an ordinary overlay does.
+        for (String event : new String[] {"camera.view", "screensaver.state"}) {
+            try {
+                host.subscribe(event);
+            } catch (RuntimeException unsupported) {
+                issue(host, event, "Could not subscribe to " + event + ": " + unsupported.getMessage());
+            }
         }
         readDashboard();
         readCamera();
+        readScreensaver();
     }
 
     @Override
@@ -123,6 +151,7 @@ public final class NavbarPlugin implements KioskPlugin {
         if (host == null) return;
         if (!next.sameLook(previous)) rebuild.set(true);
         sync();
+        if (next.autoCollapse != previous.autoCollapse) main.post(this::scheduleAutoCollapse);
         report();
     }
 
@@ -161,9 +190,14 @@ public final class NavbarPlugin implements KioskPlugin {
     @Override
     public synchronized void onEvent(String event, Map<String, Object> payload) {
         if ("ks.browser.state".equals(event)) readDashboard();
-        else if ("ks.camera.view".equals(event)) setCamera(payload);
+        else if ("ks.camera.view".equals(event)) {
+            cameraRevision++;
+            setCamera(payload);
+        }
         else if ("ks.screensaver.state".equals(event)) {
+            screensaverRevision++;
             screensaver = payload != null && Boolean.TRUE.equals(payload.get("active"));
+            issue(host, "screensaver", null);
             sync();
         }
         // A tap outside the menu closed it. Its overlay is gone; only the bookkeeping is left.
@@ -176,12 +210,15 @@ public final class NavbarPlugin implements KioskPlugin {
         host = null;
         navigation.incrementAndGet();
         readRevision++;
+        cameraRevision++;
+        screensaverRevision++;
         root.set(null);
         main.post(this::forgetOverlay);
     }
 
     /** A camera view opened, switched or closed. The camera view's own state reads the same way. */
     private void setCamera(Map<?, ?> state) {
+        issue(host, "camera", null);
         String next = state != null && Boolean.TRUE.equals(state.get("active")) ? text(state.get("viewId")) : null;
         if (Objects.equals(next, camera)) return;
         camera = next;
@@ -193,14 +230,39 @@ public final class NavbarPlugin implements KioskPlugin {
     private void readCamera() {
         PluginHost current = host;
         if (current == null) return;
+        final int revision = ++cameraRevision;
         try {
             current.executeCommand("getCameraViewState", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
                 synchronized (NavbarPlugin.this) {
-                    if (ok && host == current && data instanceof Map) setCamera((Map<?, ?>) data);
+                    if (host != current || revision != cameraRevision) return;
+                    if (ok && data instanceof Map) setCamera((Map<?, ?>) data);
+                    else issue(current, "camera", "Could not read the camera view: " + error);
                 }
             });
-        } catch (RuntimeException unsupported) {
-            // Without it the bar learns about a camera view when one next opens.
+        } catch (RuntimeException error) {
+            issue(current, "camera", "Could not read the camera view: " + error.getMessage());
+        }
+    }
+
+    private void readScreensaver() {
+        PluginHost current = host;
+        if (current == null) return;
+        final int revision = ++screensaverRevision;
+        try {
+            current.executeCommand("isScreensaverActive", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
+                synchronized (NavbarPlugin.this) {
+                    if (host != current || revision != screensaverRevision) return;
+                    if (!ok || !(data instanceof Boolean)) {
+                        issue(current, "screensaver", "Could not read the screensaver state: " + error);
+                        return;
+                    }
+                    screensaver = (Boolean) data;
+                    issue(current, "screensaver", null);
+                    sync();
+                }
+            });
+        } catch (RuntimeException error) {
+            issue(current, "screensaver", "Could not read the screensaver state: " + error.getMessage());
         }
     }
 
@@ -209,25 +271,30 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         if (current == null) return;
         final int revision = ++readRevision;
-        current.executeCommand("getDashboardState", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
-            synchronized (NavbarPlugin.this) {
-                if (revision != readRevision || host != current) return;
-                if (!ok || !(data instanceof Map)) {
-                    current.status("Could not read the dashboard page: " + error, true);
-                    return;
-                }
-                Map<?, ?> state = (Map<?, ?>) data;
-                String nextPath = text(state.get("currentPath"));
+        try {
+            current.executeCommand("getDashboardState", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
+                synchronized (NavbarPlugin.this) {
+                    if (revision != readRevision || host != current) return;
+                    if (!ok || !(data instanceof Map)) {
+                        issue(current, "dashboard", "Could not read the dashboard page: " + error);
+                        return;
+                    }
+                    issue(current, "dashboard", null);
+                    Map<?, ?> state = (Map<?, ?>) data;
+                    String nextPath = text(state.get("currentPath"));
 
-                boolean moved = !Objects.equals(nextPath, path);
-                path = nextPath;
-                if (moved) {
-                    main.post(this::closeMenu);
-                    sync();
-                    report();
+                    boolean moved = !Objects.equals(nextPath, path);
+                    path = nextPath;
+                    if (moved) {
+                        main.post(this::closeMenu);
+                        sync();
+                        report();
+                    }
                 }
-            }
-        });
+            });
+        } catch (RuntimeException error) {
+            issue(current, "dashboard", "Could not read the dashboard page: " + error.getMessage());
+        }
     }
 
     /** Ask the main thread to bring the overlay in line with the current state. */
@@ -255,13 +322,15 @@ public final class NavbarPlugin implements KioskPlugin {
             // Over an open camera view the bar moves to KS's top layer, which needs a new overlay.
             // Not over the screensaver, which also sits below that layer.
             boolean over = cfg.overCameras && camera != null && !screensaver;
-            if (!shown || rebuild.getAndSet(false) || over != builtOver) {
+            boolean replace = rebuild.getAndSet(false);
+            if (!shown || replace || over != builtOver) {
                 closeMenu();
                 String anchor = anchor(cfg);
                 builtOver = over;
                 // Flush with the edge: the view keeps the bar's distance itself, so the tab can touch it.
                 current.showOverlay(BAR, OverlaySpec.at(anchor).closeOnBack(false).onTop(over)
                     .enter(OverlaySpec.FADE).exit(OverlaySpec.FADE).transitionDuration(BAR_TRANSITION_MS), new RootFactory());
+                issue(current, "overlay", null);
                 if (depth > 0) reserve(depth);
                 shown = true;
                 scheduleAutoCollapse();
@@ -270,8 +339,9 @@ public final class NavbarPlugin implements KioskPlugin {
             NavViews.Root view = root.get();
             if (view != null) view.setLocation(path, camera);
         } catch (UnsupportedOperationException olderHost) {
-            status(current, "Native overlays need Kiosk Satellite 2026.10.13 or newer.");
+            issue(current, "overlay", "Native overlays need Kiosk Satellite 2026.10.23 or newer.");
         } catch (RuntimeException error) {
+            issue(current, "overlay", "Could not update the bar: " + error.getMessage());
             log(current, "Could not update the bar", error);
         }
     }
@@ -280,7 +350,8 @@ public final class NavbarPlugin implements KioskPlugin {
     private void scheduleAutoCollapse() {
         main.removeCallbacks(autoCollapse);
         NavConfig cfg = config;
-        if (!collapsed && cfg.collapse != NavConfig.Collapse.OFF && cfg.autoCollapse > 0) {
+        if (shown && host != null && !userHidden && cfg.visibleAt(path) && openMenu < 0
+                && !collapsed && cfg.collapse != NavConfig.Collapse.OFF && cfg.autoCollapse > 0) {
             main.postDelayed(autoCollapse, cfg.autoCollapse * 1000L);
         }
     }
@@ -296,7 +367,7 @@ public final class NavbarPlugin implements KioskPlugin {
 
     private void autoCollapse() {
         try {
-            if (!collapsed && host != null) setCollapsed(true);
+            if (openMenu < 0 && shown && !collapsed && host != null) setCollapsed(true);
         } catch (RuntimeException error) {
             log(host, "Could not collapse the bar", error);
         }
@@ -310,8 +381,12 @@ public final class NavbarPlugin implements KioskPlugin {
         builtOver = false;
         openMenu = -1;
         menuView = null;
+        menuGeneration++;
+        depth = 0;
         reserved = 0;
         reservedEdge = null;
+        lastStatus = null;
+        errors.clear();
         markMenu(-1);
     }
 
@@ -320,10 +395,13 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         boolean open = openMenu >= 0 || menuView != null;
         openMenu = -1;
+        menuView = null;
+        menuGeneration++;
         markMenu(-1);
         main.removeCallbacks(menuTimeout);
         if (!open || current == null) return;
-        try { current.hideOverlay(MENU); } catch (RuntimeException sessionEnded) {}
+        try { current.hideOverlay(MENU); } catch (RuntimeException error) { log(current, "Could not close the menu", error); }
+        scheduleAutoCollapse();
     }
 
     /**
@@ -349,9 +427,10 @@ public final class NavbarPlugin implements KioskPlugin {
             .closeOnOutsideTouch(true)
             .enter(OverlaySpec.SCALE).exit(OverlaySpec.FADE).transitionDuration(MENU_TRANSITION_MS);
         // Replacing the overlay at the same key swaps one open menu for another.
-        current.showOverlay(MENU, spec, new MenuFactory(cfg, index));
+        current.showOverlay(MENU, spec, new MenuFactory(cfg, index, ++menuGeneration));
         openMenu = index;
         markMenu(index);
+        main.removeCallbacks(autoCollapse);
         main.removeCallbacks(menuTimeout);
         main.postDelayed(menuTimeout, MENU_TIMEOUT_MS);
     }
@@ -403,13 +482,25 @@ public final class NavbarPlugin implements KioskPlugin {
      * The status line on the plugin page. It is empty while the bar works as set up, and explains
      * only what needs attention: an item that cannot be used, or why the bar is not showing.
      */
-    private void report() {
+    private void report() { main.post(this::reportOnMain); }
+
+    private void issue(PluginHost current, String key, String message) {
+        main.post(() -> {
+            if (current == null || host != current) return;
+            if (message == null) errors.remove(key);
+            else errors.put(key, message);
+            reportOnMain();
+        });
+    }
+
+    private void reportOnMain() {
         PluginHost current = host;
         if (current == null) return;
         NavConfig cfg = config;
         StringBuilder text = new StringBuilder();
-        boolean error = !cfg.problems.isEmpty();
+        boolean error = !cfg.problems.isEmpty() || !errors.isEmpty();
         for (String problem : cfg.problems) text.append(problem).append('\n');
+        for (String problem : errors.values()) text.append(problem).append('\n');
         if (cfg.items.isEmpty()) {
             text.append("Add an item to show the bar.");
         } else if (userHidden) {
@@ -419,9 +510,14 @@ public final class NavbarPlugin implements KioskPlugin {
         }
         String message = text.toString().trim();
         if (message.length() > 1000) message = message.substring(0, 1000);
-        if (message.equals(lastStatus)) return;
-        lastStatus = message;
-        current.status(message, error);
+        if (message.equals(lastStatus) && error == lastStatusError) return;
+        try {
+            current.status(message, error);
+            lastStatus = message;
+            lastStatusError = error;
+        } catch (RuntimeException failure) {
+            log(current, "Could not report navbar status", failure);
+        }
     }
     /** Main thread. A failure is only reported if no newer tap or session has happened since. */
     private void run(NavTarget target) {
@@ -431,12 +527,15 @@ public final class NavbarPlugin implements KioskPlugin {
         try {
             NavTarget.Command command = target.command();
             current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
-                if (host != current || navigation.get() != revision) return;
-                if (ok && !Boolean.FALSE.equals(data)) return;
-                current.status("Could not open " + describe(target) + (error == null ? "" : ": " + error), true);
+                main.post(() -> {
+                    if (host != current || navigation.get() != revision) return;
+                    if (ok && !Boolean.FALSE.equals(data)) errors.remove("navigation");
+                    else errors.put("navigation", "Could not open " + describe(target) + (error == null ? "" : ": " + error));
+                    reportOnMain();
+                });
             });
         } catch (RuntimeException error) {
-            status(current, "Could not open " + describe(target) + ": " + error.getMessage());
+            issue(current, "navigation", "Could not open " + describe(target) + ": " + error.getMessage());
         }
     }
 
@@ -445,7 +544,9 @@ public final class NavbarPlugin implements KioskPlugin {
         main.removeCallbacks(menuTimeout);
         openMenu = -1;
         menuView = null;
+        menuGeneration++;
         markMenu(-1);
+        scheduleAutoCollapse();
     }
     private static String describe(NavTarget target) {
         return target.value.isEmpty() ? target.kind.name().toLowerCase(java.util.Locale.ROOT) : target.value;
@@ -453,10 +554,6 @@ public final class NavbarPlugin implements KioskPlugin {
 
     private static String text(Object value) {
         return value instanceof String ? (String) value : null;
-    }
-
-    private static void status(PluginHost current, String message) {
-        try { if (current != null) current.status(message, true); } catch (RuntimeException ignored) {}
     }
 
     private static void log(PluginHost current, String what, RuntimeException error) {
@@ -489,9 +586,9 @@ public final class NavbarPlugin implements KioskPlugin {
             try {
                 closeMenu();
                 if (current != null) current.executeCommand("hideCameraView", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
-                    if (!ok && host == current) current.status("Could not close the camera view: " + error, true);
+                    issue(current, "closeCamera", ok && !Boolean.FALSE.equals(data) ? null : "Could not close the camera view: " + error);
                 });
-            } catch (RuntimeException error) { log(current, "Could not close the camera view", error); }
+            } catch (RuntimeException error) { issue(current, "closeCamera", "Could not close the camera view: " + error.getMessage()); }
         }
 
         @Override public void onDepth(int depthDp) {
@@ -502,7 +599,7 @@ public final class NavbarPlugin implements KioskPlugin {
         }
 
         @Override public void onInteraction() {
-            try { scheduleAutoCollapse(); } catch (RuntimeException ignored) {}
+            try { scheduleAutoCollapse(); } catch (RuntimeException error) { log(host, "Could not restart auto-hide", error); }
         }
 
         @Override public void onLatency(long downMs, long upMs) {
@@ -519,7 +616,7 @@ public final class NavbarPlugin implements KioskPlugin {
     private final class RootFactory implements OverlayFactory {
         @Override public View create(Context context, KsTheme theme) {
             NavConfig cfg = config;
-            NavViews.Root view = new NavViews.Root(context, theme, cfg, path, camera, builtOver, collapsed, new Taps());
+            NavViews.Root view = new NavViews.Root(context, theme, cfg, path, camera, builtOver, collapsed, taps);
             root.set(view);
             // The page may have changed while the view was being built, before the worker could see
             // it. Publishing first and then re-reading means no page update is lost.
@@ -540,10 +637,12 @@ public final class NavbarPlugin implements KioskPlugin {
     private final class MenuFactory implements OverlayFactory {
         private final NavConfig cfg;
         private final int index;
+        private final int generation;
 
-        MenuFactory(NavConfig cfg, int index) {
+        MenuFactory(NavConfig cfg, int index, int generation) {
             this.cfg = cfg;
             this.index = index;
+            this.generation = generation;
         }
 
         @Override public View create(Context context, KsTheme theme) {
@@ -560,9 +659,7 @@ public final class NavbarPlugin implements KioskPlugin {
                     log(host, "Tap on a menu entry failed", error);
                 }
             });
-            menuView = view;
-            // Also set here, in case KS destroys the previous menu after showOverlay returned.
-            openMenu = index;
+            if (generation == menuGeneration) menuView = view;
             return view;
         }
 
@@ -572,11 +669,7 @@ public final class NavbarPlugin implements KioskPlugin {
 
         @Override public void onDestroy(View view) {
             // Back, a replacement or hideOverlay removed this menu. A newer menu keeps its state.
-            if (menuView == view) {
-                menuView = null;
-                openMenu = -1;
-                markMenu(-1);
-            }
+            if (generation == menuGeneration) menuClosed();
         }
     }
 }

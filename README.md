@@ -51,6 +51,7 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 - **Icons.** Leave an icon empty and one is picked from the label, then filled in for you: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. **Selected icon** is shown while the item's page is open, often the filled version.
 - **Tap opens.** On a menu item, pick a page here and a tap opens that page while a long press opens the menu. Leave it empty and a tap opens the menu.
 - **Order.** Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items.
+- **Smaller screens.** If the bar does not fit, scroll along it to reach the remaining items. Menu grids use fewer columns when space is limited, and tall menus scroll.
 
 ## Settings
 
@@ -82,6 +83,8 @@ On the left or right, the bar becomes a rail. Menus open beside it, a sideways s
 
 Swipe the bar toward its edge to hide it behind a small tab. Swipe the tab back, or tap it, to show the bar again. The tab shows the current page's icon. While the bar is hidden, the dashboard keeps clear of the tab only.
 
+**Hide after** pauses while a menu is open. The menu closes automatically after 30 seconds, even if untouched; closing it starts a fresh auto-hide countdown for the bar. Choosing an entry or dismissing the menu does the same. Changing **Hide after** takes effect immediately.
+
 </details>
 
 <details>
@@ -103,6 +106,8 @@ python3 tools/build.py
 
 The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > Install from ZIP**. To release, publish a GitHub release tagged `vX.Y.Z`. CI tests, builds and attaches the files Kiosk Satellite verifies. See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
+`tools/test.py` also runs the controller against a virtual clock and deferred host responses. For native Android layout checks, run `python3 tools/test_views.py --serial <adb-device-serial>` on an adb-connected development device. It measures views without opening a window or installing an app, and removes its temporary test bundle afterward. This checks layout and drawable reuse, not KS's compositor latency.
+
 </details>
 
 ## Credits
@@ -110,8 +115,6 @@ The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > I
 Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jxlarrea](https://github.com/jxlarrea), whose native plugin SDK, overlays, pickers and icons make a bar like this possible. Started from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world).
 
 Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) by [@joseluis9595](https://github.com/joseluis9595). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
-
-Apache-2.0.
 
 ## License
 

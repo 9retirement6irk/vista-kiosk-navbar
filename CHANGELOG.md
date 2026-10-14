@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Auto-hide pauses while a menu is open. The menu still closes after 30 seconds, then the bar's countdown restarts. Changing Hide after applies immediately.
+- Startup camera and screensaver reads cannot overwrite newer events. Until the screensaver state is known, the bar stays below it.
+- Successful retries clear the corresponding error without hiding unrelated failures.
+- Bars and rails scroll when they do not fit. Menu grids adapt their column count to available width, and tall menus scroll.
+- Touch targets stay at least 48 dp high at every size. The tab keeps its dimensions on unmatched pages.
+- Highlight updates touch only the affected bar items and reuse icon drawables where possible. Tab selection no longer repeats layout and styling.
+- Added virtual-clock controller tests for menu timeouts, settings changes, callback ordering, session shutdown and error recovery.
+
 ## 0.14.0
 
 - **Show over camera views**, on by default. While a camera view is open, the bar stays on screen above it with a **Close** button at its end. The item that opens the camera lights up, so you can switch cameras from the grid or leave. Turn it off to keep the bar under camera views as before.

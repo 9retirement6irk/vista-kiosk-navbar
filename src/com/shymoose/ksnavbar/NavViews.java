@@ -3,6 +3,7 @@ package com.shymoose.ksnavbar;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.ColorDrawable;
@@ -16,17 +17,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 import me.jxl.kiosk.plugins.KsTheme;
 
 /**
- * The navbar, drawn natively in the KS design language. One overlay holds everything: the bar, the
- * tab it collapses into and the open menu. Creating a KS overlay is slow on low-power panels, so
- * collapsing, expanding and opening menus only change visibility inside this one view, and the
- * wrapped overlay resizes to fit.
+ * The navbar in KS's design language. The bar and its tab share one overlay; menus have their own.
+ * Selection changes update existing views rather than replacing an expensive native overlay.
  */
 final class NavViews {
     private NavViews() {}
@@ -287,6 +288,7 @@ final class NavViews {
         private final NavConfig config;
         private final Listener listener;
         private final Bar bar;
+        private final FrameLayout barViewport;
         private final Tab tab;
         private final SizeGate gate = new SizeGate(this);
         private KsTheme theme;
@@ -323,10 +325,15 @@ final class NavViews {
                 listener.onInteraction();
                 listener.onExpand();
             });
-            addView(bar);
+            barViewport = config.vertical ? new ScrollView(context) : new HorizontalScrollView(context);
+            barViewport.setClipToPadding(false);
+            barViewport.setHorizontalFadingEdgeEnabled(!config.vertical);
+            barViewport.setVerticalFadingEdgeEnabled(config.vertical);
+            barViewport.addView(bar, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+            addView(barViewport);
             addView(tab);
             this.collapsed = collapsed && config.collapse != NavConfig.Collapse.OFF;
-            bar.setVisibility(this.collapsed ? GONE : VISIBLE);
+            barViewport.setVisibility(this.collapsed ? GONE : VISIBLE);
             tab.setVisibility(this.collapsed ? VISIBLE : GONE);
             restyle(theme);
         }
@@ -349,6 +356,7 @@ final class NavViews {
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
             super.onLayout(changed, l, t, r, b);
             gate.check();
+            if (changed && !collapsed) bar.reveal(active);
             int depth = depthDp();
             if (depth > 1 && depth != reportedDepth) {
                 reportedDepth = depth;
@@ -388,6 +396,7 @@ final class NavViews {
             active = index;
             bar.setActive(index);
             tab.setActive(index);
+            if (!collapsed) bar.reveal(index);
         }
 
         private long downDelay = -1;
@@ -398,6 +407,7 @@ final class NavViews {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
                 downDelay = now - event.getEventTime();
+                listener.onInteraction();
             } else if (action == MotionEvent.ACTION_UP && downDelay >= 0) {
                 long up = now - event.getEventTime();
                 long down = downDelay;
@@ -418,8 +428,9 @@ final class NavViews {
             collapsed = next;
             // Swapping the bar for the tab changes the overlay's size.
             gate.close();
-            bar.setVisibility(collapsed ? GONE : VISIBLE);
+            barViewport.setVisibility(collapsed ? GONE : VISIBLE);
             tab.setVisibility(collapsed ? VISIBLE : GONE);
+            if (!collapsed) bar.post(() -> bar.reveal(active));
         }
 
         boolean isCollapsed() { return collapsed; }
@@ -456,8 +467,8 @@ final class NavViews {
             // The bar's overlay is centered on its edge like the menu's, so the item's distance
             // from this view's center is its distance from the screen's center.
             float offset = config.vertical
-                ? bar.getTop() + bar.itemCenter(index) - getHeight() / 2f
-                : bar.getLeft() + bar.itemCenter(index) - getWidth() / 2f;
+                ? barViewport.getTop() + bar.getTop() + bar.itemCenter(index) - barViewport.getScrollY() - getHeight() / 2f
+                : barViewport.getLeft() + bar.getLeft() + bar.itemCenter(index) - barViewport.getScrollX() - getWidth() / 2f;
             float density = getResources().getDisplayMetrics().density;
             listener.onMenu(index, Math.round(offset / density), depthDp());
         }
@@ -532,7 +543,7 @@ final class NavViews {
                 case RIGHT: barParams.setMargins(0, edge, edge, edge); break;
                 default: barParams.setMargins(edge, 0, edge, edge); break;
             }
-            bar.setLayoutParams(barParams);
+            barViewport.setLayoutParams(barParams);
             tab.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
     }
@@ -548,7 +559,10 @@ final class NavViews {
         MenuPanel(Context context, KsTheme theme, NavConfig config, int itemIndex, String path, String camera, Menu.Taps taps) {
             super(context);
             menu = new Menu(context, theme, config, itemIndex, path, camera, taps);
-            addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+            ScrollView scroll = new ScrollView(context);
+            scroll.setVerticalFadingEdgeEnabled(true);
+            scroll.addView(menu, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+            addView(scroll, new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
         }
 
         void restyle(KsTheme theme) { menu.restyle(theme); }
@@ -591,6 +605,7 @@ final class NavViews {
         private final List<GradientDrawable> indicatorShapes = new ArrayList<>();
         private final List<ImageView> icons = new ArrayList<>();
         private final List<TextView> labels = new ArrayList<>();
+        private final List<String> drawnIcons = new ArrayList<>();
         private KsTheme theme;
         private int active;
         /** The item whose menu is open, or -1. */
@@ -640,6 +655,7 @@ final class NavViews {
                 indicators.add(indicator);
                 icons.add(icon);
                 labels.add(label);
+                drawnIcons.add(null);
             }
             if (closeButton) {
                 close = new LinearLayout(context);
@@ -675,14 +691,24 @@ final class NavViews {
 
         void setActive(int index) {
             if (index == active) return;
+            int previous = active;
             active = index;
-            applySelection();
+            applySelection(previous);
+            applySelection(active);
         }
 
         void setOpen(int index) {
             if (index == open) return;
+            int previous = open;
             open = index;
-            applySelection();
+            applySelection(previous);
+            applySelection(open);
+        }
+
+        void reveal(int index) {
+            if (index < 0 || index >= cells.size()) return;
+            View cell = cells.get(index);
+            if (cell.getWidth() > 0) cell.requestRectangleOnScreen(new Rect(0, 0, cell.getWidth(), cell.getHeight()), true);
         }
 
         void restyle(KsTheme next) {
@@ -696,6 +722,7 @@ final class NavViews {
                 LinearLayout cell = cells.get(i);
                 cell.setBackground(pressable(theme, null, px(theme.radiusRow())));
                 cell.setMinimumWidth(px(68 * s));
+                cell.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
                 cell.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
                 GradientDrawable indicator = new GradientDrawable();
                 indicator.setCornerRadius(px(16 * s));
@@ -718,6 +745,7 @@ final class NavViews {
             if (close != null) {
                 close.setBackground(pressable(theme, null, px(theme.radiusRow())));
                 close.setMinimumWidth(px(68 * s));
+                close.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
                 close.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
                 LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(px(24 * s), px(24 * s));
                 iconParams.topMargin = px(4 * s);
@@ -731,36 +759,44 @@ final class NavViews {
                 closeLabel.setVisibility(config.labels == NavConfig.Labels.ALWAYS ? VISIBLE
                     : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE);
             }
-            applySelection();
+            for (int i = 0; i < cells.size(); i++) {
+                drawnIcons.set(i, null);
+                applySelection(i);
+            }
         }
 
         /**
          * Moves the highlight. Only colors and glyphs change, so a tap costs one redraw and no layout
          * pass. The label weight stays the same for the same reason: a bolder label would be wider.
          */
-        private void applySelection() {
+        private void applySelection(int i) {
+            if (i < 0 || i >= cells.size()) return;
             int on = color(theme, "onSecondaryContainer", "onSurface");
             int off = theme.color("onSurfaceVariant");
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int strong = theme.color("onSurface");
-            for (int i = 0; i < cells.size(); i++) {
-                NavItem item = config.items.get(i);
-                boolean selected = i == active;
-                // An open menu's item gets a lighter pill, so it is clear where the menu came from.
-                boolean opened = i == open && !selected;
-                int faint = Color.argb(110, Color.red(pill), Color.green(pill), Color.blue(pill));
-                indicatorShapes.get(i).setColor(selected ? pill : opened ? faint : Color.TRANSPARENT);
-                setIcon(icons.get(i), theme, selected ? item.iconSelected : item.icon, selected || opened ? on : off);
-                TextView label = labels.get(i);
-                label.setTextColor(selected ? strong : off);
-                boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
-                // Active only hides the other labels but keeps their space, so the bar never changes
-                // size when the page changes. A resize would make the overlay redraw from scratch.
-                int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
-                View cell = cells.get(i);
-                if (cell.isSelected() != selected) cell.setSelected(selected);
-                if (label.getVisibility() != visibility) label.setVisibility(visibility);
+            NavItem item = config.items.get(i);
+            boolean selected = i == active;
+            // An open menu's item gets a lighter pill, so it is clear where the menu came from.
+            boolean opened = i == open && !selected;
+            int faint = Color.argb(110, Color.red(pill), Color.green(pill), Color.blue(pill));
+            indicatorShapes.get(i).setColor(selected ? pill : opened ? faint : Color.TRANSPARENT);
+            String name = selected ? item.iconSelected : item.icon;
+            ImageView icon = icons.get(i);
+            if (!name.equals(drawnIcons.get(i))) {
+                setIcon(icon, theme, name, selected || opened ? on : off);
+                drawnIcons.set(i, name);
+            } else if (icon.getDrawable() != null) {
+                icon.getDrawable().setTint(selected || opened ? on : off);
             }
+            TextView label = labels.get(i);
+            label.setTextColor(selected ? strong : off);
+            boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
+            // Active only keeps label space, so selection never changes the bar's dimensions.
+            int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
+            View cell = cells.get(i);
+            if (cell.isSelected() != selected) cell.setSelected(selected);
+            if (label.getVisibility() != visibility) label.setVisibility(visibility);
         }
 
         private int px(float dp) { return theme.px(dp); }
@@ -780,7 +816,8 @@ final class NavViews {
         private final String path;
         private final String camera;
         private final boolean grid;
-        private final int columns;
+        private int columns;
+        private int tileWidth;
         /** One per entry, in order. Each holds an icon then a label. */
         private final List<LinearLayout> entries = new ArrayList<>();
         private KsTheme theme;
@@ -794,9 +831,7 @@ final class NavViews {
             this.theme = theme;
             int count = item.children.size();
             this.grid = config.grid(item);
-            this.columns = count <= 4 ? count : count <= 9 ? 3 : 4;
             setOrientation(VERTICAL);
-            LinearLayout row = null;
             for (int i = 0; i < count; i++) {
                 NavItem child = item.children.get(i);
                 LinearLayout entry = new LinearLayout(context);
@@ -816,18 +851,52 @@ final class NavViews {
                     taps.onChild(index);
                 });
                 entries.add(entry);
+                if (!grid) addView(entry);
+            }
+            if (grid) arrangeGrid(count <= 9 ? 3 : 4);
+            restyle(theme);
+        }
+
+        private void arrangeGrid(int nextColumns) {
+            for (LinearLayout entry : entries) {
+                if (entry.getParent() instanceof ViewGroup) ((ViewGroup) entry.getParent()).removeView(entry);
+            }
+            removeAllViews();
+            columns = nextColumns;
+            LinearLayout row = null;
+            for (int i = 0; i < entries.size(); i++) {
+                if (i % columns == 0) {
+                    row = new LinearLayout(getContext());
+                    row.setOrientation(HORIZONTAL);
+                    addView(row);
+                }
+                row.addView(entries.get(i));
+            }
+        }
+
+        @Override protected void onMeasure(int widthSpec, int heightSpec) {
+            if (MeasureSpec.getMode(widthSpec) != MeasureSpec.UNSPECIFIED) {
+                int available = Math.max(0, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight());
                 if (grid) {
-                    if (i % columns == 0) {
-                        row = new LinearLayout(context);
-                        row.setOrientation(HORIZONTAL);
-                        addView(row);
+                    int next = NavLayout.columns(entries.size(), available, px(108 * config.scale));
+                    if (columns != next) arrangeGrid(next);
+                    int width = NavLayout.tileWidth(available, columns, px(104 * config.scale), px(4 * config.scale));
+                    if (tileWidth != width) {
+                        tileWidth = width;
+                        for (LinearLayout entry : entries) {
+                            entry.getLayoutParams().width = width;
+                            ((TextView) entry.getChildAt(1)).setMaxWidth(Math.max(1, width - entry.getPaddingLeft() - entry.getPaddingRight()));
+                        }
                     }
-                    row.addView(entry);
                 } else {
-                    addView(entry);
+                    for (LinearLayout entry : entries) {
+                        TextView label = (TextView) entry.getChildAt(1);
+                        label.setMaxWidth(Math.max(1, available - entry.getPaddingLeft() - entry.getPaddingRight()
+                            - px(36 * config.scale)));
+                    }
                 }
             }
-            restyle(theme);
+            super.onMeasure(widthSpec, heightSpec);
         }
 
         void restyle(KsTheme next) {
@@ -835,6 +904,7 @@ final class NavViews {
             float s = config.scale;
             setBackground(surface(theme, Math.max(config.opacity, MENU_MIN_OPACITY)));
             setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
+            tileWidth = 0;
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int on = color(theme, "onSecondaryContainer", "onSurface");
             for (int i = 0; i < entries.size(); i++) {
@@ -845,6 +915,8 @@ final class NavViews {
                 background.setCornerRadius(px(theme.radiusRow()));
                 background.setColor(selected ? pill : Color.TRANSPARENT);
                 entry.setBackground(pressable(theme, background, px(theme.radiusRow())));
+                entry.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
+                entry.setSelected(selected);
                 ImageView icon = (ImageView) entry.getChildAt(0);
                 setIcon(icon, theme, selected ? child.iconSelected : child.icon, selected ? on : theme.color("onSurfaceVariant"));
                 TextView label = (TextView) entry.getChildAt(1);
@@ -864,7 +936,7 @@ final class NavViews {
                     theme.styleText(label, 15 * s, 500, "onSurface");
                     labelParams.leftMargin = px(14 * s);
                     entry.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
-                    entry.setMinimumHeight(px(48 * s));
+                    entry.setMinimumHeight(px(Math.max(NavLayout.MIN_TOUCH_DP, 48 * s)));
                     entry.setMinimumWidth(px(220 * s));
                     LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
                     if (i > 0) rowParams.topMargin = px(2 * s);
@@ -910,7 +982,13 @@ final class NavViews {
         void setActive(int index) {
             if (index == active) return;
             active = index;
-            restyle(theme);
+            updateIcon();
+        }
+
+        private void updateIcon() {
+            // Keep this slot even on unmatched pages, so selection never resizes the tab.
+            current.setVisibility(active >= 0 ? VISIBLE : INVISIBLE);
+            if (active >= 0) setIcon(current, theme, config.items.get(active).iconSelected, theme.color("onSurface"));
         }
 
         void restyle(KsTheme next) {
@@ -922,7 +1000,7 @@ final class NavViews {
             shape.setCornerRadii(radii);
             setBackground(pressable(theme, shape, radii));
             int length = theme.px(96 * s);
-            int depth = theme.px(40 * s);
+            int depth = theme.px(Math.max(NavLayout.MIN_TOUCH_DP, 40 * s));
             int lead = theme.px(20 * s);
             int trail = theme.px(16 * s);
             int side = theme.px(6 * s);
@@ -935,15 +1013,11 @@ final class NavViews {
                 setMinimumHeight(depth);
                 setPadding(lead, side, trail, side);
             }
-            current.setVisibility(active >= 0 ? VISIBLE : GONE);
-            if (active >= 0) {
-                NavItem item = config.items.get(active);
-                setIcon(current, theme, item.iconSelected, theme.color("onSurface"));
-                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(theme.px(20 * s), theme.px(20 * s));
-                if (config.vertical) gap.bottomMargin = theme.px(8 * s);
-                else gap.rightMargin = theme.px(8 * s);
-                current.setLayoutParams(gap);
-            }
+            updateIcon();
+            LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(theme.px(20 * s), theme.px(20 * s));
+            if (config.vertical) gap.bottomMargin = theme.px(8 * s);
+            else gap.rightMargin = theme.px(8 * s);
+            current.setLayoutParams(gap);
             setIcon(chevron, theme, chevron(config, false), theme.color("onSurfaceVariant"));
             sizeIcon(chevron, theme.px(22 * s));
         }

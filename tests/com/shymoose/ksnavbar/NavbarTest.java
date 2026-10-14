@@ -139,7 +139,8 @@ public final class NavbarTest {
         Map<String, Object> plain = page("Home", "a/home", "");
         plain.put("tapPage", "a/other");
         check(!NavItem.fromRow(plain, true).longPressMenu());
-        eq("a/home", NavItem.fromRow(plain, true).target.value);        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
+        eq("a/home", NavItem.fromRow(plain, true).target.value);
+        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
         List<Object> withEmpty = list(page("Garage", "a/g", ""), page("Kept", "a/k", "mdi:star"),
             menuRow("Cams", "", camera("Zork", ""), camera("Driveway", "")), page("", "a/x", ""), page("Bad", "", ""));
         List<Map<String, Object>> filledRows = NavItem.withIcons(withEmpty);
@@ -153,7 +154,8 @@ public final class NavbarTest {
         eq("", filledRows.get(3).get("icon"));
         eq("", filledRows.get(4).get("icon"));
         check(NavItem.withIcons(filledRows) == null);
-        check(NavItem.withIcons(null) == null);        // KS fills in every field, including hidden ones. Only the fields Opens selects count.
+        check(NavItem.withIcons(null) == null);
+        // KS fills in every field, including hidden ones. Only the fields Opens selects count.
         Map<String, Object> filled = page("Lights", "panel/lights", "");
         filled.put("camera", "");
         filled.put("url", "");
@@ -280,7 +282,6 @@ public final class NavbarTest {
         NavItem longMenu = NavItem.fromRow(menuRow("M", "", rows(7)), true);
         NavItem shortMenu = NavItem.fromRow(menuRow("M", "", rows(2)), true);
         NavConfig auto = NavConfig.parse(new HashMap<String, Object>());
-        eq(NavConfig.MenuLayout.AUTO, auto.menuLayout);
         check(auto.grid(longMenu));
         check(!auto.grid(shortMenu));
 
@@ -290,7 +291,7 @@ public final class NavbarTest {
         eq(1f, empty.scale);
         eq(NavConfig.DEFAULT_INSET, empty.inset);
         eq(1f, empty.opacity);
-        // Swipe to tuck away is on by default, starting open, and the dashboard keeps clear.
+        // Swipe to hide is on by default, starting open, and the dashboard keeps clear.
         eq(NavConfig.Collapse.START_OPEN, empty.collapse);
         eq(NavConfig.Edge.BOTTOM, empty.edge);
         check(!empty.vertical);
