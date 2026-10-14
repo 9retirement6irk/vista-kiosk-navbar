@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0
 
 - Auto-hide pauses while a menu is open. The menu still closes after 30 seconds, then the bar's countdown restarts. Changing Hide after applies immediately.
 - Startup camera and screensaver reads cannot overwrite newer events. Until the screensaver state is known, the bar stays below it.
