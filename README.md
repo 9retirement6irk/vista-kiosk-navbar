@@ -9,6 +9,8 @@
 | <img src="docs/images/grid.png" alt="A camera grid menu" width="260"> | <img src="docs/images/list.png" alt="A list menu of kiosk actions" width="260"> | <img src="docs/images/tab.png" alt="The bar hidden behind a tab" width="260"> |
 | Long menus, such as cameras, show as tiles | Short menus show as a list | Swipe down to hide the bar behind a tab |
 
+A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-action-bar): the navbar moves between pages, the action bar switches lights, shades and locks in place. Put the navbar along the bottom and the action bar on the right, and the dashboard keeps clear of both.
+
 ## Why use it
 
 - **Knows where you are.** The item for the page on screen lights up, however you got there.

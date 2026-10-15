@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.1
+
+- Plugin SDK updated to Kiosk Satellite 2026.10.25. No change in behavior; the navbar still needs 2026.10.23 or newer.
+- The README links the new [Action Bar](https://github.com/dimatx/kiosk-satellite-action-bar) companion.
+- SDK gap 17 (template tooling on Windows) is resolved upstream.
+
 ## 0.15.0
 
 - Auto-hide pauses while a menu is open. The menu still closes after 30 seconds, then the bar's countdown restarts. Changing Hide after applies immediately.

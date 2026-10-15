@@ -2,7 +2,7 @@
 
 Building this navbar ran into places where the Kiosk Satellite plugin SDK made a feature hard, slow or impossible. This page collects them for the KS maintainer. Each entry explains what the navbar needed, what happens today, how the plugin works around it and what would help.
 
-Checked against **Kiosk Satellite 2026.10.23**, which closed most of the original list. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
+Updated for **Kiosk Satellite 2026.10.25**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version; the 2026.10.24 and 2026.10.25 release notes do not mention them. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
 
 ## How to read this page
 
@@ -32,7 +32,6 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | 19 | A local ZIP cannot replace a repository install | Product | Medium (developers) | Testing a build means uninstalling, which loses settings |
 | 11 | Fleet sync does not carry plugins or their settings | Product | Medium | Every display is installed and set up on its own |
 | 20 | A rejected manifest does not say which rule failed | Product, Tooling | Low (developers) | Install fails with `Invalid list setting` and no detail |
-| 17 | Template tooling on Windows | Tooling | Low (developers) | Build and two tests fail on Windows |
 
 ## Open gaps
 
@@ -174,15 +173,6 @@ The template's `tools/plugin_manifest.py` does not check the new setting types a
 
 **Suggestion:** Name the setting and the rule in the error, such as `items.row.subtitle: at most 4 keys` or `items[1].entries[0].iconSelected: unknown field`. Teach the template's manifest checker the same rules, so they fail at build time.
 
-#### 17. Template tooling on Windows
-
-*Tooling.*
-
-- `tools/build.py` only finds `build-tools/*/d8`, but Windows ships `d8.bat`. This repo adds the `.bat` glob.
-- `tools/test_plugin_assets.py` creates symlinks and file names containing `?` and `#`. Both fail on Windows without elevated privileges. This repo skips those two tests on Windows.
-
-**Suggestion:** Take both fixes into the template.
-
 ## Documentation
 
 The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already cover what this plugin relies on: overlay layering and `onTop`, list and picker rules (including the four-key `subtitle` limit), `visibleWhen`, `saveSettings` not calling `configure` again, and the threading contract. Two gaps remain, both stopgaps for a product fix above:
@@ -209,4 +199,5 @@ The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already c
 | 12 | `haNavigate` reported failure after a successful move | Returns true once the page is on the view | The `loadUrl` fallback and its page check are gone |
 | 13 | Overlays had no show, hide or replace transition | `enter`, `exit` and `transitionDuration` | The bar fades in and out, and menus scale in and fade out |
 | 14 | `/api/screenshot` did not show native overlays reliably | Fixed by 2026.10.23. Retested: an open menu shows in the API screenshot as it does in `adb screencap` | No more need for adb to check the bar |
+| 17 | Template tooling failed on Windows | The template now finds `d8.bat` and skips the two tests Windows cannot run | This repo's tools match the template again |
 | 18 | Settings could not depend on each other | `visibleWhen` | **Hide after** shows only while **Swipe to hide** is on, and each item shows only the fields its **Opens** choice needs |
