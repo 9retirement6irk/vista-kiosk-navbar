@@ -2,7 +2,7 @@
 
 Building this navbar ran into places where the Kiosk Satellite plugin SDK made a feature hard, slow or impossible. This page collects them for the KS maintainer. Each entry explains what the navbar needed, what happens today, how the plugin works around it and what would help.
 
-Updated for **Kiosk Satellite 2026.10.25**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version; the 2026.10.24 and 2026.10.25 release notes do not mention them. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
+Updated for **Kiosk Satellite 2026.10.29**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version. 2026.10.27 closed gap 11; the plugin code changed in 2026.10.24 to 2026.10.29 touches none of the others. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
 
 ## How to read this page
 
@@ -30,7 +30,6 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | 21 | A list row cannot summarize a nested list | Product | Low | A menu item's row does not say what the menu holds |
 | 24 | A list setting's description shows under the add row | Product | Low | **Hide the bar on** explains itself after its button |
 | 19 | A local ZIP cannot replace a repository install | Product | Medium (developers) | Testing a build means uninstalling, which loses settings |
-| 11 | Fleet sync does not carry plugins or their settings | Product | Medium | Every display is installed and set up on its own |
 | 20 | A rejected manifest does not say which rule failed | Product, Tooling | Low (developers) | Install fails with `Invalid list setting` and no detail |
 
 ## Open gaps
@@ -131,18 +130,6 @@ The 2026.10.23 pickers and lists made the navbar configurable without typing pat
 
 These matter once there is more than one display, or more than one build.
 
-#### 11. Fleet sync does not carry plugins or their settings
-
-*Product.*
-
-**Need:** Configure the bar once on the fleet leader and have every display follow.
-
-**Today:** As `docs/fleet.md` in KS says, Plugin Manager stays entirely local. Fleet sync copies no installed plugins, plugin settings, per-plugin enabled states or the Enable Plugins switch.
-
-**Workaround:** Each display is installed and configured on its own, scripted through the remote API.
-
-**Suggestion:** An opt-in sync of installed plugins and their settings from the leader, for followers on the same KS version.
-
 #### 19. A local ZIP cannot replace a repository install
 
 *Product.*
@@ -196,6 +183,7 @@ The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already c
 | 8 | `haNavigate` rejected query strings | Query strings and fragments accepted | Pages with a query, such as `cameras/0?camera=garage`, stay in the page instead of reloading it |
 | 9 | No list of Home Assistant dashboards and views | `dashboard` picker and `getDashboards` | Page items, **Tap opens** and **Hide the bar on** pick views from a list |
 | 10 | Threading contract for `showOverlay` was unspecified | Documented: never blocks, safe from any thread, `create` runs after the call | No change needed |
+| 11 | Fleet sync did not carry plugins or their settings | 2026.10.27: a fleet profile's **Plugins** row installs the leader's plugins on its followers, with their settings and enabled state | Configure the bar on the leader. Settings sync per profile, so displays that need different items need their own profile
 | 12 | `haNavigate` reported failure after a successful move | Returns true once the page is on the view | The `loadUrl` fallback and its page check are gone |
 | 13 | Overlays had no show, hide or replace transition | `enter`, `exit` and `transitionDuration` | The bar fades in and out, and menus scale in and fade out |
 | 14 | `/api/screenshot` did not show native overlays reliably | Fixed by 2026.10.23. Retested: an open menu shows in the API screenshot as it does in `adb screencap` | No more need for adb to check the bar |
