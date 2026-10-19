@@ -2,7 +2,7 @@
 
 Building this navbar ran into places where the Kiosk Satellite plugin SDK made a feature hard, slow or impossible. This page collects them for the KS maintainer. Each entry explains what the navbar needed, what happens today, how the plugin works around it and what would help.
 
-Updated for **Kiosk Satellite 2026.10.29**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version. 2026.10.27 closed gap 11; the plugin code changed in 2026.10.24 to 2026.10.29 touches none of the others. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
+Updated for **Kiosk Satellite 2026.10.31**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version. 2026.10.27 closed gap 11; the plugin code changed in 2026.10.24 to 2026.10.29 touches none of the others. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
 
 ## How to read this page
 
@@ -25,13 +25,11 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | 15 | Creating an overlay is very slow on low-power panels | Product, Docs | High | Menus take about a second to open on a ThinkSmart View |
 | 16 | A resized `WRAP` overlay shows a stale, stretched frame | Product, Docs | High | Without a workaround, the bar flashes stretched when it hides or shows |
 | 27 | Plugin overlays are garbled with Impeller on Mesa and minigbm | Product | Medium | On an x86 kiosk with an Intel GPU the bar is unreadable stripes until **Legacy renderer** is turned on |
-| 26 | A wrapped overlay is cut off when the UI scale is above 100% | Product | High | On a kiosk with UI scale above 100% the bar's far end was cut off, until the plugin worked around it |
 | 25 | An overlay cannot change layer without being rebuilt | Product | Medium | A pause when a camera view opens or closes |
 | 22 | A list row's subtitle shows raw picker values | Product | Medium | Items and hidden pages read `navbar-demo/lights` instead of *Navbar demo / Lights* |
 | 23 | An icon field cannot show a fallback | Product | Medium | An empty icon looks unset, so the plugin fills it in on the user's behalf |
 | 21 | A list row cannot summarize a nested list | Product | Low | A menu item's row does not say what the menu holds |
 | 24 | A list setting's description shows under the add row | Product | Low | **Hide the bar on** explains itself after its button |
-| 28 | A fleet-synced plugin cannot be sized per kiosk | Product | Medium | The bar is the same size on every kiosk, and smaller than the rest of the interface where UI scale is above 100% |
 | 19 | A local ZIP cannot replace a repository install | Product | Medium (developers) | Testing a build means uninstalling, which loses settings |
 | 20 | A rejected manifest does not say which rule failed | Product, Tooling | Low (developers) | Install fails with `Invalid list setting` and no detail |
 
@@ -81,17 +79,6 @@ The 2026.10.23 release notes do not mention it. The new `enter` transitions anim
 
 **Suggestion:** A layer above camera views but below the screensaver and KS's menu, such as `OverlaySpec.layer(ABOVE_CAMERA)`, or a way to change an existing overlay's layer without replacing it.
 
-#### 26. A wrapped overlay is cut off when the UI scale is above 100%
-
-*Product.*
-
-**Need:** Show the whole bar on a kiosk with **UI scale** above 100%.
-
-**Today:** `PluginOverlayViews.OverlayFrame` measures a `WRAP` overlay in physical pixels at the display density, and `plugin_overlay.dart` divides that by `MediaQuery.devicePixelRatioOf(context)`, which already includes the UI scale. The window comes out smaller than the view by exactly the UI scale and cuts off its far side. Measured on a Fire Max 11 at 115%: the bar measured 139 x 523 and got a 121 x 455 window, and the navbar measured 600 x 117 and got 522 x 102, both 0.87. Dimensions given in dp, such as insets and offsets, land where expected, so only the measured size is affected. The plugin's views also ignore the UI scale and stay at 100%.
-
-**Workaround:** The resize gate learns the shrink from the first window KS gives, once, and the overlay reports a size that much larger, so the window fits the content. Learning only once matters: the window lags behind each new report and is then smaller on both sides too, and learning from that enlarged the bar without end and made it flash.
-
-**Suggestion:** Divide by the unscaled pixel ratio (`View.of(context).devicePixelRatio`) when converting a measured overlay, or measure overlays at the scaled density and give plugins the scaled density in `KsTheme`, so they follow the UI scale like the rest of the kiosk.
 #### 27. Plugin overlays are garbled with Impeller on Mesa and minigbm
 
 *Product.*
@@ -155,20 +142,6 @@ The 2026.10.23 pickers and lists made the navbar configurable without typing pat
 
 These matter once there is more than one display, or more than one build.
 
-#### 28. A fleet-synced plugin cannot be sized per kiosk
-
-*Product.* Filed as [jxlarrea/kiosk-satellite#1037](https://github.com/jxlarrea/kiosk-satellite/issues/1037).
-
-**Need:** Run the same plugin with the same settings on every kiosk through Fleet Management, while each kiosk shows it at a size that suits its panel.
-
-**Today:** Kiosks differ in screen size, density and viewing distance, so they need different sizes. Kiosk Satellite already handles this for its own interface: **UI scale** (`ui.scale`) is set on each kiosk and is excluded from fleet sync by default. Plugins get none of it. `KsTheme` carries the device's unscaled density, so a plugin draws at 100% on a kiosk set to 115% or 125%, smaller than everything around it. A plugin can offer its own size setting, as this one does, but a fleet profile syncs a plugin's settings as one block: it can exclude individual Kiosk Satellite settings, not individual plugin settings. So a plugin's size is either the same on every follower or the plugin cannot be synced at all. Seen on a fleet where three of thirteen kiosks run a UI scale of 115% or 125%.
-
-**Options:**
-- **Plugins inherit the UI scale.** `KsTheme` (and `px`) use the kiosk's scaled density, so a plugin follows each kiosk's UI scale like the rest of the interface, and a plugin's own size setting, if any, becomes a fleet-wide multiplier on top. Simplest for users, since there is one place to set scale per kiosk. Plugins that must stay at physical size could opt out in the manifest.
-- **A per-kiosk plugin scale in Kiosk Satellite.** A **Plugin scale** setting next to UI scale, per kiosk and excluded from sync by default, applied to every plugin's `KsTheme`. Lets plugins be sized apart from the rest of the interface.
-- **Per-setting fleet exclusion for plugins.** A profile can exclude individual plugin settings the way it excludes Kiosk Satellite settings, or a manifest can mark a setting as per-kiosk (`"local": true`) so fleet sync never overwrites it. Useful beyond size, for anything that depends on where a kiosk hangs.
-
-The first option alone covers sizing. The third also covers other per-kiosk plugin settings, such as which Home Assistant entities a wall panel controls.
 #### 19. A local ZIP cannot replace a repository install
 
 *Product.*
@@ -228,3 +201,5 @@ The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already c
 | 14 | `/api/screenshot` did not show native overlays reliably | Fixed by 2026.10.23. Retested: an open menu shows in the API screenshot as it does in `adb screencap` | No more need for adb to check the bar |
 | 17 | Template tooling failed on Windows | The template now finds `d8.bat` and skips the two tests Windows cannot run | This repo's tools match the template again |
 | 18 | Settings could not depend on each other | `visibleWhen` | **Hide after** shows only while **Swipe to hide** is on, and each item shows only the fields its **Opens** choice needs |
+| 26 | A wrapped overlay was cut off when the UI scale was above 100% | 2026.10.30 sizes the window with the unscaled pixel ratio | The workaround in the resize gate stays for older versions and never triggers on 2026.10.30 and newer |
+| 28 | A fleet-synced plugin could not be sized per kiosk | 2026.10.30: plugins follow each kiosk's **Scale UI** (upstream issue 1037) | **Size** is a fleet-wide multiplier on top of each kiosk's Scale UI |

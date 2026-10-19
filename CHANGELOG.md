@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- An icon for Community Plugins and **Browse plugins**.
+- On Kiosk Satellite 2026.10.30 and newer the bar and its menus follow each kiosk's **Scale UI**, and **Size** acts on top of it. With Fleet Management, keep one Size for the whole fleet and set Scale UI per kiosk.
+- The README has a one-click install button and says what the plugin does with your data.
+- Plugin SDK updated to Kiosk Satellite 2026.10.31.
+
 ## 0.15.2
 
 - The bar and its menus are no longer cut off on a kiosk whose **UI scale** is above 100%. Kiosk Satellite sizes a plugin overlay for the scaled UI and made the window smaller than the bar, so its far end and bottom were cut off. The bar now detects this and sizes itself so the window fits (SDK gap 26).

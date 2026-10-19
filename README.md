@@ -23,14 +23,27 @@ A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-
 - **Set up without typing.** Pages, camera views and icons each have a picker.
 - **Light.** Native Android views, no WebView and no Home Assistant token.
 
-## Install
+## Installation
 
-Needs Kiosk Satellite **2026.10.23** or newer.
+Needs Kiosk Satellite **2026.10.23** or newer. On **2026.10.30** and newer the bar follows each kiosk's **Scale UI**.
 
-1. In Kiosk Satellite, open **Settings > Plugin Manager > Add plugin**.
-2. Paste `https://github.com/dimatx/kiosk-satellite-navbar`, tap **Preview**, then **Trust and install**.
-3. Turn on **Navbar**. It starts with a Home item.
-4. Open **Navbar** and add your own items under **Items**.
+### Community Plugins (Recommended)
+
+Navbar is listed in [Community Plugins](https://kiosksatellite.com/plugins/). Use the button below to open it in your Kiosk Satellite and install it.
+
+[![Install in Kiosk Satellite](https://kiosksatellite.com/img/badges/plugin-add.svg)](https://kiosksatellite.com/redirect/plugin/?repository=dimatx/kiosk-satellite-navbar)
+
+Or search for `Navbar` in **Settings > Plugin Manager > Browse plugins** in Kiosk Satellite.
+
+### Manual
+
+1. Open **Settings > Plugin Manager** in Kiosk Satellite and turn on **Enable Plugins**.
+2. Choose **Add plugin**, paste `https://github.com/dimatx/kiosk-satellite-navbar` and choose **Preview**.
+3. Review the plugin and choose **Trust and install**.
+
+### First steps
+
+Turn on **Navbar**. It starts with a Home item. Open **Navbar** and add your own items under **Items**. With Fleet Management, add Navbar to a profile's **Plugins** row and every kiosk on it gets the same bar.
 
 Settings are on the plugin's page, on the kiosk or in Remote Admin, and take effect as you save them.
 
@@ -63,7 +76,7 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 | --- | --- |
 | Position | Bottom, Top, Left or Right. Left and Right make a vertical rail |
 | Labels | Always, Active only or Never |
-| Size | 80% to 140% |
+| Size | 80% to 140%, on top of the kiosk's **Scale UI** |
 | Opacity | How much of the dashboard shows through |
 | Swipe to hide | Start visible, Start hidden or Off |
 | Hide after | Seconds without a tap before the bar hides. 0 keeps it visible |
@@ -112,9 +125,13 @@ The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > I
 
 </details>
 
+## Privacy
+
+Navbar sends nothing anywhere. It asks Kiosk Satellite to open dashboard pages, camera views, web addresses and kiosk actions you configure, and reads which page is showing so it can highlight the right item. It has no network access of its own and never sees a Home Assistant token.
+
 ## Credits
 
-Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jxlarrea](https://github.com/jxlarrea), whose native plugin SDK, overlays, pickers and icons make a bar like this possible. Started from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world).
+Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jxlarrea](https://github.com/jxlarrea), whose native plugin SDK, overlays, pickers and icons make a bar like this possible. Started from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugins).
 
 Loosely inspired by [lovelace-navbar-card](https://github.com/joseluis9595/lovelace-navbar-card) by [@joseluis9595](https://github.com/joseluis9595). Plugin SDK limits found along the way are tracked in [docs/sdk-gaps.md](docs/sdk-gaps.md).
 
