@@ -182,6 +182,10 @@ final class NavViews {
         private boolean waiting;
         private int lastHostWidth = -1;
         private int lastHostHeight = -1;
+        /** The host's size over the reported size, below 1 when KS shrinks the overlay (SDK gap 26). */
+        private float scale = 1f;
+        private int contentWidth;
+        private int contentHeight;
         private final Runnable timeout = this::open;
         private final Runnable reveal = this::open;
         private final Runnable redraw = () -> invalidateTree(owner());
@@ -218,6 +222,49 @@ final class NavViews {
             owner.removeCallbacks(redraw);
         }
 
+        /**
+         * SDK gap 26: with Kiosk Satellite's UI scale above 100%, KS sizes a wrapped overlay by
+         * dividing the measured pixels by its scaled pixel ratio, so the window comes out smaller than
+         * the content and cuts it off. Owners call this at the end of onMeasure with their content
+         * size and report the result, enlarged by the shrink seen on the host, so the window fits the
+         * content exactly. The content is laid out at its own size in the top left corner.
+         */
+        int[] measured(int width, int height) {
+            contentWidth = width;
+            contentHeight = height;
+            if (scale >= 1f) return new int[] {width, height};
+            return new int[] {(int) Math.ceil(width / scale), (int) Math.ceil(height / scale)};
+        }
+
+        /** The content's own width, without the enlargement for gap 26. */
+        int contentWidth() { return contentWidth > 0 ? contentWidth : owner.getMeasuredWidth(); }
+
+        /** The content's own height, without the enlargement for gap 26. */
+        int contentHeight() { return contentHeight > 0 ? contentHeight : owner.getMeasuredHeight(); }
+
+        /**
+         * Learns the shrink once, from a host smaller than an unenlarged report by the same ratio on
+         * both sides. After that the host lags behind each enlarged report for a moment, and a lagging
+         * host is also smaller on both sides, so learning again would enlarge without end: measured on
+         * a Fire Max 11 at 115% UI scale. The shrink is dropped only when the host exactly matches an
+         * enlarged report, which means KS no longer shrinks the overlay.
+         */
+        private void learn(int hostWidth, int hostHeight, int width, int height) {
+            if (width < 40 || height < 40 || hostWidth < 40 || hostHeight < 40) return;
+            float across = hostWidth / (float) width;
+            float down = hostHeight / (float) height;
+            if (Math.abs(across - down) > 0.02f) return;
+            float ratio = (across + down) / 2f;
+            if (scale >= 1f) {
+                if (ratio < 0.5f || ratio > 0.98f) return;
+                scale = ratio;
+            } else {
+                if (Math.abs(ratio - 1f) > 0.01f) return;
+                scale = 1f;
+            }
+            owner.post(owner::requestLayout);
+        }
+
         /** Redraw after the surface has had time to follow a resize, twice for slow panels. */
         private void redrawSoon() {
             owner.removeCallbacks(redraw);
@@ -244,9 +291,10 @@ final class NavViews {
             int height = owner.getMeasuredHeight();
             int hostWidth = host == null ? -1 : host.getWidth();
             int hostHeight = host == null ? -1 : host.getHeight();
+            if (host != null) learn(hostWidth, hostHeight, width, height);
             // KS passes sizes through Flutter's logical pixels, so allow a pixel or two of rounding.
             boolean match = host != null && width > 1 && height > 1
-                && Math.abs(hostWidth - width) <= 2 && Math.abs(hostHeight - height) <= 2;
+                && Math.abs(hostWidth - contentWidth()) <= 2 && Math.abs(hostHeight - contentHeight()) <= 2;
             boolean hostChanged = hostWidth != lastHostWidth || hostHeight != lastHostHeight;
             lastHostWidth = hostWidth;
             lastHostHeight = hostHeight;
@@ -353,8 +401,14 @@ final class NavViews {
 
         private int reportedDepth = -1;
 
+        @Override protected void onMeasure(int widthSpec, int heightSpec) {
+            super.onMeasure(widthSpec, heightSpec);
+            int[] size = gate.measured(getMeasuredWidth(), getMeasuredHeight());
+            setMeasuredDimension(size[0], size[1]);
+        }
+
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            super.onLayout(changed, l, t, r, b);
+            super.onLayout(changed, l, t, l + gate.contentWidth(), t + gate.contentHeight());
             gate.check();
             if (changed && !collapsed) bar.reveal(active);
             int depth = depthDp();
@@ -441,7 +495,7 @@ final class NavViews {
         /** How far this view reaches from its edge, in dp: the bar with its margin, or the tab. */
         int depthDp() {
             float density = getResources().getDisplayMetrics().density;
-            return Math.round((config.vertical ? getWidth() : getHeight()) / density);
+            return Math.round((config.vertical ? gate.contentWidth() : gate.contentHeight()) / density);
         }
 
         private void tapItem(int index) {
@@ -467,8 +521,8 @@ final class NavViews {
             // The bar's overlay is centered on its edge like the menu's, so the item's distance
             // from this view's center is its distance from the screen's center.
             float offset = config.vertical
-                ? barViewport.getTop() + bar.getTop() + bar.itemCenter(index) - barViewport.getScrollY() - getHeight() / 2f
-                : barViewport.getLeft() + bar.getLeft() + bar.itemCenter(index) - barViewport.getScrollX() - getWidth() / 2f;
+                ? barViewport.getTop() + bar.getTop() + bar.itemCenter(index) - barViewport.getScrollY() - gate.contentHeight() / 2f
+                : barViewport.getLeft() + bar.getLeft() + bar.itemCenter(index) - barViewport.getScrollX() - gate.contentWidth() / 2f;
             float density = getResources().getDisplayMetrics().density;
             listener.onMenu(index, Math.round(offset / density), depthDp());
         }
@@ -582,8 +636,14 @@ final class NavViews {
             super.onDetachedFromWindow();
         }
 
+        @Override protected void onMeasure(int widthSpec, int heightSpec) {
+            super.onMeasure(widthSpec, heightSpec);
+            int[] size = gate.measured(getMeasuredWidth(), getMeasuredHeight());
+            setMeasuredDimension(size[0], size[1]);
+        }
+
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            super.onLayout(changed, l, t, r, b);
+            super.onLayout(changed, l, t, l + gate.contentWidth(), t + gate.contentHeight());
             gate.check();
         }
     }

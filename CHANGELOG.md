@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.2
+
+- The bar and its menus are no longer cut off on a kiosk whose **UI scale** is above 100%. Kiosk Satellite sizes a plugin overlay for the scaled UI and made the window smaller than the bar, so its far end and bottom were cut off. The bar now detects this and sizes itself so the window fits (SDK gap 26).
+
 ## 0.15.1
 
 - Plugin SDK updated to Kiosk Satellite 2026.10.25. No change in behavior; the navbar still needs 2026.10.23 or newer.

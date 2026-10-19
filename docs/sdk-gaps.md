@@ -24,6 +24,7 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | --- | --- | --- | --- | --- |
 | 15 | Creating an overlay is very slow on low-power panels | Product, Docs | High | Menus take about a second to open on a ThinkSmart View |
 | 16 | A resized `WRAP` overlay shows a stale, stretched frame | Product, Docs | High | Without a workaround, the bar flashes stretched when it hides or shows |
+| 26 | A wrapped overlay is cut off when the UI scale is above 100% | Product | High | On a kiosk with UI scale above 100% the bar's far end was cut off, until the plugin worked around it |
 | 25 | An overlay cannot change layer without being rebuilt | Product | Medium | A pause when a camera view opens or closes |
 | 22 | A list row's subtitle shows raw picker values | Product | Medium | Items and hidden pages read `navbar-demo/lights` instead of *Navbar demo / Lights* |
 | 23 | An icon field cannot show a fallback | Product | Medium | An empty icon looks unset, so the plugin fills it in on the user's behalf |
@@ -78,6 +79,17 @@ The 2026.10.23 release notes do not mention it. The new `enter` transitions anim
 
 **Suggestion:** A layer above camera views but below the screensaver and KS's menu, such as `OverlaySpec.layer(ABOVE_CAMERA)`, or a way to change an existing overlay's layer without replacing it.
 
+#### 26. A wrapped overlay is cut off when the UI scale is above 100%
+
+*Product.*
+
+**Need:** Show the whole bar on a kiosk with **UI scale** above 100%.
+
+**Today:** `PluginOverlayViews.OverlayFrame` measures a `WRAP` overlay in physical pixels at the display density, and `plugin_overlay.dart` divides that by `MediaQuery.devicePixelRatioOf(context)`, which already includes the UI scale. The window comes out smaller than the view by exactly the UI scale and cuts off its far side. Measured on a Fire Max 11 at 115%: the bar measured 139 x 523 and got a 121 x 455 window, and the navbar measured 600 x 117 and got 522 x 102, both 0.87. Dimensions given in dp, such as insets and offsets, land where expected, so only the measured size is affected. The plugin's views also ignore the UI scale and stay at 100%.
+
+**Workaround:** The resize gate learns the shrink from the first window KS gives, once, and the overlay reports a size that much larger, so the window fits the content. Learning only once matters: the window lags behind each new report and is then smaller on both sides too, and learning from that enlarged the bar without end and made it flash.
+
+**Suggestion:** Divide by the unscaled pixel ratio (`View.of(context).devicePixelRatio`) when converting a measured overlay, or measure overlays at the scaled density and give plugins the scaled density in `KsTheme`, so they follow the UI scale like the rest of the kiosk.
 ### The settings page
 
 The 2026.10.23 pickers and lists made the navbar configurable without typing paths or JSON. What remains is how those lists present what users chose. These are all small, and all visible on the navbar's main settings page.
