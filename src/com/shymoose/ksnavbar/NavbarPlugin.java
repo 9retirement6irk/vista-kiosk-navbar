@@ -412,6 +412,7 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         if (current == null) return;
         NavConfig cfg = config;
+        offsetDp = menuOffsetDp(root.get(), new MenuFactory(cfg, index, -1), offsetDp);
         int clear = Math.min(4096, barDepthDp + MENU_GAP);
         int left = MENU_MARGIN, top = MENU_MARGIN, right = MENU_MARGIN, bottom = MENU_MARGIN;
         switch (cfg.edge) {
@@ -634,6 +635,25 @@ public final class NavbarPlugin implements KioskPlugin {
     }
 
     /** Built and destroyed on the main thread, which also owns the menu state. */
+    /**
+     * Main thread. Where a menu sits along the bar, in dp from the bar's center. A menu opens over
+     * its item, unless it is longer than the bar: then it is centered on the bar, so a tall menu
+     * beside a short rail hangs evenly around it instead of mostly past one end. The menu is
+     * measured from a throwaway copy built by the same factory.
+     */
+    private int menuOffsetDp(NavViews.Root view, MenuFactory probe, int itemOffsetDp) {
+        if (view == null) return itemOffsetDp;
+        try {
+            View menu = probe.create(view.getContext(), view.theme());
+            int unspecified = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            menu.measure(unspecified, unspecified);
+            int length = config.vertical ? menu.getMeasuredHeight() : menu.getMeasuredWidth();
+            return length > view.lengthPx() ? 0 : itemOffsetDp;
+        } catch (RuntimeException error) {
+            return itemOffsetDp;
+        }
+    }
+
     private final class MenuFactory implements OverlayFactory {
         private final NavConfig cfg;
         private final int index;

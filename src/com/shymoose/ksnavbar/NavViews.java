@@ -490,6 +490,11 @@ final class NavViews {
         boolean isCollapsed() { return collapsed; }
 
         /** Marks the item whose menu is open, or none for -1. */
+        /** The theme the bar was last styled with, for building views that match it. */
+        KsTheme theme() { return theme; }
+
+        /** The bar's length along its edge, in pixels. */
+        int lengthPx() { return config.vertical ? gate.contentHeight() : gate.contentWidth(); }
         void setOpenMenu(int index) { bar.setOpen(index); }
 
         /** How far this view reaches from its edge, in dp: the bar with its margin, or the tab. */
