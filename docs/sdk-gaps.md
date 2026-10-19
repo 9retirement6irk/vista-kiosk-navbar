@@ -31,6 +31,7 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | 23 | An icon field cannot show a fallback | Product | Medium | An empty icon looks unset, so the plugin fills it in on the user's behalf |
 | 21 | A list row cannot summarize a nested list | Product | Low | A menu item's row does not say what the menu holds |
 | 24 | A list setting's description shows under the add row | Product | Low | **Hide the bar on** explains itself after its button |
+| 28 | A fleet-synced plugin cannot be sized per kiosk | Product | Medium | The bar is the same size on every kiosk, and smaller than the rest of the interface where UI scale is above 100% |
 | 19 | A local ZIP cannot replace a repository install | Product | Medium (developers) | Testing a build means uninstalling, which loses settings |
 | 20 | A rejected manifest does not say which rule failed | Product, Tooling | Low (developers) | Install fails with `Invalid list setting` and no detail |
 
@@ -154,6 +155,20 @@ The 2026.10.23 pickers and lists made the navbar configurable without typing pat
 
 These matter once there is more than one display, or more than one build.
 
+#### 28. A fleet-synced plugin cannot be sized per kiosk
+
+*Product.*
+
+**Need:** Run the same plugin with the same settings on every kiosk through Fleet Management, while each kiosk shows it at a size that suits its panel.
+
+**Today:** Kiosks differ in screen size, density and viewing distance, so they need different sizes. Kiosk Satellite already handles this for its own interface: **UI scale** (`ui.scale`) is set on each kiosk and is excluded from fleet sync by default. Plugins get none of it. `KsTheme` carries the device's unscaled density, so a plugin draws at 100% on a kiosk set to 115% or 125%, smaller than everything around it. A plugin can offer its own size setting, as this one does, but a fleet profile syncs a plugin's settings as one block: it can exclude individual Kiosk Satellite settings, not individual plugin settings. So a plugin's size is either the same on every follower or the plugin cannot be synced at all. Seen on a fleet where three of thirteen kiosks run a UI scale of 115% or 125%.
+
+**Options:**
+- **Plugins inherit the UI scale.** `KsTheme` (and `px`) use the kiosk's scaled density, so a plugin follows each kiosk's UI scale like the rest of the interface, and a plugin's own size setting, if any, becomes a fleet-wide multiplier on top. Simplest for users, since there is one place to set scale per kiosk. Plugins that must stay at physical size could opt out in the manifest.
+- **A per-kiosk plugin scale in Kiosk Satellite.** A **Plugin scale** setting next to UI scale, per kiosk and excluded from sync by default, applied to every plugin's `KsTheme`. Lets plugins be sized apart from the rest of the interface.
+- **Per-setting fleet exclusion for plugins.** A profile can exclude individual plugin settings the way it excludes Kiosk Satellite settings, or a manifest can mark a setting as per-kiosk (`"local": true`) so fleet sync never overwrites it. Useful beyond size, for anything that depends on where a kiosk hangs.
+
+The first option alone covers sizing. The third also covers other per-kiosk plugin settings, such as which Home Assistant entities a wall panel controls.
 #### 19. A local ZIP cannot replace a repository install
 
 *Product.*
