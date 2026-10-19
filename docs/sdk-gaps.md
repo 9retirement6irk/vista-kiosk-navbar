@@ -24,6 +24,7 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | --- | --- | --- | --- | --- |
 | 15 | Creating an overlay is very slow on low-power panels | Product, Docs | High | Menus take about a second to open on a ThinkSmart View |
 | 16 | A resized `WRAP` overlay shows a stale, stretched frame | Product, Docs | High | Without a workaround, the bar flashes stretched when it hides or shows |
+| 27 | Plugin overlays are garbled with Impeller on Mesa and minigbm | Product | Medium | On an x86 kiosk with an Intel GPU the bar is unreadable stripes until **Legacy renderer** is turned on |
 | 26 | A wrapped overlay is cut off when the UI scale is above 100% | Product | High | On a kiosk with UI scale above 100% the bar's far end was cut off, until the plugin worked around it |
 | 25 | An overlay cannot change layer without being rebuilt | Product | Medium | A pause when a camera view opens or closes |
 | 22 | A list row's subtitle shows raw picker values | Product | Medium | Items and hidden pages read `navbar-demo/lights` instead of *Navbar demo / Lights* |
@@ -90,6 +91,17 @@ The 2026.10.23 release notes do not mention it. The new `enter` transitions anim
 **Workaround:** The resize gate learns the shrink from the first window KS gives, once, and the overlay reports a size that much larger, so the window fits the content. Learning only once matters: the window lags behind each new report and is then smaller on both sides too, and learning from that enlarged the bar without end and made it flash.
 
 **Suggestion:** Divide by the unscaled pixel ratio (`View.of(context).devicePixelRatio`) when converting a measured overlay, or measure overlays at the scaled density and give plugins the scaled density in `KsTheme`, so they follow the UI scale like the rest of the kiosk.
+#### 27. Plugin overlays are garbled with Impeller on Mesa and minigbm
+
+*Product.*
+
+**Need:** Show the bar on an x86 kiosk with an Intel GPU.
+
+**Today:** On a Surface Pro 6 running Bliss OS 14 (Android 11, Mesa 24.0.8 on Intel UHD 620, `minigbm` gralloc), every plugin overlay draws as horizontal stripes: each row shows two squashed copies of the content, as if 32-bit pixels were read as 16-bit. Every overlay width from 198 to 329 px looked the same, so it is not an alignment problem. KS's own widgets and the dashboard draw correctly. Turning on **Legacy renderer** (`render.disable_impeller`) and restarting the app fixes it, so the fault is in how Impeller composites platform views on this driver.
+
+**Workaround:** None in the plugin. The kiosk runs with **Legacy renderer** on.
+
+**Suggestion:** Detect the bad combination and use Skia for platform views, or turn on **Legacy renderer** automatically when a plugin overlay is shown on Mesa with `minigbm`, the way it already does after startup crashes.
 ### The settings page
 
 The 2026.10.23 pickers and lists made the navbar configurable without typing paths or JSON. What remains is how those lists present what users chose. These are all small, and all visible on the navbar's main settings page.
