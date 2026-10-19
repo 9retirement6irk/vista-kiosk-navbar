@@ -20,6 +20,7 @@ A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-
 - **Works over camera views.** The bar stays on screen while a camera view is open, with a **Close** button, so you can switch cameras or leave without reaching for the camera view's own controls.
 - **Any edge.** A bar along the bottom or top, or a rail down the left or right side.
 - **Out of the way.** Set how translucent it is, and swipe it away behind a small tab.
+- **Made for fleets.** Set it up once on the fleet leader and every kiosk gets the same bar. Each kiosk's **Scale UI** sets its size.
 - **Set up without typing.** Pages, camera views and icons each have a picker.
 - **Light.** Native Android views, no WebView and no Home Assistant token.
 
@@ -55,7 +56,7 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 | --- | --- | --- |
 | Page | A dashboard view | Opens the view. The item lights up while it's shown |
 | Camera view | One of the kiosk's camera views | Opens the camera view |
-| Menu | Up to 16 entries | Opens the menu over the item. More than 6 entries show as a grid |
+| Menu | Up to 16 entries | Opens the menu beside the item, or centered on the bar when it is wider than the bar. More than 6 entries show as a grid |
 | Kiosk action | Music, Now playing, Screensaver, App launcher, Reload or Start page | Runs it |
 | Web address | An `https://` address | Loads it in the kiosk |
 
