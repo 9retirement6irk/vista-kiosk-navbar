@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ks-navbar",
   "name": "Navbar",
-  "version": "0.16.4",
+  "version": "0.17.0",
   "apiVersion": 1,
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
@@ -16,6 +16,18 @@
     "host.control"
   ],
   "settings": [
+    {
+      "key": "style",
+      "type": "select",
+      "title": "Style",
+      "default": "Kiosk",
+      "group": "Appearance",
+      "description": "Kiosk matches Kiosk Satellite. Windows Vista draws Aero glass and Vista icons.",
+      "options": [
+        "Kiosk",
+        "Windows Vista"
+      ]
+    },
     {
       "key": "position",
       "type": "select",
@@ -81,7 +93,8 @@
           "opens": "Page",
           "page": "lovelace/0",
           "icon": "mdi:home-outline",
-          "iconSelected": "mdi:home"
+          "iconSelected": "mdi:home",
+          "vistaIcon": "Automatic"
         }
       ],
       "group": "Items",
@@ -92,7 +105,8 @@
         "subtitle": [
           "page",
           "action",
-          "url"
+          "url",
+          "trigger"
         ],
         "icon": "icon"
       },
@@ -112,7 +126,8 @@
             "Camera view",
             "Menu",
             "Kiosk action",
-            "Web address"
+            "Web address",
+            "Gesture action"
           ]
         },
         {
@@ -164,6 +179,26 @@
           }
         },
         {
+          "key": "trigger",
+          "type": "select",
+          "title": "Gesture trigger",
+          "description": "Map it under Gestures > Plugin trigger, for example to Start a voice command.",
+          "options": [
+            "Navbar button 1",
+            "Navbar button 2",
+            "Navbar button 3",
+            "Navbar button 4",
+            "Navbar button 5",
+            "Navbar button 6",
+            "Navbar button 7",
+            "Navbar button 8"
+          ],
+          "visibleWhen": {
+            "key": "opens",
+            "equals": "Gesture action"
+          }
+        },
+        {
           "key": "entries",
           "type": "list",
           "title": "Menu entries",
@@ -180,7 +215,8 @@
             "subtitle": [
               "page",
               "action",
-              "url"
+              "url",
+              "trigger"
             ],
             "icon": "icon"
           },
@@ -199,7 +235,8 @@
                 "Page",
                 "Camera view",
                 "Kiosk action",
-                "Web address"
+                "Web address",
+                "Gesture action"
               ]
             },
             {
@@ -251,10 +288,70 @@
               }
             },
             {
+              "key": "trigger",
+              "type": "select",
+              "title": "Gesture trigger",
+              "description": "Map it under Gestures > Plugin trigger, for example to Start a voice command.",
+              "options": [
+                "Navbar button 1",
+                "Navbar button 2",
+                "Navbar button 3",
+                "Navbar button 4",
+                "Navbar button 5",
+                "Navbar button 6",
+                "Navbar button 7",
+                "Navbar button 8"
+              ],
+              "visibleWhen": {
+                "key": "opens",
+                "equals": "Gesture action"
+              }
+            },
+            {
               "key": "icon",
               "type": "icon",
               "title": "Icon",
               "description": "Leave empty to have one picked from the label."
+            },
+            {
+              "key": "vistaIcon",
+              "type": "select",
+              "title": "Vista icon",
+              "description": "The picture in the Windows Vista style. Automatic matches it to the icon.",
+              "options": [
+                "Automatic",
+                "Home",
+                "Windows",
+                "Computer",
+                "Display",
+                "Camera",
+                "Camcorder",
+                "Music",
+                "Media player",
+                "Pictures",
+                "Calendar",
+                "Clock",
+                "Globe",
+                "Network",
+                "Shield",
+                "Lock",
+                "Settings",
+                "People",
+                "Search",
+                "Microphone",
+                "Speaker",
+                "Phone",
+                "Power",
+                "Gauge",
+                "Programs",
+                "Folder",
+                "Favorites",
+                "Notes",
+                "Mail",
+                "Refresh",
+                "Garden",
+                "Games"
+              ]
             }
           ]
         },
@@ -279,6 +376,46 @@
           "type": "icon",
           "title": "Selected icon",
           "description": "The icon while this item's page is open. Uses Icon when empty."
+        },
+        {
+          "key": "vistaIcon",
+          "type": "select",
+          "title": "Vista icon",
+          "description": "The picture in the Windows Vista style. Automatic matches it to the icon.",
+          "options": [
+            "Automatic",
+            "Home",
+            "Windows",
+            "Computer",
+            "Display",
+            "Camera",
+            "Camcorder",
+            "Music",
+            "Media player",
+            "Pictures",
+            "Calendar",
+            "Clock",
+            "Globe",
+            "Network",
+            "Shield",
+            "Lock",
+            "Settings",
+            "People",
+            "Search",
+            "Microphone",
+            "Speaker",
+            "Phone",
+            "Power",
+            "Gauge",
+            "Programs",
+            "Folder",
+            "Favorites",
+            "Notes",
+            "Mail",
+            "Refresh",
+            "Garden",
+            "Games"
+          ]
         }
       ]
     },
@@ -375,6 +512,40 @@
     },
     {
       "title": "Hide the bar on"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "button1",
+      "title": "Navbar button 1"
+    },
+    {
+      "id": "button2",
+      "title": "Navbar button 2"
+    },
+    {
+      "id": "button3",
+      "title": "Navbar button 3"
+    },
+    {
+      "id": "button4",
+      "title": "Navbar button 4"
+    },
+    {
+      "id": "button5",
+      "title": "Navbar button 5"
+    },
+    {
+      "id": "button6",
+      "title": "Navbar button 6"
+    },
+    {
+      "id": "button7",
+      "title": "Navbar button 7"
+    },
+    {
+      "id": "button8",
+      "title": "Navbar button 8"
     }
   ]
 }

@@ -6,12 +6,27 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/** Where a navbar item goes: a dashboard view, a camera view, a kiosk action or a web address. */
+/**
+ * Where a navbar item goes: a dashboard view, a camera view, a kiosk action, a web address or one of
+ * the navbar's gesture triggers.
+ */
 final class NavTarget {
-    enum Kind { PAGE, URL, CAMERA, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME }
+    enum Kind { PAGE, URL, CAMERA, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME, TRIGGER }
 
     /** The Kiosk action choices in settings, in the order they are offered. */
     static final String[] ACTIONS = {"Music", "Now playing", "Screensaver", "App launcher", "Reload", "Start page"};
+
+    /**
+     * The gesture trigger choices in settings, in order. Each fires the manifest trigger
+     * {@code button1} to {@code button8}, which the person maps under Gestures > Plugin trigger to any
+     * gesture action, such as Start a voice command or Run a plugin action. Kiosk Satellite does not
+     * let plugins run those actions directly, so the trigger is the way in. The IDs and titles must
+     * never change: a gesture saved for a trigger stops firing if its ID goes away.
+     */
+    static final String[] TRIGGERS = {
+        "Navbar button 1", "Navbar button 2", "Navbar button 3", "Navbar button 4",
+        "Navbar button 5", "Navbar button 6", "Navbar button 7", "Navbar button 8",
+    };
 
     /** A KS host command and its arguments. */
     static final class Command {
@@ -74,12 +89,26 @@ final class NavTarget {
         }
     }
 
+    /** One of {@link #TRIGGERS}. The value is the manifest trigger ID. */
+    static NavTarget trigger(String name) {
+        String text = name == null ? "" : name.trim();
+        for (int i = 0; i < TRIGGERS.length; i++) {
+            if (TRIGGERS[i].equals(text)) return new NavTarget(Kind.TRIGGER, "button" + (i + 1));
+        }
+        throw new IllegalArgumentException("pick a gesture trigger");
+    }
+
+    /** The gesture trigger's title, as Gestures > Plugin trigger lists it. Only for TRIGGER. */
+    String triggerTitle() {
+        return TRIGGERS[Integer.parseInt(value.substring("button".length())) - 1];
+    }
+
     /** The normalized dashboard path this target highlights, or null when it never matches a page. */
     String matchPath() {
         return kind == Kind.PAGE ? Paths.normalize(value) : null;
     }
 
-    /** The KS command that performs this target. */
+    /** The KS command that performs this target. A trigger is fired with fireTrigger instead. */
     Command command() {
         switch (kind) {
             // haNavigate takes a query string and fragment too, and stays in the page.
@@ -92,6 +121,7 @@ final class NavTarget {
             case APPS: return new Command("showAppLauncher", Collections.<String, Object>emptyMap());
             case RELOAD: return new Command("reload", Collections.<String, Object>emptyMap());
             case HOME: return new Command("loadStartUrl", Collections.<String, Object>emptyMap());
+            case TRIGGER: throw new IllegalStateException("A gesture trigger has no KS command");
             default: throw new IllegalStateException("Unhandled target " + kind);
         }
     }

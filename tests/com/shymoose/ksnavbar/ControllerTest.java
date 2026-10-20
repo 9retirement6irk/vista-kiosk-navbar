@@ -24,6 +24,7 @@ public final class ControllerTest {
         statusRecovery();
         stoppedSession();
         layoutBounds();
+        gestureTrigger();
         System.out.println("ControllerTest: " + checks + " checks passed");
     }
 
@@ -199,6 +200,24 @@ public final class ControllerTest {
         checks++;
     }
 
+    private static void gestureTrigger() throws Exception {
+        Fixture f = new Fixture(0);
+        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
+        f.clock.flush();
+        check(f.host.fired.equals(Collections.singletonList("button2")), "a gesture item fires its trigger");
+        check(!f.host.replies.containsKey("voiceWake"), "a gesture item sends no KS command");
+        check(!f.host.error, "a fired trigger reports no problem");
+
+        f.host.refuseTriggers = true;
+        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
+        f.clock.flush();
+        check(f.host.error && f.host.status.contains("Navbar button 2"), "an older KS is reported on the plugin page");
+        f.host.refuseTriggers = false;
+        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
+        f.clock.flush();
+        check(!f.host.error, "a later fire clears the problem");
+    }
+
     private static Map<String, Object> map(String key, Object value) {
         Map<String, Object> map = new HashMap<>();
         map.put(key, value);
@@ -276,6 +295,12 @@ public final class ControllerTest {
         String status = "";
         boolean error;
         final List<OverlayFactory> menus = new ArrayList<>();
+        final List<String> fired = new ArrayList<>();
+        boolean refuseTriggers;
+        public void fireTrigger(String id) {
+            if (refuseTriggers) throw new UnsupportedOperationException("Gesture triggers are unavailable");
+            fired.add(id);
+        }
         public void subscribe(String event) {}
         public void executeCommand(String name, Map<String, Object> args, CommandCallback callback) {
             replies.computeIfAbsent(name, key -> new ArrayList<>()).add(callback);

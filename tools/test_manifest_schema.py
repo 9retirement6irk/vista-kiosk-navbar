@@ -115,6 +115,28 @@ class ManifestSchemaTest(unittest.TestCase):
             self.assertIn(title, used)
         self.assertEqual(groups[0], used[0])
 
+    def test_triggers_match_the_code(self):
+        # Gestures are saved against trigger IDs, so they must stay button1 to button8 for good.
+        titles = re.findall(r'"(Navbar button \d+)"', SOURCES['NavTarget'])
+        self.assertEqual([t['id'] for t in MANIFEST['triggers']], [f'button{i}' for i in range(1, len(titles) + 1)])
+        self.assertEqual([t['title'] for t in MANIFEST['triggers']], titles)
+        self.assertLessEqual(len(MANIFEST['triggers']), 20)
+        items = next(s for s in MANIFEST['settings'] if s['key'] == 'items')
+        entries = next(f for f in items['fields'] if f['key'] == 'entries')
+        for fields in (items['fields'], entries['fields']):
+            trigger = next(f for f in fields if f['key'] == 'trigger')
+            self.assertEqual(trigger['options'], titles)
+            self.assertEqual(trigger['visibleWhen'], {'key': 'opens', 'equals': 'Gesture action'})
+
+    def test_vista_icons_are_bundled(self):
+        items = next(s for s in MANIFEST['settings'] if s['key'] == 'items')
+        options = next(f for f in items['fields'] if f['key'] == 'vistaIcon')['options']
+        self.assertEqual(options[0], 'Automatic')
+        for option in options[1:]:
+            key = option.lower().replace(' ', '-')
+            self.assertTrue((ROOT / 'assets' / 'vista' / f'{key}.png').is_file(), key)
+            self.assertIn(f'"{key}"', (ROOT / 'src/com/shymoose/ksnavbar/VistaIcons.java').read_text(encoding='utf-8'))
+
     def test_commands_and_capabilities(self):
         for command in MANIFEST['commands']:
             self.assertRegex(command['id'], r'^[a-z][a-zA-Z0-9]*$')

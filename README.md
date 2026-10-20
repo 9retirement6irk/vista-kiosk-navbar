@@ -15,7 +15,8 @@ A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-
 
 - **Knows where you are.** The item for the page on screen lights up, however you got there.
 - **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras. Optionally, a tap opens a page and a long press opens the menu.
-- **More than pages.** Items can open camera views, Music Assistant, Now Playing, the screensaver, the app launcher or a web address.
+- **More than pages.** Items can open camera views, Music Assistant, Now Playing, the screensaver, the app launcher or a web address, or run any gesture action, such as starting a voice command or running another plugin's action.
+- **Windows Vista style.** Optionally, an Aero glass taskbar with Vista's icons and a Start-menu-style menu.
 - **Keeps the dashboard clear.** The dashboard ends above the bar, so no card hides under it. No card-mod needed.
 - **Works over camera views.** The bar stays on screen while a camera view is open, with a **Close** button, so you can switch cameras or leave without reaching for the camera view's own controls.
 - **Any edge.** A bar along the bottom or top, or a rail down the left or right side.
@@ -59,6 +60,7 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 | Menu | Up to 16 entries | Opens the menu beside the item, or centered on the bar when it is wider than the bar. More than 6 entries show as a grid |
 | Kiosk action | Music, Now playing, Screensaver, App launcher, Reload or Start page | Runs it |
 | Web address | An `https://` address | Loads it in the kiosk |
+| Gesture action | One of **Navbar button 1** to **8** | Fires that gesture trigger, which runs whatever it is mapped to under **Gestures** |
 
 | Editing a page item | Editing a menu |
 | :---: | :---: |
@@ -69,12 +71,23 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 - **Order.** Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items.
 - **Smaller screens.** If the bar does not fit, scroll along it to reach the remaining items. Menu grids use fewer columns when space is limited, and tall menus scroll.
 
+## Gesture actions
+
+Kiosk Satellite's gestures can do more than a plugin can on its own, such as **Start a voice command**, **Run a plugin action**, call another kiosk, or stop or snooze an alarm. A **Gesture action** item reaches all of them:
+
+1. Add an item, set **Opens** to **Gesture action** and pick a **Gesture trigger**, such as **Navbar button 1**.
+2. In Kiosk Satellite, open **Settings > Gestures**, add a gesture, choose **Plugin trigger** and pick **Navbar button 1**.
+3. Choose its action, for example **Start a voice command**.
+
+Tapping the item now runs that action. Each trigger can be used by any number of items. Lockdown Mode and Kiosk Mode's **Disable Gestures** silence the triggers like the other gestures, and Fleet Management does not sync gesture mappings that use a plugin trigger, so map them on each kiosk.
+
 ## Settings
 
 <p align="center"><img src="docs/images/settings.png" alt="The Navbar settings page" width="560"></p>
 
 | Setting | What it does |
 | --- | --- |
+| Style | Kiosk, or Windows Vista for an Aero glass bar with Vista icons |
 | Position | Bottom, Top, Left or Right. Left and Right make a vertical rail |
 | Labels | Always, Active only or Never |
 | Size | 80% to 140%, on top of the kiosk's **Scale UI** |
@@ -123,6 +136,13 @@ python3 tools/build.py
 The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > Install from ZIP**. To release, publish a GitHub release tagged `vX.Y.Z`. CI tests, builds and attaches the files Kiosk Satellite verifies. See [CHANGELOG.md](CHANGELOG.md) for what changed in each version. [docs/releasing.md](docs/releasing.md) covers versions, releases and keeping settings across updates.
 
 `tools/test.py` also runs the controller against a virtual clock and deferred host responses. For native Android layout checks, run `python3 tools/test_views.py --serial <adb-device-serial>` on an adb-connected development device. It measures views without opening a window or installing an app, and removes its temporary test bundle afterward. This checks layout and drawable reuse, not KS's compositor latency.
+
+</details>
+
+<details>
+<summary><b>Windows Vista style</b></summary>
+
+With **Style** set to **Windows Vista**, the bar is drawn as the Aero taskbar and menus as the Start menu. Each item shows a Windows Vista picture: **Vista icon** on Automatic matches one to the item's icon and label, or pick one of the 31 by name. An item with no match keeps its icon in white. The pictures ship inside the plugin, which has no network access. **Opacity** sets how much of the dashboard shows through the glass.
 
 </details>
 

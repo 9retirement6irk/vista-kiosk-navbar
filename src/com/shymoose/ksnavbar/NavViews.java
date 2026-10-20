@@ -149,6 +149,68 @@ final class NavViews {
         view.setImageDrawable(drawable);
     }
 
+    // ---- Windows Vista style -------------------------------------------------------------
+
+    /** Vista's label colors: white with a dark shadow on the glass, near black on the Start menu's pane. */
+    static final int VISTA_TEXT = Color.WHITE;
+    static final int VISTA_TEXT_DIM = Color.argb(225, 255, 255, 255);
+    static final int VISTA_MENU_TEXT = Color.rgb(0x1e, 0x1e, 0x1e);
+    /** A Material icon on the menu pane, when an entry has no Vista picture: Vista's link blue. */
+    static final int VISTA_MENU_GLYPH = Color.rgb(0x1e, 0x4e, 0x8c);
+
+    static VistaGlass glass(KsTheme theme, VistaGlass.Kind kind, float radiusDp, float frameDp, float opacity, boolean sideways) {
+        float density = theme.px(100) / 100f;
+        return new VistaGlass(kind, theme.px(radiusDp), theme.px(frameDp), density, opacity, sideways);
+    }
+
+    /**
+     * A Vista taskbar button's states without animation, for the same reason as {@link #pressable}:
+     * pressed, then selected (the page on screen), then activated (its menu is open).
+     */
+    static Drawable vistaButton(KsTheme theme, float radiusDp, boolean sideways) {
+        StateListDrawable states = new StateListDrawable();
+        states.setEnterFadeDuration(0);
+        states.setExitFadeDuration(0);
+        states.addState(new int[] {android.R.attr.state_pressed}, glass(theme, VistaGlass.Kind.BUTTON_PRESSED, radiusDp, 0, 1, sideways));
+        states.addState(new int[] {android.R.attr.state_selected}, glass(theme, VistaGlass.Kind.BUTTON, radiusDp, 0, 1, sideways));
+        states.addState(new int[] {android.R.attr.state_activated}, glass(theme, VistaGlass.Kind.BUTTON_OPEN, radiusDp, 0, 1, sideways));
+        states.addState(new int[0], new ColorDrawable(Color.TRANSPARENT));
+        return states;
+    }
+
+    /** A Start menu row: Vista's blue selection for the current page, deeper while pressed. */
+    static Drawable vistaRow(KsTheme theme, float radiusDp) {
+        StateListDrawable states = new StateListDrawable();
+        states.setEnterFadeDuration(0);
+        states.setExitFadeDuration(0);
+        states.addState(new int[] {android.R.attr.state_pressed}, glass(theme, VistaGlass.Kind.ROW_PRESSED, radiusDp, 0, 1, false));
+        states.addState(new int[] {android.R.attr.state_selected}, glass(theme, VistaGlass.Kind.ROW, radiusDp, 0, 1, false));
+        states.addState(new int[0], new ColorDrawable(Color.TRANSPARENT));
+        return states;
+    }
+
+    /** White text with the soft shadow Vista puts under text on glass. */
+    static void vistaGlassText(KsTheme theme, TextView label, int color) {
+        label.setTextColor(color);
+        label.setShadowLayer(theme.px(2.5f), 0, theme.px(1), Color.argb(220, 0, 0, 0));
+    }
+
+    /**
+     * Draws an item's Vista picture, or its Material icon in {@code glyphColor} when it has none or
+     * the picture cannot be read. Returns the key drawn, so callers can skip redrawing it.
+     */
+    static String setVistaIcon(ImageView view, KsTheme theme, NavItem item, String materialIcon, int glyphColor) {
+        android.graphics.Bitmap bitmap = VistaIcons.bitmap(item.vistaIcon);
+        if (bitmap != null) {
+            android.graphics.drawable.BitmapDrawable picture = new android.graphics.drawable.BitmapDrawable(view.getResources(), bitmap);
+            picture.setFilterBitmap(true);
+            view.setImageDrawable(picture);
+            return "vista:" + item.vistaIcon;
+        }
+        setIcon(view, theme, materialIcon, glyphColor);
+        return materialIcon;
+    }
+
     /** Sizes an icon view to a square of {@code px}. */
     static void sizeIcon(View view, int px) {
         ViewGroup.LayoutParams params = view.getLayoutParams();
@@ -779,13 +841,14 @@ final class NavViews {
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
-            setBackground(surface(theme, config));
+            boolean vista = config.vista();
+            setBackground(vista ? glass(theme, VistaGlass.Kind.BAR, 7 * s, 0, config.opacity, config.vertical) : surface(theme, config));
             if (config.vertical) setPadding(px(6 * s), px(8 * s), px(6 * s), px(8 * s));
             else setPadding(px(8 * s), px(6 * s), px(8 * s), px(6 * s));
             indicatorShapes.clear();
             for (int i = 0; i < cells.size(); i++) {
                 LinearLayout cell = cells.get(i);
-                cell.setBackground(pressable(theme, null, px(theme.radiusRow())));
+                cell.setBackground(vista ? vistaButton(theme, 4 * s, config.vertical) : pressable(theme, null, px(theme.radiusRow())));
                 cell.setMinimumWidth(px(68 * s));
                 cell.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
                 cell.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
@@ -793,22 +856,26 @@ final class NavViews {
                 indicator.setCornerRadius(px(16 * s));
                 indicatorShapes.add(indicator);
                 FrameLayout frame = indicators.get(i);
-                frame.setBackground(indicator);
+                // Vista lights the whole cell as a taskbar button, so the indicator pill goes.
+                frame.setBackground(vista ? null : indicator);
                 frame.setLayoutParams(new LinearLayout.LayoutParams(px(56 * s), px(32 * s)));
                 ImageView glyph = icons.get(i);
                 FrameLayout.LayoutParams glyphParams = (FrameLayout.LayoutParams) glyph.getLayoutParams();
-                glyphParams.width = px(24 * s);
-                glyphParams.height = px(24 * s);
+                // Vista's pictures carry their own detail, so they get a little more room.
+                glyphParams.width = px((vista ? 30 : 24) * s);
+                glyphParams.height = px((vista ? 30 : 24) * s);
                 glyph.setLayoutParams(glyphParams);
                 TextView label = labels.get(i);
                 theme.styleText(label, 12 * s, 500, "onSurfaceVariant");
+                if (vista) vistaGlassText(theme, label, VISTA_TEXT_DIM);
+                else label.setShadowLayer(0, 0, 0, Color.TRANSPARENT);
                 label.setMaxWidth(px(96 * s));
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 spacing.topMargin = px(4 * s);
                 label.setLayoutParams(spacing);
             }
             if (close != null) {
-                close.setBackground(pressable(theme, null, px(theme.radiusRow())));
+                close.setBackground(vista ? vistaButton(theme, 4 * s, config.vertical) : pressable(theme, null, px(theme.radiusRow())));
                 close.setMinimumWidth(px(68 * s));
                 close.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
                 close.setPadding(px(6 * s), px(6 * s), px(6 * s), px(6 * s));
@@ -816,8 +883,9 @@ final class NavViews {
                 iconParams.topMargin = px(4 * s);
                 iconParams.bottomMargin = px(4 * s);
                 closeIcon.setLayoutParams(iconParams);
-                setIcon(closeIcon, theme, "mdi:close", theme.color("onSurfaceVariant"));
+                setIcon(closeIcon, theme, "mdi:close", vista ? VISTA_TEXT : theme.color("onSurfaceVariant"));
                 theme.styleText(closeLabel, 12 * s, 500, "onSurfaceVariant");
+                if (vista) vistaGlassText(theme, closeLabel, VISTA_TEXT_DIM);
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 spacing.topMargin = px(4 * s);
                 closeLabel.setLayoutParams(spacing);
@@ -836,6 +904,10 @@ final class NavViews {
          */
         private void applySelection(int i) {
             if (i < 0 || i >= cells.size()) return;
+            if (config.vista()) {
+                applyVistaSelection(i);
+                return;
+            }
             int on = color(theme, "onSecondaryContainer", "onSurface");
             int off = theme.color("onSurfaceVariant");
             int pill = color(theme, "secondaryContainer", "primaryContainer");
@@ -861,6 +933,30 @@ final class NavViews {
             int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
             View cell = cells.get(i);
             if (cell.isSelected() != selected) cell.setSelected(selected);
+            if (label.getVisibility() != visibility) label.setVisibility(visibility);
+        }
+
+        /**
+         * The Vista bar keeps its pictures and white labels; the cell's taskbar-button background
+         * lights up through its selected and activated states, so selection is still one redraw.
+         */
+        private void applyVistaSelection(int i) {
+            NavItem item = config.items.get(i);
+            boolean selected = i == active;
+            boolean opened = i == open && !selected;
+            indicatorShapes.get(i).setColor(Color.TRANSPARENT);
+            String name = selected ? item.iconSelected : item.icon;
+            ImageView icon = icons.get(i);
+            String drawn = drawnIcons.get(i);
+            boolean picture = item.vistaIcon != null && ("vista:" + item.vistaIcon).equals(drawn);
+            if (!picture && !name.equals(drawn)) drawnIcons.set(i, setVistaIcon(icon, theme, item, name, VISTA_TEXT));
+            TextView label = labels.get(i);
+            label.setTextColor(selected ? VISTA_TEXT : VISTA_TEXT_DIM);
+            boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
+            int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
+            View cell = cells.get(i);
+            if (cell.isSelected() != selected) cell.setSelected(selected);
+            if (cell.isActivated() != opened) cell.setActivated(opened);
             if (label.getVisibility() != visibility) label.setVisibility(visibility);
         }
 
@@ -967,8 +1063,16 @@ final class NavViews {
         void restyle(KsTheme next) {
             theme = next;
             float s = config.scale;
-            setBackground(surface(theme, Math.max(config.opacity, MENU_MIN_OPACITY)));
-            setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
+            boolean vista = config.vista();
+            if (vista) {
+                // The Start menu: a white pane inside a band of the taskbar's glass.
+                float border = 6 * s;
+                setBackground(glass(theme, VistaGlass.Kind.FRAME, 9 * s, border, Math.max(config.opacity, MENU_MIN_OPACITY), false));
+                setPadding(px(border + 6 * s), px(border + 6 * s), px(border + 6 * s), px(border + 6 * s));
+            } else {
+                setBackground(surface(theme, Math.max(config.opacity, MENU_MIN_OPACITY)));
+                setPadding(px(8 * s), px(8 * s), px(8 * s), px(8 * s));
+            }
             tileWidth = 0;
             int pill = color(theme, "secondaryContainer", "primaryContainer");
             int on = color(theme, "onSecondaryContainer", "onSurface");
@@ -976,20 +1080,27 @@ final class NavViews {
                 NavItem child = item.children.get(i);
                 boolean selected = camera != null ? child.showsCamera(camera) : child.matches(path);
                 LinearLayout entry = entries.get(i);
-                GradientDrawable background = new GradientDrawable();
-                background.setCornerRadius(px(theme.radiusRow()));
-                background.setColor(selected ? pill : Color.TRANSPARENT);
-                entry.setBackground(pressable(theme, background, px(theme.radiusRow())));
+                if (vista) {
+                    entry.setBackground(vistaRow(theme, 3 * s));
+                } else {
+                    GradientDrawable background = new GradientDrawable();
+                    background.setCornerRadius(px(theme.radiusRow()));
+                    background.setColor(selected ? pill : Color.TRANSPARENT);
+                    entry.setBackground(pressable(theme, background, px(theme.radiusRow())));
+                }
                 entry.setMinimumHeight(px(NavLayout.MIN_TOUCH_DP));
                 entry.setSelected(selected);
                 ImageView icon = (ImageView) entry.getChildAt(0);
-                setIcon(icon, theme, selected ? child.iconSelected : child.icon, selected ? on : theme.color("onSurfaceVariant"));
+                String glyph = selected ? child.iconSelected : child.icon;
+                if (vista) setVistaIcon(icon, theme, child, glyph, VISTA_MENU_GLYPH);
+                else setIcon(icon, theme, glyph, selected ? on : theme.color("onSurfaceVariant"));
                 TextView label = (TextView) entry.getChildAt(1);
                 LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 if (grid) {
                     // Tiles: a large icon over a short label, all the same size so the grid lines up.
-                    sizeIcon(icon, px(28 * s));
-                    theme.styleText(label, 12.5f * s, 500, "onSurface");
+                    sizeIcon(icon, px((vista ? 40 : 28) * s));
+                    theme.styleText(label, 12.5f * s, vista ? 400 : 500, "onSurface");
+                    if (vista) label.setTextColor(VISTA_MENU_TEXT);
                     labelParams.topMargin = px(6 * s);
                     label.setMaxWidth(px(92 * s));
                     entry.setPadding(px(6 * s), px(12 * s), px(6 * s), px(10 * s));
@@ -997,10 +1108,12 @@ final class NavViews {
                     tile.setMargins(px(2 * s), px(2 * s), px(2 * s), px(2 * s));
                     entry.setLayoutParams(tile);
                 } else {
-                    sizeIcon(icon, px(22 * s));
-                    theme.styleText(label, 15 * s, 500, "onSurface");
-                    labelParams.leftMargin = px(14 * s);
-                    entry.setPadding(px(14 * s), px(10 * s), px(20 * s), px(10 * s));
+                    // The Start menu's rows: a 32 px picture beside the name.
+                    sizeIcon(icon, px((vista ? 32 : 22) * s));
+                    theme.styleText(label, 15 * s, vista ? 400 : 500, "onSurface");
+                    if (vista) label.setTextColor(VISTA_MENU_TEXT);
+                    labelParams.leftMargin = px((vista ? 12 : 14) * s);
+                    entry.setPadding(px((vista ? 8 : 14) * s), px((vista ? 6 : 10) * s), px(20 * s), px((vista ? 6 : 10) * s));
                     entry.setMinimumHeight(px(Math.max(NavLayout.MIN_TOUCH_DP, 48 * s)));
                     entry.setMinimumWidth(px(220 * s));
                     LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
@@ -1053,7 +1166,10 @@ final class NavViews {
         private void updateIcon() {
             // Keep this slot even on unmatched pages, so selection never resizes the tab.
             current.setVisibility(active >= 0 ? VISIBLE : INVISIBLE);
-            if (active >= 0) setIcon(current, theme, config.items.get(active).iconSelected, theme.color("onSurface"));
+            if (active < 0) return;
+            NavItem item = config.items.get(active);
+            if (config.vista()) setVistaIcon(current, theme, item, item.iconSelected, VISTA_TEXT);
+            else setIcon(current, theme, item.iconSelected, theme.color("onSurface"));
         }
 
         void restyle(KsTheme next) {
@@ -1061,9 +1177,14 @@ final class NavViews {
             float s = config.scale;
             float r = theme.px(theme.radiusCard());
             float[] radii = edgeRadii(config, r);
-            GradientDrawable shape = surface(theme, config);
-            shape.setCornerRadii(radii);
-            setBackground(pressable(theme, shape, radii));
+            if (config.vista()) {
+                setBackground(pressable(theme, glass(theme, VistaGlass.Kind.BAR, 0, 0, config.opacity, config.vertical)
+                    .corners(edgeRadii(config, theme.px(9 * s))), radii));
+            } else {
+                GradientDrawable shape = surface(theme, config);
+                shape.setCornerRadii(radii);
+                setBackground(pressable(theme, shape, radii));
+            }
             int length = theme.px(96 * s);
             int depth = theme.px(Math.max(NavLayout.MIN_TOUCH_DP, 40 * s));
             int lead = theme.px(20 * s);
@@ -1083,7 +1204,7 @@ final class NavViews {
             if (config.vertical) gap.bottomMargin = theme.px(8 * s);
             else gap.rightMargin = theme.px(8 * s);
             current.setLayoutParams(gap);
-            setIcon(chevron, theme, chevron(config, false), theme.color("onSurfaceVariant"));
+            setIcon(chevron, theme, chevron(config, false), config.vista() ? VISTA_TEXT : theme.color("onSurfaceVariant"));
             sizeIcon(chevron, theme.px(22 * s));
         }
     }

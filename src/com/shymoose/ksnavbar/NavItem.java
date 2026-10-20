@@ -16,6 +16,7 @@ final class NavItem {
     static final String MENU = "Menu";
     static final String ACTION = "Kiosk action";
     static final String WEB = "Web address";
+    static final String GESTURE = "Gesture action";
 
     static final String DEFAULT_ICON = "mdi:circle-outline";
     static final String CAMERA_ICON = "mdi:cctv";
@@ -32,8 +33,15 @@ final class NavItem {
     final NavTarget target;
     /** Empty unless this is a menu. */
     final List<NavItem> children;
+    /** The bundled picture the Windows Vista style draws, or null to draw {@link #icon} instead. */
+    final String vistaIcon;
 
     NavItem(Type type, String label, String icon, String iconSelected, NavTarget target, List<NavItem> children) {
+        this(type, label, icon, iconSelected, target, children, null);
+    }
+
+    NavItem(Type type, String label, String icon, String iconSelected, NavTarget target, List<NavItem> children, String vistaIcon) {
+        this.vistaIcon = vistaIcon;
         this.type = type;
         this.label = label;
         this.icon = icon;
@@ -47,6 +55,12 @@ final class NavItem {
      * every field, including hidden ones, so only the fields {@code opens} selects are read.
      */
     static NavItem fromRow(Map<?, ?> row, boolean allowMenu) {
+        NavItem item = parseRow(row, allowMenu);
+        String vista = VistaIcons.resolve(text(row, "vistaIcon"), item.icon, item.label);
+        return new NavItem(item.type, item.label, item.icon, item.iconSelected, item.target, item.children, vista);
+    }
+
+    private static NavItem parseRow(Map<?, ?> row, boolean allowMenu) {
         String label = text(row, "label");
         if (label.isEmpty()) throw new IllegalArgumentException("needs a label");
         String opens = text(row, "opens");
@@ -64,6 +78,7 @@ final class NavItem {
             case CAMERA: target = NavTarget.camera(text(row, "camera")); break;
             case ACTION: target = NavTarget.action(text(row, "action")); break;
             case WEB: target = NavTarget.url(text(row, "url")); break;
+            case GESTURE: target = NavTarget.trigger(text(row, "trigger")); break;
             default: throw new IllegalArgumentException("unknown Opens choice '" + opens + "'");
         }
         return leaf(label, text(row, "icon"), text(row, "iconSelected"), target);
@@ -105,6 +120,7 @@ final class NavItem {
             case RELOAD: return "mdi:refresh";
             case HOME: return "mdi:home-outline";
             case URL: return "mdi:web";
+            case TRIGGER: return "mdi:gesture-tap-button";
             default: return DEFAULT_ICON;
         }
     }

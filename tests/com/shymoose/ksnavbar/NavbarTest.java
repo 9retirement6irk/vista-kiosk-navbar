@@ -20,6 +20,8 @@ public final class NavbarTest {
         menus();
         guesses();
         config();
+        gestures();
+        vista();
         System.out.println("NavbarTest: " + passed + " checks passed");
     }
 
@@ -356,6 +358,80 @@ public final class NavbarTest {
         row.put("camera", CAM);
         row.put("icon", icon);
         return row;
+    }
+
+    private static void gestures() {
+        eq(8, NavTarget.TRIGGERS.length);
+        for (int i = 0; i < NavTarget.TRIGGERS.length; i++) {
+            NavTarget target = NavTarget.trigger(NavTarget.TRIGGERS[i]);
+            eq(NavTarget.Kind.TRIGGER, target.kind);
+            eq("button" + (i + 1), target.value);
+            eq(NavTarget.TRIGGERS[i], target.triggerTitle());
+            check(target.matchPath() == null);
+        }
+        rejects(() -> NavTarget.trigger(""));
+        rejects(() -> NavTarget.trigger("Navbar button 9"));
+        try {
+            NavTarget.trigger("Navbar button 1").command();
+            throw new AssertionError("A trigger has no command");
+        } catch (IllegalStateException expected) { passed++; }
+
+        Map<String, Object> voice = row("Voice", NavItem.GESTURE);
+        voice.put("trigger", "Navbar button 3");
+        NavItem item = NavItem.fromRow(voice, true);
+        eq(NavItem.Type.ACTION, item.type);
+        eq("button3", item.target.value);
+        eq("mdi:microphone-message", item.icon);
+        eq("microphone", item.vistaIcon);
+        Map<String, Object> blank = row("Thing", NavItem.GESTURE);
+        eq("mdi:gesture-tap-button", NavItem.fromRow(withTrigger(blank, "Navbar button 1"), true).icon);
+        rejects(() -> NavItem.fromRow(row("Missing", NavItem.GESTURE), true));
+        // Menu entries can fire triggers too.
+        NavItem menu = NavItem.fromRow(menuRow("More", "", withTrigger(row("Plugin", NavItem.GESTURE), "Navbar button 8")), true);
+        eq("button8", menu.children.get(0).target.value);
+        // A trigger never highlights an item.
+        Map<String, Object> settings = new HashMap<>();
+        settings.put("items", list(withTrigger(row("Voice", NavItem.GESTURE), "Navbar button 1")));
+        eq(-1, NavConfig.parse(settings).activeIndex("/lovelace/0"));
+    }
+
+    private static Map<String, Object> withTrigger(Map<String, Object> row, String trigger) {
+        row.put("trigger", trigger);
+        return row;
+    }
+
+    private static void vista() {
+        // Automatic matches the Material icon first, then the label.
+        eq("home", VistaIcons.resolve("Automatic", "mdi:home-outline", "Anything"));
+        eq("camcorder", VistaIcons.resolve("", "mdi:cctv", "Front"));
+        eq("media-player", VistaIcons.resolve(null, "mdi:play-circle-outline", "Now playing"));
+        eq("display", VistaIcons.resolve("Automatic", "mdi:monitor-shimmer", "Saver"));
+        eq("programs", VistaIcons.resolve("Automatic", "mdi:apps", "Launcher"));
+        eq("refresh", VistaIcons.resolve("Automatic", "mdi:refresh", "Reload"));
+        eq("shield", VistaIcons.resolve("Automatic", "mdi:alarm-light", "Alarm"));
+        eq("clock", VistaIcons.resolve("Automatic", "mdi:alarm", "Wake"));
+        eq("calendar", VistaIcons.resolve("Automatic", "mdi:circle-outline", "Family calendar"));
+        check(VistaIcons.resolve("Automatic", "mdi:lightbulb", "Lights") == null);
+        // Whole words only: "playroom" is not "play".
+        eq("games", VistaIcons.resolve("Automatic", "", "Playroom"));
+        // A named choice wins, and an unknown one falls back to matching.
+        eq("garden", VistaIcons.resolve("Garden", "mdi:home", "Home"));
+        eq("media-player", VistaIcons.resolve("Media player", "mdi:home", "Home"));
+        eq("home", VistaIcons.resolve("Bogus", "mdi:home", "Home"));
+        for (String key : VistaIcons.KEYS) check(key.matches("[a-z][a-z-]*"));
+
+        Map<String, Object> styled = new HashMap<>();
+        styled.put("items", list(page("Home", "lovelace/0", "mdi:home")));
+        check(!NavConfig.parse(styled).vista());
+        NavConfig kiosk = NavConfig.parse(styled);
+        styled.put("style", "Windows Vista");
+        NavConfig vista = NavConfig.parse(styled);
+        check(vista.vista());
+        // Switching style rebuilds the bar.
+        check(!vista.sameLook(kiosk));
+        Map<String, Object> override = page("Home", "lovelace/0", "mdi:home");
+        override.put("vistaIcon", "Windows");
+        eq("windows", NavItem.fromRow(override, true).vistaIcon);
     }
 
     private static Map<String, Object> action(String label, String action) {

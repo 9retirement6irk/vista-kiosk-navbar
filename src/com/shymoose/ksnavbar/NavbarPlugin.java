@@ -120,6 +120,7 @@ public final class NavbarPlugin implements KioskPlugin {
         main.post(this::forgetOverlay);
         config = NavConfig.parse(Collections.<String, Object>emptyMap());
         this.host = host;
+        VistaIcons.attach(host);
         configure(settings);
         try {
             host.subscribe("browser.state");
@@ -208,6 +209,7 @@ public final class NavbarPlugin implements KioskPlugin {
     public synchronized void stop() {
         // KS revokes the host and removes the overlay before calling stop.
         host = null;
+        VistaIcons.attach(null);
         navigation.incrementAndGet();
         readRevision++;
         cameraRevision++;
@@ -525,6 +527,10 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         if (current == null) return;
         int revision = navigation.incrementAndGet();
+        if (target.kind == NavTarget.Kind.TRIGGER) {
+            fire(current, target);
+            return;
+        }
         try {
             NavTarget.Command command = target.command();
             current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
@@ -537,6 +543,22 @@ public final class NavbarPlugin implements KioskPlugin {
             });
         } catch (RuntimeException error) {
             issue(current, "navigation", "Could not open " + describe(target) + ": " + error.getMessage());
+        }
+    }
+
+    /**
+     * Fires a gesture trigger. Whatever the person mapped to it under Gestures runs, so the navbar
+     * never learns whether anything happened. It can only report a trigger KS refused.
+     */
+    private void fire(PluginHost current, NavTarget target) {
+        try {
+            current.fireTrigger(target.value);
+            errors.remove("navigation");
+            reportOnMain();
+        } catch (UnsupportedOperationException olderHost) {
+            issue(current, "navigation", target.triggerTitle() + " needs a Kiosk Satellite with gesture triggers.");
+        } catch (RuntimeException error) {
+            issue(current, "navigation", "Could not fire " + target.triggerTitle() + ": " + error.getMessage());
         }
     }
 

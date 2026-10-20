@@ -17,6 +17,9 @@ final class NavConfig {
 
     enum Labels { ALWAYS, ACTIVE, NEVER }
 
+    /** How the bar is drawn: in Kiosk Satellite's own design, or as Windows Vista's Aero glass. */
+    enum Style { KIOSK, VISTA }
+
     /** Whether the bar can shrink to a tab at its edge, and how it starts. */
     enum Collapse { OFF, START_OPEN, START_COLLAPSED }
 
@@ -24,6 +27,7 @@ final class NavConfig {
     static final int AUTO_GRID_ABOVE = 6;
 
     final Edge edge;
+    final Style style;
     /** Whether the bar is against the top edge. */
     final boolean top;
     /** Whether the bar is a vertical rail against the left or right edge. */
@@ -45,8 +49,9 @@ final class NavConfig {
     /** One line per item that could not be used. */
     final List<String> problems;
 
-    private NavConfig(Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, boolean makeRoom, boolean overCameras,
+    private NavConfig(Style style, Edge edge, Labels labels, float scale, int inset, float opacity, Collapse collapse, int autoCollapse, boolean makeRoom, boolean overCameras,
                       List<String> hideOn, List<NavItem> items, List<String> problems) {
+        this.style = style;
         this.edge = edge;
         this.top = edge == Edge.TOP;
         this.vertical = edge == Edge.LEFT || edge == Edge.RIGHT;
@@ -64,6 +69,7 @@ final class NavConfig {
     }
 
     static NavConfig parse(Map<String, Object> settings) {
+        Style style = "Windows Vista".equals(text(settings, "style")) ? Style.VISTA : Style.KIOSK;
         String position = text(settings, "position");
         Edge edge = "Top".equals(position) ? Edge.TOP : "Left".equals(position) ? Edge.LEFT
             : "Right".equals(position) ? Edge.RIGHT : Edge.BOTTOM;
@@ -101,7 +107,7 @@ final class NavConfig {
         }
         boolean makeRoom = !Boolean.FALSE.equals(settings.get("makeRoom"));
         boolean overCameras = !Boolean.FALSE.equals(settings.get("overCameras"));
-        return new NavConfig(edge, labels, scale, inset, opacity, collapse, autoCollapse, makeRoom, overCameras, hideOn, items, problems);
+        return new NavConfig(style, edge, labels, scale, inset, opacity, collapse, autoCollapse, makeRoom, overCameras, hideOn, items, problems);
     }
     /** Whether the bar belongs on {@code path}. It shows everywhere except the Hide on paths. */
     boolean visibleAt(String path) {
@@ -113,6 +119,8 @@ final class NavConfig {
     }
 
     /** Whether a menu shows its entries as a grid of tiles rather than a list. */
+    boolean vista() { return style == Style.VISTA; }
+
     boolean grid(NavItem menu) {
         return menu.children.size() > AUTO_GRID_ABOVE;
     }
@@ -140,14 +148,15 @@ final class NavConfig {
 
     String describe() {
         StringBuilder text = new StringBuilder();
-        text.append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
+        text.append(style).append('|').append(edge).append('|').append(labels).append('|').append(scale).append('|').append(inset)
             .append('|').append(opacity).append('|').append(collapse).append('|').append(makeRoom).append('|').append(overCameras);
         for (NavItem item : items) appendItem(text, item);
         return text.toString();
     }
 
     private static void appendItem(StringBuilder text, NavItem item) {
-        text.append('[').append(item.type).append(',').append(item.label).append(',').append(item.icon).append(',').append(item.iconSelected);
+        text.append('[').append(item.type).append(',').append(item.label).append(',').append(item.icon).append(',').append(item.iconSelected)
+            .append(',').append(item.vistaIcon);
         if (item.target != null) text.append(',').append(item.target.kind).append(':').append(item.target.value);
         for (NavItem child : item.children) appendItem(text, child);
         text.append(']');
