@@ -151,16 +151,28 @@ final class NavViews {
 
     // ---- Windows Vista style -------------------------------------------------------------
 
-    /** Vista's label colors: white with a dark shadow on the glass, near black on the Start menu's pane. */
-    static final int VISTA_TEXT = Color.WHITE;
-    static final int VISTA_TEXT_DIM = Color.argb(225, 255, 255, 255);
-    static final int VISTA_MENU_TEXT = Color.rgb(0x1e, 0x1e, 0x1e);
+    /**
+     * Vista's colors follow Kiosk Satellite's app theme. On dark glass, labels are white with a dark
+     * shadow; on light glass they are near black with the white glow Vista puts behind title text.
+     */
+    static int vistaText(KsTheme theme, boolean strong) {
+        if (theme.isDark()) return strong ? Color.WHITE : Color.argb(225, 255, 255, 255);
+        return strong ? Color.rgb(0x10, 0x10, 0x10) : Color.rgb(0x2a, 0x33, 0x40);
+    }
+
+    /** Text on the Start menu's pane. */
+    static int vistaMenuText(KsTheme theme) {
+        return theme.isDark() ? Color.rgb(0xe6, 0xee, 0xf6) : Color.rgb(0x1e, 0x1e, 0x1e);
+    }
+
     /** A Material icon on the menu pane, when an entry has no Vista picture: Vista's link blue. */
-    static final int VISTA_MENU_GLYPH = Color.rgb(0x1e, 0x4e, 0x8c);
+    static int vistaMenuGlyph(KsTheme theme) {
+        return theme.isDark() ? Color.rgb(0x8f, 0xd3, 0xff) : Color.rgb(0x1e, 0x4e, 0x8c);
+    }
 
     static VistaGlass glass(KsTheme theme, VistaGlass.Kind kind, float radiusDp, float frameDp, float opacity, boolean sideways) {
         float density = theme.px(100) / 100f;
-        return new VistaGlass(kind, theme.px(radiusDp), theme.px(frameDp), density, opacity, sideways);
+        return new VistaGlass(kind, theme.px(radiusDp), theme.px(frameDp), density, opacity, sideways, theme.isDark());
     }
 
     /**
@@ -189,10 +201,11 @@ final class NavViews {
         return states;
     }
 
-    /** White text with the soft shadow Vista puts under text on glass. */
+    /** Text on glass: a dark shadow under white text, or Vista's white glow behind dark text. */
     static void vistaGlassText(KsTheme theme, TextView label, int color) {
         label.setTextColor(color);
-        label.setShadowLayer(theme.px(2.5f), 0, theme.px(1), Color.argb(220, 0, 0, 0));
+        if (theme.isDark()) label.setShadowLayer(theme.px(2.5f), 0, theme.px(1), Color.argb(220, 0, 0, 0));
+        else label.setShadowLayer(theme.px(4), 0, 0, Color.argb(235, 255, 255, 255));
     }
 
     /**
@@ -867,7 +880,7 @@ final class NavViews {
                 glyph.setLayoutParams(glyphParams);
                 TextView label = labels.get(i);
                 theme.styleText(label, 12 * s, 500, "onSurfaceVariant");
-                if (vista) vistaGlassText(theme, label, VISTA_TEXT_DIM);
+                if (vista) vistaGlassText(theme, label, vistaText(theme, false));
                 else label.setShadowLayer(0, 0, 0, Color.TRANSPARENT);
                 label.setMaxWidth(px(96 * s));
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
@@ -883,9 +896,9 @@ final class NavViews {
                 iconParams.topMargin = px(4 * s);
                 iconParams.bottomMargin = px(4 * s);
                 closeIcon.setLayoutParams(iconParams);
-                setIcon(closeIcon, theme, "mdi:close", vista ? VISTA_TEXT : theme.color("onSurfaceVariant"));
+                setIcon(closeIcon, theme, "mdi:close", vista ? vistaText(theme, true) : theme.color("onSurfaceVariant"));
                 theme.styleText(closeLabel, 12 * s, 500, "onSurfaceVariant");
-                if (vista) vistaGlassText(theme, closeLabel, VISTA_TEXT_DIM);
+                if (vista) vistaGlassText(theme, closeLabel, vistaText(theme, false));
                 LinearLayout.LayoutParams spacing = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
                 spacing.topMargin = px(4 * s);
                 closeLabel.setLayoutParams(spacing);
@@ -949,9 +962,9 @@ final class NavViews {
             ImageView icon = icons.get(i);
             String drawn = drawnIcons.get(i);
             boolean picture = item.vistaIcon != null && ("vista:" + item.vistaIcon).equals(drawn);
-            if (!picture && !name.equals(drawn)) drawnIcons.set(i, setVistaIcon(icon, theme, item, name, VISTA_TEXT));
+            if (!picture && !name.equals(drawn)) drawnIcons.set(i, setVistaIcon(icon, theme, item, name, vistaText(theme, true)));
             TextView label = labels.get(i);
-            label.setTextColor(selected ? VISTA_TEXT : VISTA_TEXT_DIM);
+            label.setTextColor(vistaText(theme, selected));
             boolean show = config.labels == NavConfig.Labels.ALWAYS || (config.labels == NavConfig.Labels.ACTIVE && selected);
             int visibility = show ? VISIBLE : config.labels == NavConfig.Labels.NEVER ? GONE : INVISIBLE;
             View cell = cells.get(i);
@@ -1092,7 +1105,7 @@ final class NavViews {
                 entry.setSelected(selected);
                 ImageView icon = (ImageView) entry.getChildAt(0);
                 String glyph = selected ? child.iconSelected : child.icon;
-                if (vista) setVistaIcon(icon, theme, child, glyph, VISTA_MENU_GLYPH);
+                if (vista) setVistaIcon(icon, theme, child, glyph, vistaMenuGlyph(theme));
                 else setIcon(icon, theme, glyph, selected ? on : theme.color("onSurfaceVariant"));
                 TextView label = (TextView) entry.getChildAt(1);
                 LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
@@ -1100,7 +1113,7 @@ final class NavViews {
                     // Tiles: a large icon over a short label, all the same size so the grid lines up.
                     sizeIcon(icon, px((vista ? 40 : 28) * s));
                     theme.styleText(label, 12.5f * s, vista ? 400 : 500, "onSurface");
-                    if (vista) label.setTextColor(VISTA_MENU_TEXT);
+                    if (vista) { label.setTextColor(vistaMenuText(theme)); label.setShadowLayer(0, 0, 0, Color.TRANSPARENT); }
                     labelParams.topMargin = px(6 * s);
                     label.setMaxWidth(px(92 * s));
                     entry.setPadding(px(6 * s), px(12 * s), px(6 * s), px(10 * s));
@@ -1111,7 +1124,7 @@ final class NavViews {
                     // The Start menu's rows: a 32 px picture beside the name.
                     sizeIcon(icon, px((vista ? 32 : 22) * s));
                     theme.styleText(label, 15 * s, vista ? 400 : 500, "onSurface");
-                    if (vista) label.setTextColor(VISTA_MENU_TEXT);
+                    if (vista) { label.setTextColor(vistaMenuText(theme)); label.setShadowLayer(0, 0, 0, Color.TRANSPARENT); }
                     labelParams.leftMargin = px((vista ? 12 : 14) * s);
                     entry.setPadding(px((vista ? 8 : 14) * s), px((vista ? 6 : 10) * s), px(20 * s), px((vista ? 6 : 10) * s));
                     entry.setMinimumHeight(px(Math.max(NavLayout.MIN_TOUCH_DP, 48 * s)));
@@ -1168,7 +1181,7 @@ final class NavViews {
             current.setVisibility(active >= 0 ? VISIBLE : INVISIBLE);
             if (active < 0) return;
             NavItem item = config.items.get(active);
-            if (config.vista()) setVistaIcon(current, theme, item, item.iconSelected, VISTA_TEXT);
+            if (config.vista()) setVistaIcon(current, theme, item, item.iconSelected, vistaText(theme, true));
             else setIcon(current, theme, item.iconSelected, theme.color("onSurface"));
         }
 
@@ -1204,7 +1217,7 @@ final class NavViews {
             if (config.vertical) gap.bottomMargin = theme.px(8 * s);
             else gap.rightMargin = theme.px(8 * s);
             current.setLayoutParams(gap);
-            setIcon(chevron, theme, chevron(config, false), config.vista() ? VISTA_TEXT : theme.color("onSurfaceVariant"));
+            setIcon(chevron, theme, chevron(config, false), config.vista() ? vistaText(theme, true) : theme.color("onSurfaceVariant"));
             sizeIcon(chevron, theme.px(22 * s));
         }
     }

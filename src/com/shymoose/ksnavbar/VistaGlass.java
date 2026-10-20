@@ -15,9 +15,11 @@ import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 
 /**
- * Windows Vista's Aero look, drawn in code so it scales to any size and density: the black glass of
- * the taskbar with its two-tone gloss, a lit taskbar button, and the Start menu's white pane in a
- * glass frame with Vista's blue selection.
+ * Windows Vista's Aero look, drawn in code so it scales to any size and density: the glass of the
+ * taskbar with its two-tone gloss, a lit taskbar button, and the Start menu's pane in a glass frame
+ * with Vista's blue selection. Dark is the black taskbar glass with a dark pane; light is the frosted
+ * glass of Vista's window frames with the Start menu's white pane. It follows Kiosk Satellite's app
+ * theme, which can be kept in step with Home Assistant's.
  */
 final class VistaGlass extends Drawable {
     enum Kind {
@@ -45,6 +47,7 @@ final class VistaGlass extends Drawable {
     private final float opacity;
     /** Whether the gloss splits left and right, for a rail, rather than top and bottom. */
     private final boolean sideways;
+    private final boolean dark;
     private float[] radii;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -56,7 +59,8 @@ final class VistaGlass extends Drawable {
      * {@code radius} and {@code frame} are in pixels. {@code frame} is the width of a menu's glass
      * border around its white pane and is ignored by the other kinds.
      */
-    VistaGlass(Kind kind, float radius, float frame, float density, float opacity, boolean sideways) {
+    VistaGlass(Kind kind, float radius, float frame, float density, float opacity, boolean sideways, boolean dark) {
+        this.dark = dark;
         this.kind = kind;
         this.radius = radius;
         this.frame = frame;
@@ -119,14 +123,22 @@ final class VistaGlass extends Drawable {
         int save = canvas.save();
         round(clip, r, radius);
         canvas.clipPath(clip);
-        gloss(canvas, r,
-            new int[] {Color.argb(alpha(a * 0.88f), 86, 99, 114), Color.argb(alpha(a * 0.9f), 44, 53, 64)},
-            new int[] {Color.argb(alpha(a * 0.94f), 10, 14, 19), Color.argb(alpha(a * 0.92f), 24, 33, 42)});
+        if (dark) {
+            gloss(canvas, r,
+                new int[] {Color.argb(alpha(a * 0.88f), 86, 99, 114), Color.argb(alpha(a * 0.9f), 44, 53, 64)},
+                new int[] {Color.argb(alpha(a * 0.94f), 10, 14, 19), Color.argb(alpha(a * 0.92f), 24, 33, 42)});
+        } else {
+            // Frosted glass, like a Vista window frame: white over the gloss line, sky blue under it.
+            gloss(canvas, r,
+                new int[] {Color.argb(alpha(a * 0.92f), 250, 252, 255), Color.argb(alpha(a * 0.86f), 226, 236, 247)},
+                new int[] {Color.argb(alpha(a * 0.86f), 196, 214, 235), Color.argb(alpha(a * 0.9f), 214, 228, 243)});
+        }
         // The faint teal sheen Aero shows across the lower half of the taskbar.
         float cx = r.centerX();
         float cy = sideways ? r.centerY() : r.bottom;
         float spread = Math.max(r.width(), r.height()) * 0.6f;
-        fill.setShader(new RadialGradient(cx, cy, spread, Color.argb(alpha(a * 0.22f), 90, 170, 210), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+        fill.setShader(new RadialGradient(cx, cy, spread, dark ? Color.argb(alpha(a * 0.22f), 90, 170, 210)
+            : Color.argb(alpha(a * 0.28f), 120, 180, 235), Color.TRANSPARENT, Shader.TileMode.CLAMP));
         canvas.drawRect(r, fill);
         fill.setShader(null);
         canvas.restoreToCount(save);
@@ -140,7 +152,7 @@ final class VistaGlass extends Drawable {
         line.setShader(null);
         RectF outer = new RectF(r.left + hairline / 2, r.top + hairline / 2, r.right - hairline / 2, r.bottom - hairline / 2);
         round(clip, outer, radius);
-        line.setColor(Color.argb(alpha(0.75f), 0, 0, 0));
+        line.setColor(dark ? Color.argb(alpha(0.75f), 0, 0, 0) : Color.argb(alpha(0.7f), 76, 98, 128));
         canvas.drawPath(clip, line);
     }
 
@@ -152,10 +164,15 @@ final class VistaGlass extends Drawable {
             gloss(canvas, r,
                 new int[] {Color.argb(alpha(0.30f), 20, 40, 60), Color.argb(alpha(0.36f), 10, 25, 40)},
                 new int[] {Color.argb(alpha(0.42f), 0, 10, 20), Color.argb(alpha(0.30f), 20, 60, 90)});
-        } else {
+        } else if (dark) {
             gloss(canvas, r,
                 new int[] {Color.argb(alpha(0.34f * strength), 255, 255, 255), Color.argb(alpha(0.20f * strength), 255, 255, 255)},
                 new int[] {Color.argb(alpha(0.06f * strength), 255, 255, 255), Color.argb(alpha(0.14f * strength), 255, 255, 255)});
+        } else {
+            // On light glass a lit button is Vista's pale blue, as in Explorer's toolbar.
+            gloss(canvas, r,
+                new int[] {Color.argb(alpha(0.95f * strength), 236, 245, 255), Color.argb(alpha(0.9f * strength), 214, 233, 253)},
+                new int[] {Color.argb(alpha(0.9f * strength), 183, 214, 248), Color.argb(alpha(0.92f * strength), 203, 226, 251)});
         }
         // Vista's blue glow rising from the foot of a lit button.
         float cx = r.centerX();
@@ -168,11 +185,11 @@ final class VistaGlass extends Drawable {
         canvas.restoreToCount(save);
         RectF edge = new RectF(r.left + hairline / 2, r.top + hairline / 2, r.right - hairline / 2, r.bottom - hairline / 2);
         round(clip, edge, radius);
-        line.setColor(Color.argb(alpha(0.55f * strength), 255, 255, 255));
+        line.setColor(dark ? Color.argb(alpha(0.55f * strength), 255, 255, 255) : Color.argb(alpha(0.9f * strength), 60, 127, 177));
         canvas.drawPath(clip, line);
         RectF inner = new RectF(edge.left + hairline, edge.top + hairline, edge.right - hairline, edge.bottom - hairline);
         round(clip, inner, Math.max(0, radius - hairline));
-        line.setColor(Color.argb(alpha(0.35f * strength), 0, 0, 0));
+        line.setColor(dark ? Color.argb(alpha(0.35f * strength), 0, 0, 0) : Color.argb(alpha(0.7f * strength), 255, 255, 255));
         canvas.drawPath(clip, line);
     }
 
@@ -183,10 +200,12 @@ final class VistaGlass extends Drawable {
         float paneRadius = Math.max(hairline * 2, radius - frame);
         clip.reset();
         clip.addRoundRect(pane, paneRadius, paneRadius, Path.Direction.CW);
-        fill.setShader(new LinearGradient(0, pane.top, 0, pane.bottom, Color.argb(250, 255, 255, 255), Color.argb(244, 241, 245, 251), Shader.TileMode.CLAMP));
+        fill.setShader(dark
+            ? new LinearGradient(0, pane.top, 0, pane.bottom, Color.argb(248, 30, 38, 48), Color.argb(248, 18, 25, 33), Shader.TileMode.CLAMP)
+            : new LinearGradient(0, pane.top, 0, pane.bottom, Color.argb(250, 255, 255, 255), Color.argb(244, 241, 245, 251), Shader.TileMode.CLAMP));
         canvas.drawPath(clip, fill);
         fill.setShader(null);
-        line.setColor(Color.argb(255, 130, 150, 175));
+        line.setColor(dark ? Color.argb(255, 36, 52, 74) : Color.argb(255, 130, 150, 175));
         canvas.drawPath(clip, line);
     }
 
@@ -194,18 +213,26 @@ final class VistaGlass extends Drawable {
         RectF edge = new RectF(r.left + hairline / 2, r.top + hairline / 2, r.right - hairline / 2, r.bottom - hairline / 2);
         clip.reset();
         clip.addRoundRect(edge, radius, radius, Path.Direction.CW);
-        int top = pressed ? Color.rgb(0xc1, 0xdb, 0xfc) : Color.rgb(0xdc, 0xeb, 0xfc);
-        int bottom = pressed ? Color.rgb(0xa8, 0xcb, 0xf6) : Color.rgb(0xc1, 0xdb, 0xfc);
+        int top, bottom;
+        if (dark) {
+            // The dark palette of Vista-style lists: translucent sky blue over the dark pane.
+            top = pressed ? Color.argb(130, 160, 215, 255) : Color.argb(97, 160, 215, 255);
+            bottom = pressed ? Color.argb(100, 90, 160, 230) : Color.argb(66, 90, 160, 230);
+        } else {
+            top = pressed ? Color.rgb(0xc1, 0xdb, 0xfc) : Color.rgb(0xdc, 0xeb, 0xfc);
+            bottom = pressed ? Color.rgb(0xa8, 0xcb, 0xf6) : Color.rgb(0xc1, 0xdb, 0xfc);
+        }
         fill.setShader(new LinearGradient(0, edge.top, 0, edge.bottom, top, bottom, Shader.TileMode.CLAMP));
         canvas.drawPath(clip, fill);
         fill.setShader(null);
-        line.setColor(pressed ? Color.rgb(0x5f, 0x8c, 0xc4) : Color.rgb(0x7d, 0xa2, 0xce));
+        line.setColor(dark ? (pressed ? Color.rgb(0x8f, 0xd3, 0xff) : Color.rgb(0x6c, 0xb8, 0xf0))
+            : pressed ? Color.rgb(0x5f, 0x8c, 0xc4) : Color.rgb(0x7d, 0xa2, 0xce));
         canvas.drawPath(clip, line);
         // The white inner line that makes Vista's selection look raised.
         RectF inner = new RectF(edge.left + hairline, edge.top + hairline, edge.right - hairline, edge.bottom - hairline);
         clip.reset();
         clip.addRoundRect(inner, Math.max(0, radius - hairline), Math.max(0, radius - hairline), Path.Direction.CW);
-        line.setColor(Color.argb(150, 255, 255, 255));
+        line.setColor(dark ? Color.argb(40, 255, 255, 255) : Color.argb(150, 255, 255, 255));
         canvas.drawPath(clip, line);
     }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- **Light and dark Vista styles.** The Windows Vista style follows Kiosk Satellite's app theme. Light draws frosted Aero glass with dark text, the Start menu's white pane and Vista's pale blue selection; dark keeps the black taskbar glass, with a dark menu pane to match. The bar switches as soon as the theme does. To follow Home Assistant, turn on **Sync Home Assistant themes with Kiosk Satellite** under **Home Assistant > Theme**.
+
 ## 1.0.0
 
 First release of Vista Navbar, a fork of Navbar 0.16.4.

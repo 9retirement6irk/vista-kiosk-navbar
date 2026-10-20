@@ -81,7 +81,7 @@ Tapping the item now runs that action. Each trigger can be used by any number of
 
 | Setting | What it does |
 | --- | --- |
-| Style | Kiosk, or Windows Vista for an Aero glass bar with Vista icons |
+| Style | Kiosk, or Windows Vista for an Aero glass bar with Vista icons, light or dark with the app theme |
 | Position | Bottom, Top, Left or Right. Left and Right make a vertical rail |
 | Labels | Always, Active only or Never |
 | Size | 80% to 140%, on top of the kiosk's **Scale UI** |
@@ -137,6 +137,8 @@ The ZIP lands in `dist/`. Install it with **Plugin Manager > Developer Tools > I
 <summary><b>Windows Vista style</b></summary>
 
 With **Style** set to **Windows Vista**, the bar is drawn as the Aero taskbar and menus as the Start menu. Each item shows a Windows Vista picture: **Vista icon** on Automatic matches one to the item's icon and label, or pick one of the 31 by name. An item with no match keeps its icon in white. The pictures ship inside the plugin, which has no network access. **Opacity** sets how much of the dashboard shows through the glass.
+
+It follows Kiosk Satellite's app theme: light is frosted Aero glass with the Start menu's white pane, dark is the black taskbar glass with a dark pane. To keep it matched to Home Assistant, turn on **Sync Home Assistant themes with Kiosk Satellite** under **Home Assistant > Theme**, so the dashboard and the app switch together.
 
 </details>
 
