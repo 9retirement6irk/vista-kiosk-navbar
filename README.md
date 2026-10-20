@@ -34,7 +34,7 @@ Needs Kiosk Satellite **2026.10.23** or newer. On **2026.10.30** and newer the b
 ### Manual
 
 1. Open **Settings > Plugin Manager** in Kiosk Satellite and turn on **Enable Plugins**.
-2. Choose **Add plugin**, paste `https://github.com/9retirement6irk/vista-koik-navbar` and choose **Preview**.
+2. Choose **Add plugin**, paste `https://github.com/9retirement6irk/vista-kiosk-navbar` and choose **Preview**.
 3. Review the plugin and choose **Trust and install**.
 
 ### First steps

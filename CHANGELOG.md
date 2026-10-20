@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.17.0
+## 1.0.0
+
+First release of Vista Navbar, a fork of Navbar 0.16.4.
 
 - **Gesture action items.** An item or menu entry can now fire one of eight gesture triggers, **Navbar button 1** to **Navbar button 8**. Map a trigger under **Settings > Gestures > Plugin trigger** to any gesture action Kiosk Satellite offers, such as **Start a voice command**, **Run a plugin action**, **Call a kiosk**, **Open the calendar**, a Home Assistant script or an Android app. Kiosk Satellite does not let plugins run those actions directly, so the trigger is the way in. Gesture mappings stay on their kiosk and are not synced by Fleet Management.
 - **Windows Vista style.** **Appearance > Style** offers **Windows Vista**: the bar becomes the Aero taskbar's black glass, the current page's item a lit taskbar button, and menus the Start menu's white pane with Vista's blue selection. Items show Windows Vista pictures, matched to their icon automatically or picked under each item's **Vista icon**. 31 pictures ship inside the plugin, since it has no network access. Items with no matching picture keep their Material icon, drawn in white.
