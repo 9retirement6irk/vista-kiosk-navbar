@@ -1,4 +1,6 @@
-# Navbar for Kiosk Satellite
+# Vista Navbar for Kiosk Satellite
+
+> A fork of [Navbar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-navbar) by [@dimatx](https://github.com/dimatx) that adds a **Windows Vista** style and **Gesture action** items (start a voice command, run a plugin action and anything else Kiosk Satellite's gestures can do). It installs as its own plugin, **Vista Navbar**, so it can sit beside the original.
 
 **A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) wall panels.** It highlights the page you're on, opens menus and camera grids, and keeps your Home Assistant dashboard clear of it. Kiosk Satellite draws it with its own colors, type and icons, so it looks like part of the kiosk.
 
@@ -29,23 +31,15 @@ A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-
 
 Needs Kiosk Satellite **2026.10.23** or newer. On **2026.10.30** and newer the bar follows each kiosk's **Scale UI**.
 
-### Community Plugins (Recommended)
-
-Navbar is listed in [Community Plugins](https://kiosksatellite.com/plugins/). Use the button below to open it in your Kiosk Satellite and install it.
-
-[![Install in Kiosk Satellite](https://kiosksatellite.com/img/badges/plugin-add.svg)](https://kiosksatellite.com/redirect/plugin/?repository=dimatx/kiosk-satellite-navbar)
-
-Or search for `Navbar` in **Settings > Plugin Manager > Browse plugins** in Kiosk Satellite.
-
 ### Manual
 
 1. Open **Settings > Plugin Manager** in Kiosk Satellite and turn on **Enable Plugins**.
-2. Choose **Add plugin**, paste `https://github.com/dimatx/kiosk-satellite-navbar` and choose **Preview**.
+2. Choose **Add plugin**, paste `https://github.com/9retirement6irk/vista-koik-navbar` and choose **Preview**.
 3. Review the plugin and choose **Trust and install**.
 
 ### First steps
 
-Turn on **Navbar**. It starts with a Home item. Open **Navbar** and add your own items under **Items**. With Fleet Management, add Navbar to a profile's **Plugins** row and every kiosk on it gets the same bar.
+Turn on **Vista Navbar**. It starts with a Home item. Open **Vista Navbar** and add your own items under **Items**. With Fleet Management, add Navbar to a profile's **Plugins** row and every kiosk on it gets the same bar.
 
 Settings are on the plugin's page, on the kiosk or in Remote Admin, and take effect as you save them.
 
@@ -151,6 +145,8 @@ With **Style** set to **Windows Vista**, the bar is drawn as the Aero taskbar an
 Navbar sends nothing anywhere. It asks Kiosk Satellite to open dashboard pages, camera views, web addresses and kiosk actions you configure, and reads which page is showing so it can highlight the right item. It has no network access of its own and never sees a Home Assistant token.
 
 ## Credits
+
+Navbar is by [@dimatx](https://github.com/dimatx); this fork adds the Vista style and gesture actions. The Windows Vista icons under `assets/vista/` are Microsoft's and are not covered by this project's license.
 
 Built for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) by [@jxlarrea](https://github.com/jxlarrea), whose native plugin SDK, overlays, pickers and icons make a bar like this possible. Started from the [Kiosk Satellite plugin template](https://github.com/jxlarrea/kiosk-satellite-plugins).
 
