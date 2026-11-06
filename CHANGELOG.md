@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+Merges Navigation bar 0.20.2.
+
+- **Any action.** An item or menu entry can now run any action from the Gestures chooser directly, such as **Start a voice command** or another plugin's action, with nothing to map under **Gestures**. It replaces **Gesture action**.
+- **Gesture action retired.** Kiosk Satellite allows 16 fields per item, and the merge needed the room, so the **Gesture trigger** field is gone. Items set up with **Gesture action** stay on the bar, and tapping one says to edit it, set **Opens** to **Any action** and pick the action. Gesture mappings under **Plugin trigger** for **Navbar button 1–8** no longer fire and can be deleted.
+- From Navigation bar 0.17.0 to 0.20.2: **Calendar**, **Built-in page** (Energy, Map, Logbook and more) and **App** choices, up to 16 items, **Show/Hide/Toggle** actions, and **Hide the bar on** covering a built-in page's sub-pages.
+- Needs Kiosk Satellite 2026.10.42 or newer.
+
 ## 1.1.0
 
 - **Light and dark Vista styles.** The Windows Vista style follows Kiosk Satellite's app theme. Light draws frosted Aero glass with dark text, the Start menu's white pane and Vista's pale blue selection; dark keeps the black taskbar glass, with a dark menu pane to match. The bar switches as soon as the theme does. To follow Home Assistant, turn on **Sync Home Assistant themes with Kiosk Satellite** under **Home Assistant > Theme**.
@@ -10,6 +19,40 @@ First release of Vista Navbar, a fork of Navbar 0.16.4.
 
 - **Gesture action items.** An item or menu entry can now fire one of eight gesture triggers, **Navbar button 1** to **Navbar button 8**. Map a trigger under **Settings > Gestures > Plugin trigger** to any gesture action Kiosk Satellite offers, such as **Start a voice command**, **Run a plugin action**, **Call a kiosk**, **Open the calendar**, a Home Assistant script or an Android app. Kiosk Satellite does not let plugins run those actions directly, so the trigger is the way in. Gesture mappings stay on their kiosk and are not synced by Fleet Management.
 - **Windows Vista style.** **Appearance > Style** offers **Windows Vista**: the bar becomes the Aero taskbar's black glass, the current page's item a lit taskbar button, and menus the Start menu's white pane with Vista's blue selection. Items show Windows Vista pictures, matched to their icon automatically or picked under each item's **Vista icon**. 31 pictures ship inside the plugin, since it has no network access. Items with no matching picture keep their Material icon, drawn in white.
+
+## Navigation bar releases
+
+The entries below are from the original [Navigation bar](https://github.com/dimatx/kiosk-satellite-navbar) by @dimatx.
+
+## 0.20.2
+
+- **Changed** the plugin is now called **Navigation bar**, and its actions **Show navigation bar**, **Hide navigation bar** and **Toggle navigation bar**. The plugin ID and your settings are unchanged.
+
+## 0.20.1
+
+- **Fixed** **Hide the bar on** now covers a built-in page's sub-pages, so picking Energy also hides the bar on Energy's setup and Electricity tabs.
+- Kiosk Satellite 2026.10.43 lists Home Assistant's own pages in the page pickers, so **Hide the bar on** can name them. Older releases still need the **Built-in page** choice.
+
+## 0.20.0
+
+- **Added** an **Any action** choice for **Opens**. Pick any action with the same chooser as Gestures, including another plugin's commands such as a doorbell view. It works on items and menu entries and needs no extra permission.
+- **Changed** empty icons are no longer saved back into the settings. The bar still draws the icon it guesses from the label.
+- **Changed** built-in page rows no longer show a subtitle, because rows allow four subtitle fields.
+- Needs Kiosk Satellite 2026.10.42 or newer.
+
+## 0.19.0
+
+- An item or menu entry can open an **App**, picked from the apps in the kiosk's App Launcher (issue 4). Needs Kiosk Satellite 2026.10.39 or newer, which this release now declares with minAppVersion.
+
+## 0.18.0
+
+- An item or menu entry can open a **Built-in page** that no dashboard list shows: Energy, Map, Logbook, History, To-do or Media, or any other path under **Other** (issue 3). The item stays lit on the page's tabs.
+- New screenshots on a calmer dashboard.
+
+## 0.17.0
+
+- An item or menu entry can open the kiosk's **Calendar**, on its default view or on Day, Week, Month or Schedule. Needs Kiosk Satellite 2026.10.33 or newer (issue 1).
+- A bar holds up to 16 items, as many as a menu (issue 2).
 
 ## 0.16.4
 

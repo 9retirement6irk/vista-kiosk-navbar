@@ -137,11 +137,11 @@ public final class NavbarPlugin implements KioskPlugin {
         readDashboard();
         readCamera();
         readScreensaver();
+        listApps(null);
     }
 
     @Override
     public synchronized void configure(Map<String, Object> settings) {
-        fillIcons(settings);
         NavConfig previous = config;
         NavConfig next = NavConfig.parse(settings);
         config = next;
@@ -154,26 +154,6 @@ public final class NavbarPlugin implements KioskPlugin {
         sync();
         if (next.autoCollapse != previous.autoCollapse) main.post(this::scheduleAutoCollapse);
         report();
-    }
-
-    /**
-     * Saves the icon the bar picked for any item left without one, so the settings page shows it.
-     * KS does not call configure for the save, and the bar already draws the same picks, so nothing
-     * else changes. The next configure finds nothing left to fill.
-     */
-    private void fillIcons(Map<String, Object> settings) {
-        PluginHost current = host;
-        if (current == null || settings == null) return;
-        List<Map<String, Object>> filled = NavItem.withIcons(settings.get("items"));
-        if (filled == null) return;
-        Map<String, Object> values = new java.util.LinkedHashMap<>(settings);
-        values.put("items", filled);
-        try {
-            current.saveSettings(values);
-        } catch (RuntimeException error) {
-            // The bar still draws the picked icons. Only the settings page keeps showing them empty.
-            current.log("Could not save the picked icons: " + error.getMessage());
-        }
     }
 
     @Override
@@ -201,6 +181,7 @@ public final class NavbarPlugin implements KioskPlugin {
             issue(host, "screensaver", null);
             sync();
         }
+        else if ("settings.choices".equals(event) && payload != null && AppChoices.isAppKey(text(payload.get("key")))) listApps(text(payload.get("run")));
         // A tap outside the menu closed it. Its overlay is gone; only the bookkeeping is left.
         else if ("overlay.closed".equals(event) && payload != null && MENU.equals(payload.get("key"))) main.post(this::menuClosed);
     }
@@ -216,6 +197,55 @@ public final class NavbarPlugin implements KioskPlugin {
         screensaverRevision++;
         root.set(null);
         main.post(this::forgetOverlay);
+    }
+
+    /**
+     * Lists the apps a tap may open for the App pickers. {@code run} is the Refresh press that asked, or
+     * null at start. An older Kiosk Satellite has no such command or picker, and the field stays a text box.
+     */
+    private void listApps(String run) {
+        PluginHost current = host;
+        if (current == null) return;
+        try {
+            current.executeCommand("getLauncherApps", Collections.<String, Object>emptyMap(), (ok, data, error) -> {
+                if (host != current) return;
+                publishApps(current, run, ok, data, error);
+            });
+        } catch (UnsupportedOperationException | LinkageError olderHost) {
+            report(current, run, "error", "This Kiosk Satellite cannot list apps.");
+        } catch (RuntimeException error) {
+            report(current, run, "error", "Could not list apps: " + error.getMessage());
+        }
+    }
+
+    private void publishApps(PluginHost current, String run, boolean ok, Object data, String error) {
+        if (!ok) {
+            report(current, run, "error", "Could not list apps" + (error == null ? "." : ": " + error));
+            return;
+        }
+        List<Map<String, Object>> choices = AppChoices.choices(data);
+        try {
+            for (String key : AppChoices.KEYS) current.setSettingChoices(key, choices);
+            report(current, run, "success", choices.isEmpty()
+                ? "No apps are listed. Add some under Settings > App Launcher > Apps."
+                : "Found " + choices.size() + (choices.size() == 1 ? " app." : " apps."));
+        } catch (UnsupportedOperationException | LinkageError olderHost) {
+            report(current, run, "error", "This Kiosk Satellite cannot list apps.");
+        } catch (RuntimeException failure) {
+            report(current, run, "error", "Could not list apps: " + failure.getMessage());
+        }
+    }
+
+    /** Ends a Refresh run, if one asked. Nothing to end when the list was made at start. */
+    private static void report(PluginHost current, String run, String state, String message) {
+        if (run == null || run.isEmpty()) return;
+        try {
+            current.setupResult(run, state, message);
+        } catch (UnsupportedOperationException | LinkageError olderHost) {
+            // No Refresh button without setup controls, so no run to end.
+        } catch (RuntimeException ignored) {
+            // The run ended already.
+        }
     }
 
     /** A camera view opened, switched or closed. The camera view's own state reads the same way. */
@@ -507,7 +537,7 @@ public final class NavbarPlugin implements KioskPlugin {
         if (cfg.items.isEmpty()) {
             text.append("Add an item to show the bar.");
         } else if (userHidden) {
-            text.append("Hidden by the Hide navbar action. Run Show navbar to bring it back.");
+            text.append("Hidden by the Hide navigation bar action. Run Show navigation bar to bring it back.");
         } else if (!cfg.visibleAt(path)) {
             text.append("Hidden on this page, which is listed under Hide the bar on.");
         }
@@ -519,7 +549,7 @@ public final class NavbarPlugin implements KioskPlugin {
             lastStatus = message;
             lastStatusError = error;
         } catch (RuntimeException failure) {
-            log(current, "Could not report navbar status", failure);
+            log(current, "Could not report navigation bar status", failure);
         }
     }
     /** Main thread. A failure is only reported if no newer tap or session has happened since. */
@@ -527,38 +557,28 @@ public final class NavbarPlugin implements KioskPlugin {
         PluginHost current = host;
         if (current == null) return;
         int revision = navigation.incrementAndGet();
-        if (target.kind == NavTarget.Kind.TRIGGER) {
-            fire(current, target);
+        if (target.kind == NavTarget.Kind.RETIRED) {
+            issue(current, "navigation", NavTarget.RETIRED_HELP);
             return;
         }
         try {
-            NavTarget.Command command = target.command();
-            current.executeCommand(command.name, command.arguments, (ok, data, error) -> {
+            PluginHost.CommandCallback done = (ok, data, error) -> {
                 main.post(() -> {
                     if (host != current || navigation.get() != revision) return;
                     if (ok && !Boolean.FALSE.equals(data)) errors.remove("navigation");
-                    else errors.put("navigation", "Could not open " + describe(target) + (error == null ? "" : ": " + error));
+                    else errors.put("navigation", failure(target) + (error == null ? "" : ": " + error));
                     reportOnMain();
                 });
-            });
+            };
+            if (target.runsChosenAction()) {
+                // Kiosk Satellite reads the action from the saved settings, so the plugin only names the row.
+                current.runAction(target.value, done);
+            } else {
+                NavTarget.Command command = target.command();
+                current.executeCommand(command.name, command.arguments, done);
+            }
         } catch (RuntimeException error) {
-            issue(current, "navigation", "Could not open " + describe(target) + ": " + error.getMessage());
-        }
-    }
-
-    /**
-     * Fires a gesture trigger. Whatever the person mapped to it under Gestures runs, so the navbar
-     * never learns whether anything happened. It can only report a trigger KS refused.
-     */
-    private void fire(PluginHost current, NavTarget target) {
-        try {
-            current.fireTrigger(target.value);
-            errors.remove("navigation");
-            reportOnMain();
-        } catch (UnsupportedOperationException olderHost) {
-            issue(current, "navigation", target.triggerTitle() + " needs a Kiosk Satellite with gesture triggers.");
-        } catch (RuntimeException error) {
-            issue(current, "navigation", "Could not fire " + target.triggerTitle() + ": " + error.getMessage());
+            issue(current, "navigation", failure(target) + ": " + error.getMessage());
         }
     }
 
@@ -571,6 +591,10 @@ public final class NavbarPlugin implements KioskPlugin {
         markMenu(-1);
         scheduleAutoCollapse();
     }
+    private static String failure(NavTarget target) {
+        return target.runsChosenAction() ? "Could not run the action" : "Could not open " + describe(target);
+    }
+
     private static String describe(NavTarget target) {
         return target.value.isEmpty() ? target.kind.name().toLowerCase(java.util.Locale.ROOT) : target.value;
     }

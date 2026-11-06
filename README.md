@@ -1,23 +1,23 @@
 # Vista Navbar for Kiosk Satellite
 
-> A fork of [Navbar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-navbar) by [@dimatx](https://github.com/dimatx) that adds a **Windows Vista** style and **Gesture action** items (start a voice command, run a plugin action and anything else Kiosk Satellite's gestures can do). It installs as its own plugin, **Vista Navbar**, so it can sit beside the original.
+> A fork of [Navigation bar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-navbar) by [@dimatx](https://github.com/dimatx) that adds a **Windows Vista** style with light and dark modes. It installs as its own plugin, **Vista Navbar**, so it can sit beside the original.
 
 **A native navigation bar for [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) wall panels.** It highlights the page you're on, opens menus and camera grids, and keeps your Home Assistant dashboard clear of it. Kiosk Satellite draws it with its own colors, type and icons, so it looks like part of the kiosk.
 
-<p align="center"><img src="docs/images/bar.png" alt="The navbar along the bottom of a dashboard" width="720"></p>
+<p align="center"><img src="docs/images/bar.png" alt="The navigation bar along the bottom of a dashboard" width="720"></p>
 
 | Grid menu | List menu | Hidden |
 | :---: | :---: | :---: |
 | <img src="docs/images/grid.png" alt="A camera grid menu" width="260"> | <img src="docs/images/list.png" alt="A list menu of kiosk actions" width="260"> | <img src="docs/images/tab.png" alt="The bar hidden behind a tab" width="260"> |
 | Long menus, such as cameras, show as tiles | Short menus show as a list | Swipe down to hide the bar behind a tab |
 
-A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-action-bar): the navbar moves between pages, the action bar switches lights, shades and locks in place. Put the navbar along the bottom and the action bar on the right, and the dashboard keeps clear of both.
+A companion to [Action bar for Kiosk Satellite](https://github.com/dimatx/kiosk-satellite-action-bar): the navigation bar moves between pages, the action bar switches lights, shades and locks in place. Put the navigation bar along the bottom and the action bar on the right, and the dashboard keeps clear of both.
 
 ## Why use it
 
 - **Knows where you are.** The item for the page on screen lights up, however you got there.
 - **Menus and grids.** An item can open a list, or a grid of tiles for things like cameras. Optionally, a tap opens a page and a long press opens the menu.
-- **More than pages.** Items can open camera views, Music Assistant, Now Playing, the screensaver, the app launcher or a web address, or run any gesture action, such as starting a voice command or running another plugin's action.
+- **More than pages.** Items can open camera views, the calendar, Music Assistant, Now Playing, the screensaver, the app launcher or a web address, or run any action from the Gestures chooser, such as starting a voice command or running another plugin's action.
 - **Windows Vista style.** Optionally, an Aero glass taskbar with Vista's icons and a Start-menu-style menu.
 - **Keeps the dashboard clear.** The dashboard ends above the bar, so no card hides under it. No card-mod needed.
 - **Works over camera views.** The bar stays on screen while a camera view is open, with a **Close** button, so you can switch cameras or leave without reaching for the camera view's own controls.
@@ -29,7 +29,7 @@ A companion to [Action Bar for Kiosk Satellite](https://github.com/dimatx/kiosk-
 
 ## Installation
 
-Needs Kiosk Satellite **2026.10.23** or newer. On **2026.10.30** and newer the bar follows each kiosk's **Scale UI**.
+Needs Kiosk Satellite **2026.10.42** or newer. On **2026.10.30** and newer the bar follows each kiosk's **Scale UI**. Kiosk Satellite shows the requirement before it installs or updates, and an older release keeps running the version it has.
 
 ### Manual
 
@@ -39,7 +39,7 @@ Needs Kiosk Satellite **2026.10.23** or newer. On **2026.10.30** and newer the b
 
 ### First steps
 
-Turn on **Vista Navbar**. It starts with a Home item. Open **Vista Navbar** and add your own items under **Items**. With Fleet Management, add Navbar to a profile's **Plugins** row and every kiosk on it gets the same bar.
+Turn on **Vista Navbar**. It starts with a Home item. Open **Vista Navbar** and add your own items under **Items**. With Fleet Management, add Vista Navbar to a profile's **Plugins** row and every kiosk on it gets the same bar.
 
 Settings are on the plugin's page, on the kiosk or in Remote Admin, and take effect as you save them.
 
@@ -50,34 +50,33 @@ Each item has a **Label**, what it **Opens**, and optional icons.
 | Opens | You pick | A tap |
 | --- | --- | --- |
 | Page | A dashboard view | Opens the view. The item lights up while it's shown |
+| Built-in page | Energy, Map, Logbook, History, To-do, Media, or Other with a path | Opens a page Home Assistant provides itself. The item stays lit on its tabs, such as Energy's Electricity and Gas |
+| Any action | Anything you can pick in Gestures, such as another plugin's command | Runs the action you choose, with no code in this plugin. Use it to open another plugin's view, for example a doorbell camera |
 | Camera view | One of the kiosk's camera views | Opens the camera view |
+| Calendar | Default, Day, Week, Month or Schedule | Opens the kiosk's calendar on that view. Default uses the view picked under **Settings > Calendar** |
 | Menu | Up to 16 entries | Opens the menu beside the item, or centered on the bar when it is wider than the bar. More than 6 entries show as a grid |
 | Kiosk action | Music, Now playing, Screensaver, App launcher, Reload or Start page | Runs it |
+| App | One of the apps under **Settings > App Launcher > Apps** | Opens the app over the kiosk. Press **Refresh** beside the picker after adding apps. The list is empty while the App Launcher is off or Lockdown Mode is on |
 | Web address | An `https://` address | Loads it in the kiosk |
-| Gesture action | One of **Navbar button 1** to **8** | Fires that gesture trigger, which runs whatever it is mapped to under **Gestures** |
 
 | Editing a page item | Editing a menu |
 | :---: | :---: |
 | <img src="docs/images/editor-page.png" alt="Editing a page item" width="380"> | <img src="docs/images/editor-menu.png" alt="Editing a menu item and its entries" width="380"> |
 
-- **Icons.** Leave an icon empty and one is picked from the label, then filled in for you: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. **Selected icon** is shown while the item's page is open, often the filled version.
+- **Icons.** Leave an icon empty and one is picked from the label, and the bar draws it: *Garage* gets a garage, *Driveway* a road, *Living room* a sofa. **Selected icon** is shown while the item's page is open, often the filled version.
 - **Tap opens.** On a menu item, pick a page here and a tap opens that page while a long press opens the menu. Leave it empty and a tap opens the menu.
-- **Order.** Drag rows by their handle to reorder items or menu entries. A bar holds up to 8 items.
+- **Order.** Drag rows by their handle to reorder items or menu entries. A bar holds up to 16 items.
 - **Smaller screens.** If the bar does not fit, scroll along it to reach the remaining items. Menu grids use fewer columns when space is limited, and tall menus scroll.
 
-## Gesture actions
+## Voice commands and plugin actions
 
-Kiosk Satellite's gestures can do more than a plugin can on its own, such as **Start a voice command**, **Run a plugin action**, call another kiosk, or stop or snooze an alarm. A **Gesture action** item reaches all of them:
+Set **Opens** to **Any action** and pick from the same chooser as **Gestures**: **Start a voice command**, **Run a plugin action**, call another kiosk, stop or snooze an alarm, a Home Assistant script and the rest. A tap runs it, with nothing else to set up.
 
-1. Add an item, set **Opens** to **Gesture action** and pick a **Gesture trigger**, such as **Navbar button 1**.
-2. In Kiosk Satellite, open **Settings > Gestures**, add a gesture, choose **Plugin trigger** and pick **Navbar button 1**.
-3. Choose its action, for example **Start a voice command**.
-
-Tapping the item now runs that action. Each trigger can be used by any number of items. Lockdown Mode and Kiosk Mode's **Disable Gestures** silence the triggers like the other gestures, and Fleet Management does not sync gesture mappings that use a plugin trigger, so map them on each kiosk.
+Items set up with **Gesture action** in Vista Navbar 1.0 or 1.1 stay on the bar, but no longer run anything: tapping one says to edit it, set **Opens** to **Any action** and pick the action.
 
 ## Settings
 
-<p align="center"><img src="docs/images/settings.png" alt="The Navbar settings page" width="560"></p>
+<p align="center"><img src="docs/images/settings.png" alt="The Navigation bar settings page" width="560"></p>
 
 | Setting | What it does |
 | --- | --- |
@@ -90,12 +89,12 @@ Tapping the item now runs that action. Each trigger can be used by any number of
 | Hide after | Seconds without a tap before the bar hides. 0 keeps it visible |
 | Keep the dashboard clear | The dashboard ends above the bar instead of under it. On by default |
 | Show over camera views | Keep the bar on screen while a camera view is open, with a Close button. On by default |
-| Hide the bar on | Pages where the bar stays hidden, picked from your dashboards |
+| Hide the bar on | Pages where the bar stays hidden, picked from your dashboards and Home Assistant's own pages. A bare page such as `energy` also covers its sub-pages |
 
 <details>
 <summary><b>Left and right rails</b></summary>
 
-<p align="center"><img src="docs/images/rail.png" alt="The navbar as a rail on the left" width="560"></p>
+<p align="center"><img src="docs/images/rail.png" alt="The navigation bar as a rail on the left" width="560"></p>
 
 On the left or right, the bar becomes a rail. Menus open beside it, a sideways swipe hides it behind a tab on the edge, and the dashboard keeps clear of it in the same way.
 
@@ -113,7 +112,7 @@ Swipe the bar toward its edge to hide it behind a small tab. Swipe the tab back,
 <details>
 <summary><b>Gestures and the kiosk drawer</b></summary>
 
-**Show navbar**, **Hide navbar** and **Toggle navbar** can be mapped to a gesture or added to the kiosk drawer, under the plugin's **Actions**.
+**Show navigation bar**, **Hide navigation bar** and **Toggle navigation bar** can be mapped to a gesture or added to the kiosk drawer, under the plugin's **Actions**.
 
 </details>
 
@@ -144,7 +143,7 @@ It follows Kiosk Satellite's app theme: light is frosted Aero glass with the Sta
 
 ## Privacy
 
-Navbar sends nothing anywhere. It asks Kiosk Satellite to open dashboard pages, camera views, web addresses and kiosk actions you configure, and reads which page is showing so it can highlight the right item. It has no network access of its own and never sees a Home Assistant token.
+Navigation bar sends nothing anywhere. It asks Kiosk Satellite to open dashboard pages, camera views, web addresses and kiosk actions you configure, and reads which page is showing so it can highlight the right item. It has no network access of its own and never sees a Home Assistant token.
 
 ## Credits
 

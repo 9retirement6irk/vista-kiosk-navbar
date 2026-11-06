@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = json.loads((ROOT / 'kiosk-satellite-plugin.json').read_text(encoding='utf-8'))
 SOURCES = {name: (ROOT / f'src/com/shymoose/ksnavbar/{name}.java').read_text(encoding='utf-8')
            for name in ('NavConfig', 'NavItem', 'NavTarget')}
-TYPES = {'string', 'secret', 'boolean', 'number', 'color', 'select', 'entity', 'icon', 'dashboard', 'cameraView', 'list'}
+TYPES = {'string', 'secret', 'boolean', 'number', 'color', 'select', 'entity', 'icon', 'dashboard', 'cameraView', 'list', 'action'}
 CONDITION_TESTS = {'equals', 'notEquals', 'notEmpty'}
 
 
@@ -30,6 +30,10 @@ def check_fields(case, fields, nested=0):
                 case.assertEqual((field['default'] - field['min']) % field['step'], 0)
             if field['type'] == 'string' and 'default' in field:
                 case.assertLessEqual(len(field['default']), 512)
+            if field['type'] == 'action':
+                # Only the user picks an action, so a manifest may not choose one.
+                case.assertEqual(field.get('default', {}), {})
+                case.assertNotIn(field['key'], {f.get('visibleWhen', {}).get('key') for f in fields})
             condition = field.get('visibleWhen')
             if condition:
                 # The condition names a field declared earlier on the same level, with one test.
@@ -59,6 +63,13 @@ class ManifestSchemaTest(unittest.TestCase):
             self.assertIn('default', setting)
         check_fields(self, settings)
         self.assertLessEqual(len(json.dumps(next(s for s in settings if s['key'] == 'items')['default'])), 32 * 1024)
+
+    def test_action_settings_need_the_release_that_added_them(self):
+        def uses_action(fields):
+            return any(f['type'] == 'action' or (f['type'] == 'list' and uses_action(f['fields'])) for f in fields)
+        self.assertTrue(uses_action(MANIFEST['settings']))
+        version = tuple(int(part) for part in MANIFEST['minAppVersion'].split('.'))
+        self.assertGreaterEqual(version, (2026, 10, 42))
 
     def test_descriptions_are_sentences(self):
         # Kiosk Satellite's own settings describe each one in a sentence that ends with a period.
@@ -103,6 +114,11 @@ class ManifestSchemaTest(unittest.TestCase):
             self.assertIn(f'"{option}"', SOURCES['NavItem'])
         for option in fields['action']['options']:
             self.assertIn(f'"{option}"', SOURCES['NavTarget'])
+        panel_options = [o for o in fields['panel']['options'] if o != 'Other']
+        self.assertEqual(panel_options, ['Energy', 'Map', 'Logbook', 'History', 'To-do', 'Media'])
+        for option in panel_options:
+            self.assertIn(f'"{option}"', SOURCES['NavTarget'])
+        self.assertEqual(fields['panel']['options'][-1], 'Other')
         entry_opens = next(f for f in fields['entries']['fields'] if f['key'] == 'opens')
         self.assertNotIn('Menu', entry_opens['options'])
 
@@ -115,18 +131,15 @@ class ManifestSchemaTest(unittest.TestCase):
             self.assertIn(title, used)
         self.assertEqual(groups[0], used[0])
 
-    def test_triggers_match_the_code(self):
-        # Gestures are saved against trigger IDs, so they must stay button1 to button8 for good.
-        titles = re.findall(r'"(Navbar button \d+)"', SOURCES['NavTarget'])
-        self.assertEqual([t['id'] for t in MANIFEST['triggers']], [f'button{i}' for i in range(1, len(titles) + 1)])
-        self.assertEqual([t['title'] for t in MANIFEST['triggers']], titles)
-        self.assertLessEqual(len(MANIFEST['triggers']), 20)
+    def test_gesture_action_still_loads(self):
+        # Rows saved by 1.0 and 1.1 hold Opens = Gesture action. Kiosk Satellite rejects an update whose
+        # select no longer offers a saved value, so the choice stays, though its trigger field is gone.
         items = next(s for s in MANIFEST['settings'] if s['key'] == 'items')
         entries = next(f for f in items['fields'] if f['key'] == 'entries')
         for fields in (items['fields'], entries['fields']):
-            trigger = next(f for f in fields if f['key'] == 'trigger')
-            self.assertEqual(trigger['options'], titles)
-            self.assertEqual(trigger['visibleWhen'], {'key': 'opens', 'equals': 'Gesture action'})
+            self.assertIn('Gesture action', next(f for f in fields if f['key'] == 'opens')['options'])
+            self.assertNotIn('trigger', [f['key'] for f in fields])
+            self.assertLessEqual(len(fields), 16)
 
     def test_vista_icons_are_bundled(self):
         items = next(s for s in MANIFEST['settings'] if s['key'] == 'items')

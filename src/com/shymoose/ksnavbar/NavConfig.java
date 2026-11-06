@@ -9,7 +9,7 @@ import java.util.Map;
 /** The validated navbar configuration, built from the plugin's KS settings. */
 final class NavConfig {
     /** The most items a bar holds. More would not fit across a tablet. */
-    static final int MAX_ITEMS = 8;
+    static final int MAX_ITEMS = 16;
     static final int DEFAULT_INSET = 12;
 
     /** The screen edge the bar sits against. */
@@ -91,7 +91,7 @@ final class NavConfig {
         List<String> hideOn = new ArrayList<>();
         for (Map<?, ?> row : NavItem.rows(settings.get("hideOn"))) {
             String page = NavItem.text(row, "page");
-            if (!page.isEmpty()) hideOn.add(Paths.normalize(page));
+            if (!page.isEmpty()) hideOn.add(Paths.hideEntry(page));
         }
         List<NavItem> items = new ArrayList<>();
         List<String> problems = new ArrayList<>();
@@ -100,7 +100,7 @@ final class NavConfig {
             String label = NavItem.text(rows.get(i), "label");
             String name = label.isEmpty() ? "Item " + (i + 1) : label;
             try {
-                items.add(NavItem.fromRow(rows.get(i), true));
+                items.add(NavItem.fromRow(rows.get(i), true, "items." + i));
             } catch (IllegalArgumentException error) {
                 problems.add(name + ": " + error.getMessage());
             }
@@ -114,7 +114,7 @@ final class NavConfig {
         if (items.isEmpty()) return false;
         if (path == null) return true;
         String here = Paths.normalize(path);
-        for (String page : hideOn) if (page.equals(here)) return false;
+        for (String page : hideOn) if (hides(page, here)) return false;
         return true;
     }
 
@@ -162,6 +162,14 @@ final class NavConfig {
         text.append(']');
     }
 
+    /** A page matches itself; an entry ending in /* also matches everything below it. */
+    static boolean hides(String page, String here) {
+        if (page.endsWith("/*")) {
+            String base = page.substring(0, page.length() - 2);
+            return here.equals(base) || here.startsWith(base + "/");
+        }
+        return page.equals(here);
+    }
     private static int number(Map<String, Object> settings, String key, int min, int max, int fallback) {
         Object value = settings.get(key);
         return value instanceof Number ? Math.max(min, Math.min(max, ((Number) value).intValue())) : fallback;

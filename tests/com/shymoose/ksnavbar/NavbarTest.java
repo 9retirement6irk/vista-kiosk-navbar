@@ -56,6 +56,147 @@ public final class NavbarTest {
         rejects(() -> NavTarget.url("https://user:pw@example.com"));
         rejects(() -> NavTarget.action("Dance"));
         check(NavTarget.camera(CAM).matchPath() == null);
+        panels();
+        apps();
+        anyActions();
+    }
+
+    private static void anyActions() {
+        Map<String, Object> picked = new HashMap<>();
+        picked.put("type", "plugin_action");
+        picked.put("plugin", "protect-camera");
+        picked.put("command", "show");
+        Map<String, Object> row = new HashMap<>();
+        row.put("label", "Quick action");
+        row.put("opens", "Any action");
+        row.put("anyAction", picked);
+        // The plugin only names the field. Kiosk Satellite reads the action from the saved settings.
+        NavItem item = NavItem.fromRow(row, true, "items.2");
+        eq(NavItem.Type.ACTION, item.type);
+        eq(NavTarget.Kind.ANY, item.target.kind);
+        eq("items.2.anyAction", item.target.value);
+        check(item.target.runsChosenAction() && !item.target.isPage());
+        check(item.target.matchPath() == null && !item.matches("/lovelace"));
+        eq("mdi:gesture-tap-button", item.icon);
+        boolean refused = false;
+        try { item.target.command(); } catch (IllegalStateException expected) { refused = true; }
+        check(refused);
+        // The row index is the saved list index, and a menu entry adds the entries list and its own index.
+        List<Map<?, ?>> entries = new ArrayList<>();
+        entries.add(page("Home", "a/home", ""));
+        entries.add(row);
+        NavItem menu = NavItem.menu("More", "", "", entries, "items.4.entries");
+        eq("items.4.entries.1.anyAction", menu.children.get(1).target.value);
+        Map<String, Object> menuRow = menuRow("More", "", page("Home", "a/home", ""), row);
+        eq("items.0.entries.1.anyAction", NavItem.fromRow(menuRow, true, "items.0").children.get(1).target.value);
+        // Nothing picked yet, an action with nothing in it, or no place in the settings to name: not usable.
+        row.put("anyAction", new HashMap<String, Object>());
+        rejects(() -> NavItem.fromRow(row, true, "items.2"));
+        row.remove("anyAction");
+        rejects(() -> NavItem.fromRow(row, true, "items.2"));
+        row.put("anyAction", picked);
+        rejects(() -> NavItem.fromRow(row, true));
+        // A menu is still a menu. Menu entries cannot hold another menu.
+        eq(NavItem.Type.MENU, NavItem.fromRow(menuRow, true, "items.0").type);
+        // The parser gives each saved row its own path, even when an earlier row is unusable.
+        Map<String, Object> settings = new HashMap<>();
+        settings.put("items", list(page("", "a/x", ""), row));
+        NavConfig config = NavConfig.parse(settings);
+        eq(1, config.items.size());
+        eq("items.1.anyAction", config.items.get(0).target.value);
+        check(config.problems.size() == 1);
+    }
+
+    private static void apps() {
+        NavTarget spotify = NavTarget.app(" com.spotify.music ");
+        eq(NavTarget.Kind.APP, spotify.kind);
+        eq("com.spotify.music", spotify.value);
+        eq("launchApp", spotify.command().name);
+        eq("com.spotify.music", spotify.command().arguments.get("package"));
+        check(spotify.matchPath() == null);
+        check(!spotify.isPage());
+        rejects(() -> NavTarget.app(""));
+        rejects(() -> NavTarget.app("spotify"));
+        rejects(() -> NavTarget.app("com.spotify.music; rm"));
+        Map<String, Object> row = new HashMap<>();
+        row.put("label", "Spotify");
+        row.put("opens", "App");
+        row.put("app", "com.spotify.music");
+        NavItem item = NavItem.fromRow(row, true);
+        eq(NavItem.Type.ACTION, item.type);
+        eq("mdi:application-outline", item.icon);
+        check(!item.matches("/lovelace"));
+        row.put("app", "");
+        rejects(() -> NavItem.fromRow(row, true));
+        // The picker lists what getLauncherApps returns: labelled, de-duplicated, package names only.
+        List<Object> launcher = new ArrayList<>();
+        launcher.add(appRow("com.spotify.music", "Spotify"));
+        launcher.add(appRow("com.spotify.music", "Spotify again"));
+        launcher.add(appRow("com.example.camera", ""));
+        launcher.add(appRow("not a package", "Broken"));
+        launcher.add("junk");
+        List<Map<String, Object>> choices = AppChoices.choices(launcher);
+        eq(2, choices.size());
+        eq("com.spotify.music", choices.get(0).get("id"));
+        eq("Spotify", choices.get(0).get("label"));
+        eq("com.spotify.music", choices.get(0).get("detail"));
+        eq("com.example.camera", choices.get(1).get("label"));
+        check(!choices.get(1).containsKey("detail"));
+        check(AppChoices.choices(null).isEmpty());
+        check(AppChoices.isAppKey("items.app") && AppChoices.isAppKey("items.entries.app") && !AppChoices.isAppKey("items.page"));
+    }
+
+    private static Map<String, Object> appRow(String pkg, String label) {
+        Map<String, Object> app = new LinkedHashMap<>();
+        app.put("package", pkg);
+        app.put("label", label);
+        return app;
+    }
+
+    private static void panels() {
+        // Built-in pages are not in any dashboard list, so each choice names its path.
+        for (Map.Entry<String, String> panel : NavTarget.PANELS.entrySet()) {
+            NavTarget target = NavTarget.panel(panel.getKey(), "");
+            eq(NavTarget.Kind.PANEL, target.kind);
+            eq(panel.getValue(), target.value);
+            eq("haNavigate", target.command().name);
+            eq(panel.getValue(), target.command().arguments.get("path"));
+        }
+        eq("energy", NavTarget.panel("Energy", "ignored").value);
+        eq("profile", NavTarget.panel("Other", " /profile/ ").value);
+        rejects(() -> NavTarget.panel("Other", ""));
+        rejects(() -> NavTarget.panel("Other", "https://x.example/a"));
+        rejects(() -> NavTarget.panel("Dance", ""));
+        rejects(() -> NavTarget.panel("", ""));
+        // A built-in page stays lit on its tabs. A dashboard view matches only itself.
+        NavTarget energy = NavTarget.panel("Energy", "");
+        check(energy.shows("/energy"));
+        check(energy.shows("/energy/electricity"));
+        check(energy.shows("/energy/gas?x=1"));
+        check(!energy.shows("/energy-two"));
+        check(!energy.shows("/map"));
+        check(!energy.shows(null));
+        check(!NavTarget.page("lovelace/kitchen").shows("/lovelace/kitchen/sub"));
+        check(NavTarget.page("lovelace/0").shows("/lovelace"));
+        Map<String, Object> row = new HashMap<>();
+        row.put("label", "Usage");
+        row.put("opens", "Built-in page");
+        row.put("panel", "Energy");
+        NavItem item = NavItem.fromRow(row, true);
+        eq(NavItem.Type.PAGE, item.type);
+        check(item.matches("/energy/water"));
+        eq("mdi:lightning-bolt-outline", item.icon);
+        row.put("panel", "Other");
+        row.put("panelPath", "profile");
+        check(NavItem.fromRow(row, true).matches("/profile"));
+        row.put("panelPath", "");
+        rejects(() -> NavItem.fromRow(row, true));
+        // A menu entry can open one too, and lights its menu.
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("label", "Gas");
+        entry.put("opens", "Built-in page");
+        entry.put("panel", "Energy");
+        check(NavItem.menu("More", "", "", Arrays.<Map<?, ?>>asList(entry)).matches("/energy/gas"));
     }
 
     private static void commands() {
@@ -68,6 +209,23 @@ public final class NavbarTest {
         eq("cameras/0?camera=garage", query.arguments.get("path"));
         eq("showCameraView", NavTarget.camera(CAM).command().name);
         eq(CAM, NavTarget.camera(CAM).command().arguments.get("viewId"));
+        // The calendar opens on the kiosk's default view, or on the one picked.
+        eq("openCalendar", NavTarget.calendar("Default").command().name);
+        check(NavTarget.calendar("Default").command().arguments.isEmpty());
+        check(NavTarget.calendar("").command().arguments.isEmpty());
+        eq("week", NavTarget.calendar("Week").command().arguments.get("view"));
+        eq("schedule", NavTarget.calendar(" Schedule ").command().arguments.get("view"));
+        rejects(() -> NavTarget.calendar("Year"));
+        check(NavTarget.calendar("Day").matchPath() == null);
+        for (String view : NavTarget.CALENDAR_VIEWS) NavTarget.calendar(view);
+        Map<String, Object> calendarRow = new HashMap<>();
+        calendarRow.put("label", "Calendar");
+        calendarRow.put("opens", "Calendar");
+        calendarRow.put("calendarView", "Month");
+        NavItem calendarItem = NavItem.fromRow(calendarRow, true);
+        eq(NavTarget.Kind.CALENDAR, calendarItem.target.kind);
+        eq("month", calendarItem.target.value);
+        eq("mdi:calendar-month", NavItem.kindIcon(NavTarget.Kind.CALENDAR));
         eq("showMusicAssistant", NavTarget.action("Music").command().name);
         eq("showNowPlaying", NavTarget.action("Now playing").command().name);
         eq("startScreensaver", NavTarget.action("Screensaver").command().name);
@@ -142,21 +300,9 @@ public final class NavbarTest {
         plain.put("tapPage", "a/other");
         check(!NavItem.fromRow(plain, true).longPressMenu());
         eq("a/home", NavItem.fromRow(plain, true).target.value);
-        // Empty icons are filled in with the icon the bar draws, so the settings page shows them.
-        List<Object> withEmpty = list(page("Garage", "a/g", ""), page("Kept", "a/k", "mdi:star"),
-            menuRow("Cams", "", camera("Zork", ""), camera("Driveway", "")), page("", "a/x", ""), page("Bad", "", ""));
-        List<Map<String, Object>> filledRows = NavItem.withIcons(withEmpty);
-        eq("mdi:garage", filledRows.get(0).get("icon"));
-        eq("mdi:star", filledRows.get(1).get("icon"));
-        eq(NavItem.DEFAULT_ICON, filledRows.get(2).get("icon"));
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> filledEntries = (List<Map<String, Object>>) filledRows.get(2).get("entries");
-        eq(NavItem.CAMERA_ICON, filledEntries.get(0).get("icon"));
-        eq("mdi:road-variant", filledEntries.get(1).get("icon"));
-        eq("", filledRows.get(3).get("icon"));
-        eq("", filledRows.get(4).get("icon"));
-        check(NavItem.withIcons(filledRows) == null);
-        check(NavItem.withIcons(null) == null);
+        // An empty icon is drawn as the one the bar picks, and nothing is saved back: KS keeps a list that holds an action field as the user saved it.
+        eq("mdi:garage", NavItem.fromRow(page("Garage", "a/g", ""), true).icon);
+        eq("mdi:star", NavItem.fromRow(page("Kept", "a/k", "mdi:star"), true).icon);
         // KS fills in every field, including hidden ones. Only the fields Opens selects count.
         Map<String, Object> filled = page("Lights", "panel/lights", "");
         filled.put("camera", "");
@@ -252,6 +398,13 @@ public final class NavbarTest {
         check(cfg.visibleAt("/panel/settings-2"));
         check(cfg.visibleAt("/panel/settings/sub"));
         check(!cfg.visibleAt("/lovelace/kiosk"));
+        // A bare page, such as a built-in one, also hides the bar on its sub-pages.
+        String bare = Paths.hideEntry("energy");
+        check(NavConfig.hides(bare, "/energy"));
+        check(NavConfig.hides(bare, "/energy/setup"));
+        check(!NavConfig.hides(bare, "/energy-2"));
+        check(!NavConfig.hides(Paths.hideEntry("/panel/settings"), "/panel/settings/sub"));
+        check(!NavConfig.hides(Paths.hideEntry("wall/0"), "/wall/1"));
 
         // While a camera view is open, the item that opens it lights up, not the page under it.
         check(cfg.overCameras);
@@ -277,8 +430,8 @@ public final class NavbarTest {
         check(!floating.makeRoom);
         check(!floating.sameLook(cfg));
 
-        // At most 8 items. Rows past that are left out.
-        settings.put("items", list(rows(12)));
+        // At most 16 items. Rows past that are left out.
+        settings.put("items", list(rows(20)));
         eq(NavConfig.MAX_ITEMS, NavConfig.parse(settings).items.size());
 
         NavItem longMenu = NavItem.fromRow(menuRow("M", "", rows(7)), true);
@@ -361,43 +514,30 @@ public final class NavbarTest {
     }
 
     private static void gestures() {
-        eq(8, NavTarget.TRIGGERS.length);
-        for (int i = 0; i < NavTarget.TRIGGERS.length; i++) {
-            NavTarget target = NavTarget.trigger(NavTarget.TRIGGERS[i]);
-            eq(NavTarget.Kind.TRIGGER, target.kind);
-            eq("button" + (i + 1), target.value);
-            eq(NavTarget.TRIGGERS[i], target.triggerTitle());
-            check(target.matchPath() == null);
-        }
-        rejects(() -> NavTarget.trigger(""));
-        rejects(() -> NavTarget.trigger("Navbar button 9"));
-        try {
-            NavTarget.trigger("Navbar button 1").command();
-            throw new AssertionError("A trigger has no command");
-        } catch (IllegalStateException expected) { passed++; }
-
+        // A Gesture action item saved by Vista Navbar 1.0 or 1.1 still loads, with a target that explains itself.
         Map<String, Object> voice = row("Voice", NavItem.GESTURE);
         voice.put("trigger", "Navbar button 3");
         NavItem item = NavItem.fromRow(voice, true);
         eq(NavItem.Type.ACTION, item.type);
-        eq("button3", item.target.value);
+        eq(NavTarget.Kind.RETIRED, item.target.kind);
         eq("mdi:microphone-message", item.icon);
         eq("microphone", item.vistaIcon);
-        Map<String, Object> blank = row("Thing", NavItem.GESTURE);
-        eq("mdi:gesture-tap-button", NavItem.fromRow(withTrigger(blank, "Navbar button 1"), true).icon);
-        rejects(() -> NavItem.fromRow(row("Missing", NavItem.GESTURE), true));
-        // Menu entries can fire triggers too.
-        NavItem menu = NavItem.fromRow(menuRow("More", "", withTrigger(row("Plugin", NavItem.GESTURE), "Navbar button 8")), true);
-        eq("button8", menu.children.get(0).target.value);
-        // A trigger never highlights an item.
+        eq("mdi:gesture-tap-button", NavItem.fromRow(row("Thing", NavItem.GESTURE), true).icon);
+        check(item.target.matchPath() == null);
+        try {
+            item.target.command();
+            throw new AssertionError("A retired item has no command");
+        } catch (IllegalStateException expected) { passed++; }
+        // In a menu it keeps the rest of the menu.
+        NavItem menu = NavItem.fromRow(menuRow("More", "", row("Plugin", NavItem.GESTURE), page("Home", "lovelace/0", "mdi:home")), true);
+        eq(2, menu.children.size());
+        eq(NavTarget.Kind.RETIRED, menu.children.get(0).target.kind);
         Map<String, Object> settings = new HashMap<>();
-        settings.put("items", list(withTrigger(row("Voice", NavItem.GESTURE), "Navbar button 1")));
-        eq(-1, NavConfig.parse(settings).activeIndex("/lovelace/0"));
-    }
-
-    private static Map<String, Object> withTrigger(Map<String, Object> row, String trigger) {
-        row.put("trigger", trigger);
-        return row;
+        settings.put("items", list(row("Voice", NavItem.GESTURE)));
+        NavConfig config = NavConfig.parse(settings);
+        eq(1, config.items.size());
+        check(config.problems.isEmpty());
+        eq(-1, config.activeIndex("/lovelace/0"));
     }
 
     private static void vista() {

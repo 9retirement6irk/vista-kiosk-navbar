@@ -12,10 +12,15 @@ final class NavItem {
 
     /** The Opens choices in settings, in the order they are offered. */
     static final String PAGE = "Page";
+    static final String PANEL = "Built-in page";
     static final String CAMERA = "Camera view";
+    static final String CALENDAR = "Calendar";
     static final String MENU = "Menu";
     static final String ACTION = "Kiosk action";
     static final String WEB = "Web address";
+    static final String APP = "App";
+    static final String ANY = "Any action";
+    /** Vista Navbar 1.0 and 1.1 fired a gesture trigger. Kept so saved items still load; see {@link NavTarget#retired}. */
     static final String GESTURE = "Gesture action";
 
     static final String DEFAULT_ICON = "mdi:circle-outline";
@@ -55,19 +60,28 @@ final class NavItem {
      * every field, including hidden ones, so only the fields {@code opens} selects are read.
      */
     static NavItem fromRow(Map<?, ?> row, boolean allowMenu) {
-        NavItem item = parseRow(row, allowMenu);
+        return fromRow(row, allowMenu, null);
+    }
+
+    /**
+     * Like {@link #fromRow(Map, boolean)}, with {@code path} naming the row in the saved settings, such as
+     * {@code items.2} or {@code items.2.entries.1}. An Any action row needs it to name its action field.
+     */
+    static NavItem fromRow(Map<?, ?> row, boolean allowMenu, String path) {
+        NavItem item = parseRow(row, allowMenu, path);
         String vista = VistaIcons.resolve(text(row, "vistaIcon"), item.icon, item.label);
         return new NavItem(item.type, item.label, item.icon, item.iconSelected, item.target, item.children, vista);
     }
 
-    private static NavItem parseRow(Map<?, ?> row, boolean allowMenu) {
+    private static NavItem parseRow(Map<?, ?> row, boolean allowMenu, String path) {
         String label = text(row, "label");
         if (label.isEmpty()) throw new IllegalArgumentException("needs a label");
         String opens = text(row, "opens");
         if (opens.isEmpty()) opens = PAGE;
         if (MENU.equals(opens)) {
             if (!allowMenu) throw new IllegalArgumentException("a menu entry cannot open another menu");
-            NavItem menu = menu(label, text(row, "icon"), text(row, "iconSelected"), rows(row.get("entries")));
+            NavItem menu = menu(label, text(row, "icon"), text(row, "iconSelected"), rows(row.get("entries")),
+                path == null ? null : path + ".entries");
             String tapPage = text(row, "tapPage");
             if (tapPage.isEmpty()) return menu;
             return new NavItem(Type.MENU, menu.label, menu.icon, menu.iconSelected, NavTarget.page(tapPage), menu.children);
@@ -75,10 +89,14 @@ final class NavItem {
         NavTarget target;
         switch (opens) {
             case PAGE: target = NavTarget.page(text(row, "page")); break;
+            case PANEL: target = NavTarget.panel(text(row, "panel"), text(row, "panelPath")); break;
             case CAMERA: target = NavTarget.camera(text(row, "camera")); break;
+            case CALENDAR: target = NavTarget.calendar(text(row, "calendarView")); break;
             case ACTION: target = NavTarget.action(text(row, "action")); break;
             case WEB: target = NavTarget.url(text(row, "url")); break;
-            case GESTURE: target = NavTarget.trigger(text(row, "trigger")); break;
+            case APP: target = NavTarget.app(text(row, "app")); break;
+            case ANY: target = NavTarget.any(path == null ? null : path + ".anyAction", row.get("anyAction")); break;
+            case GESTURE: target = NavTarget.retired(); break;
             default: throw new IllegalArgumentException("unknown Opens choice '" + opens + "'");
         }
         return leaf(label, text(row, "icon"), text(row, "iconSelected"), target);
@@ -86,20 +104,26 @@ final class NavItem {
 
     /** A page or action with optional icons. A blank icon is picked from the label or the target. */
     static NavItem leaf(String label, String icon, String selectedIcon, NavTarget target) {
-        String fallback = fallbackIcon(label, kindIcon(target.kind));
+        String fallback = fallbackIcon(label, targetIcon(target));
         String[] icons = icons(icon, selectedIcon, fallback);
-        Type type = target.kind == NavTarget.Kind.PAGE ? Type.PAGE : Type.ACTION;
+        Type type = target.isPage() ? Type.PAGE : Type.ACTION;
         return new NavItem(type, label, icons[0], icons[1], target, Collections.<NavItem>emptyList());
     }
 
     /** A menu of entry rows. */
     static NavItem menu(String label, String icon, String selectedIcon, List<Map<?, ?>> entries) {
+        return menu(label, icon, selectedIcon, entries, null);
+    }
+
+    /** A menu of entry rows, {@code entriesPath} naming the entries list in the saved settings, such as {@code items.2.entries}. */
+    static NavItem menu(String label, String icon, String selectedIcon, List<Map<?, ?>> entries, String entriesPath) {
         String[] icons = icons(icon, selectedIcon, fallbackIcon(label, DEFAULT_ICON));
         List<NavItem> children = new ArrayList<>();
-        for (Map<?, ?> entry : entries) {
+        for (int index = 0; index < entries.size(); index++) {
+            Map<?, ?> entry = entries.get(index);
             String childLabel = text(entry, "label");
             try {
-                children.add(fromRow(entry, false));
+                children.add(fromRow(entry, false, entriesPath == null ? null : entriesPath + "." + index));
             } catch (IllegalArgumentException error) {
                 throw new IllegalArgumentException((childLabel.isEmpty() ? "an entry" : childLabel) + " " + error.getMessage());
             }
@@ -109,10 +133,27 @@ final class NavItem {
         return new NavItem(Type.MENU, label, icons[0], icons[1], null, children);
     }
 
+    /** The icon a target suggests when the label suggests none. */
+    static String targetIcon(NavTarget target) {
+        if (target.kind == NavTarget.Kind.PANEL) {
+            switch (target.value) {
+                case "energy": return "mdi:lightning-bolt-outline";
+                case "map": return "mdi:map-outline";
+                case "logbook": return "mdi:format-list-bulleted-type";
+                case "history": return "mdi:chart-box-outline";
+                case "todo": return "mdi:clipboard-list-outline";
+                case "media-browser": return "mdi:play-box-multiple-outline";
+                default: return "mdi:view-dashboard-outline";
+            }
+        }
+        return kindIcon(target.kind);
+    }
+
     /** The icon a target's kind suggests when the label suggests none. */
     static String kindIcon(NavTarget.Kind kind) {
         switch (kind) {
             case CAMERA: return CAMERA_ICON;
+            case CALENDAR: return "mdi:calendar-month";
             case MUSIC: return "mdi:music";
             case NOW_PLAYING: return "mdi:play-circle-outline";
             case SCREENSAVER: return "mdi:monitor-shimmer";
@@ -120,7 +161,9 @@ final class NavItem {
             case RELOAD: return "mdi:refresh";
             case HOME: return "mdi:home-outline";
             case URL: return "mdi:web";
-            case TRIGGER: return "mdi:gesture-tap-button";
+            case APP: return "mdi:application-outline";
+            case ANY: return "mdi:gesture-tap-button";
+            case RETIRED: return "mdi:gesture-tap-button";
             default: return DEFAULT_ICON;
         }
     }
@@ -147,8 +190,7 @@ final class NavItem {
             for (NavItem child : children) if (child.matches(path)) return true;
             if (target == null) return false;
         }
-        String own = target.matchPath();
-        return own != null && own.equals(Paths.normalize(path));
+        return target.shows(path);
     }
 
     /** The normal and selected icon. A blank icon uses the fallback, a blank selected icon the normal one. */
@@ -156,48 +198,6 @@ final class NavItem {
         String normal = icon == null || icon.trim().isEmpty() ? fallback : icon.trim();
         String selected = selectedIcon == null || selectedIcon.trim().isEmpty() ? normal : selectedIcon.trim();
         return new String[] {normal, selected};
-    }
-
-    /**
-     * The Items rows with every empty Icon filled in with the icon the bar draws for it, picked from
-     * the label or what the item opens. Saved back, so the settings page shows the icon in use
-     * instead of an empty picker. Null when nothing was empty.
-     */
-    static List<Map<String, Object>> withIcons(Object items) {
-        boolean changed = false;
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Map<?, ?> row : rows(items)) {
-            Map<String, Object> copy = copy(row);
-            if (row.get("entries") instanceof List) {
-                List<Map<String, Object>> entries = new ArrayList<>();
-                for (Map<?, ?> entry : rows(row.get("entries"))) {
-                    Map<String, Object> entryCopy = copy(entry);
-                    changed |= fillIcon(entryCopy, false);
-                    entries.add(entryCopy);
-                }
-                copy.put("entries", entries);
-            }
-            changed |= fillIcon(copy, true);
-            result.add(copy);
-        }
-        return changed ? result : null;
-    }
-
-    private static boolean fillIcon(Map<String, Object> row, boolean allowMenu) {
-        if (!text(row, "icon").isEmpty() || text(row, "label").isEmpty()) return false;
-        try {
-            row.put("icon", fromRow(row, allowMenu).icon);
-            return true;
-        } catch (IllegalArgumentException unfinished) {
-            // An item that cannot be used yet keeps its empty icon until it is fixed.
-            return false;
-        }
-    }
-
-    private static Map<String, Object> copy(Map<?, ?> row) {
-        Map<String, Object> copy = new java.util.LinkedHashMap<>();
-        for (Map.Entry<?, ?> entry : row.entrySet()) copy.put(String.valueOf(entry.getKey()), entry.getValue());
-        return copy;
     }
 
     /** The rows of a list setting. Anything that is not a list of maps reads as empty. */

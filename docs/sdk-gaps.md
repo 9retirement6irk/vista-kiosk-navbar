@@ -1,8 +1,8 @@
 # Plugin SDK gaps
 
-Building this navbar ran into places where the Kiosk Satellite plugin SDK made a feature hard, slow or impossible. This page collects them for the KS maintainer. Each entry explains what the navbar needed, what happens today, how the plugin works around it and what would help.
+Building this navigation bar ran into places where the Kiosk Satellite plugin SDK made a feature hard, slow or impossible. This page collects them for the KS maintainer. Each entry explains what the navigation bar needed, what happens today, how the plugin works around it and what would help.
 
-Updated for **Kiosk Satellite 2026.10.31**. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version. 2026.10.27 closed gap 11; the plugin code changed in 2026.10.24 to 2026.10.29 touches none of the others. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
+Updated for **Kiosk Satellite 2026.10.43**. 2026.10.39 closed gap 33, 2026.10.40 closed gap 34 and 2026.10.43 closed gap 32. Most of the original list was closed by 2026.10.23, and the open gaps were last measured on that version. 2026.10.27 closed gap 11; the plugin code changed in 2026.10.24 to 2026.10.29 touches none of the others. Gap numbers never change, so a closed gap keeps its number and the numbering has holes.
 
 ## How to read this page
 
@@ -27,7 +27,7 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 | 27 | Plugin overlays are garbled with Impeller on Mesa and minigbm | Product | Medium | On an x86 kiosk with an Intel GPU the bar is unreadable stripes until **Legacy renderer** is turned on |
 | 25 | An overlay cannot change layer without being rebuilt | Product | Medium | A pause when a camera view opens or closes |
 | 22 | A list row's subtitle shows raw picker values | Product | Medium | Items and hidden pages read `navbar-demo/lights` instead of *Navbar demo / Lights* |
-| 23 | An icon field cannot show a fallback | Product | Medium | An empty icon looks unset, so the plugin fills it in on the user's behalf |
+| 23 | An icon field cannot show a fallback | Product | Medium | An empty icon looks unset, and the plugin can no longer fill it in |
 | 21 | A list row cannot summarize a nested list | Product | Low | A menu item's row does not say what the menu holds |
 | 24 | A list setting's description shows under the add row | Product | Low | **Hide the bar on** explains itself after its button |
 | 19 | A local ZIP cannot replace a repository install | Product | Medium (developers) | Testing a build means uninstalling, which loses settings |
@@ -40,7 +40,7 @@ Priority reflects how much the gap costs this plugin's users today, not how hard
 
 ### Overlay responsiveness
 
-The navbar is a set of native overlays, so how fast KS creates, resizes and layers them sets how quick the bar feels. These three gaps cost the most, and every plugin with an interactive overlay will run into them.
+The navigation bar is a set of native overlays, so how fast KS creates, resizes and layers them sets how quick the bar feels. These three gaps cost the most, and every plugin with an interactive overlay will run into them.
 
 #### 15. Creating an overlay is very slow on low-power panels
 
@@ -95,7 +95,7 @@ The 2026.10.23 release notes do not mention it. The new `enter` transitions anim
 **Suggestion:** Detect the bad combination and use Skia for platform views, or turn on **Legacy renderer** automatically when a plugin overlay is shown on Mesa with `minigbm`, the way it already does after startup crashes.
 ### The settings page
 
-The 2026.10.23 pickers and lists made the navbar configurable without typing paths or JSON. What remains is how those lists present what users chose. These are all small, and all visible on the navbar's main settings page.
+The 2026.10.23 pickers and lists made the navigation bar configurable without typing paths or JSON. What remains is how those lists present what users chose. These are all small, and all visible on the navigation bar's main settings page.
 
 #### 22. A list row's subtitle shows raw picker values
 
@@ -117,7 +117,7 @@ The 2026.10.23 pickers and lists made the navbar configurable without typing pat
 
 **Today:** An empty `icon` field reads *Choose an icon*, even though the bar draws an icon guessed from the label. Users read that as "no icon".
 
-**Workaround:** The plugin saves the guessed icon back with `saveSettings`. That turns a choice the plugin made into one the user appears to have made: renaming *Garage* to *Driveway* later keeps the garage icon.
+**Workaround:** None since 0.20.0. The plugin used to save the guessed icon back with `saveSettings`, but KS keeps a list that holds an `action` field exactly as the user saved it, so that no longer persists. An empty icon stays empty on the settings page while the bar draws the guess.
 
 **Suggestion:** Let a plugin supply a placeholder for an empty `icon` field, such as a `placeholderIcon` it can update at runtime, shown greyed in the picker until the user chooses one.
 
@@ -151,7 +151,7 @@ These matter once there is more than one display, or more than one build.
 
 **Need:** Update a plugin on the leader and see every follower get it, or learn why one did not.
 
-**Today:** A follower whose Kiosk Satellite version differs from the leader's takes no plugin updates at all until it is on the same version. The fleet page says only *Needs 2026.10.31* on the follower's row, and the follower's Plugin Manager says nothing. Measured on 2026.10.31 with 11 of 12 followers on 2026.10.29: after a navbar release only the follower on the leader's version moved up, and the rest stayed one or two releases behind with the plugin still marked as synced.
+**Today:** A follower whose Kiosk Satellite version differs from the leader's takes no plugin updates at all until it is on the same version. The fleet page says only *Needs 2026.10.31* on the follower's row, and the follower's Plugin Manager says nothing. Measured on 2026.10.31 with 11 of 12 followers on 2026.10.29: after a navigation bar release only the follower on the leader's version moved up, and the rest stayed one or two releases behind with the plugin still marked as synced.
 
 **Workaround:** Update every follower's Kiosk Satellite first, then the plugins.
 
@@ -163,7 +163,7 @@ These matter once there is more than one display, or more than one build.
 
 **Need:** Move kiosks that already run a plugin from GitHub under fleet management.
 
-**Today:** A follower that installed the plugin from its GitHub repository refuses the leader's package: the leader's row shows *Could not install Navbar: This plugin ID belongs to another repository. Uninstall it before changing sources.* The packages are the same release from the same repository, checked by SHA-256. Seen on a Fire Max 11 on 2026.10.31.
+**Today:** A follower that installed the plugin from its GitHub repository refuses the leader's package: the leader's row shows *Could not install Navigation bar: This plugin ID belongs to another repository. Uninstall it before changing sources.* The packages are the same release from the same repository, checked by SHA-256. Seen on a Fire Max 11 on 2026.10.31.
 
 **Workaround:** Remove the plugin on that follower, which deletes its settings, and sync again.
 
@@ -197,6 +197,7 @@ These only affect plugin authors, but each cost hours the first time.
 
 **Suggestion:** Reconfigure stdout to UTF-8 in the script (`sys.stdout.reconfigure(encoding='utf-8')`), as the other template tools already do for Windows.
 
+**Suggestion:** Have `getDashboards` return the sidebar's built-in panels too, marked so a plugin can tell them apart, and list them in the `dashboard` picker. Both are available to the frontend as `hass.panels`.
 #### 20. A rejected manifest does not say which rule failed
 
 *Product, Tooling.*
@@ -222,7 +223,7 @@ The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already c
 
 ## Resolved
 
-| # | Gap | Resolved by | How the navbar uses it |
+| # | Gap | Resolved by | How the navigation bar uses it |
 | --- | --- | --- | --- |
 | 1 | Overlays could not reserve space in the dashboard | `setContentInsets` | **Keep the dashboard clear** reserves the bar's depth, or the tab's while the bar is hidden. No card-mod padding |
 | 2 | No structured or long settings | `list` settings with nested lists | Items are a list, and a menu's entries a nested list, edited in a form instead of a 512-character string |
@@ -242,3 +243,6 @@ The KS plugin docs (`creating-plugins.md`, `overlays.md`, `ks-api.md`) already c
 | 18 | Settings could not depend on each other | `visibleWhen` | **Hide after** shows only while **Swipe to hide** is on, and each item shows only the fields its **Opens** choice needs |
 | 26 | A wrapped overlay was cut off when the UI scale was above 100% | 2026.10.30 sizes the window with the unscaled pixel ratio | The workaround in the resize gate stays for older versions and never triggers on 2026.10.30 and newer |
 | 28 | A fleet-synced plugin could not be sized per kiosk | 2026.10.30: plugins follow each kiosk's **Scale UI** (upstream issue 1037) | **Size** is a fleet-wide multiplier on top of each kiosk's Scale UI |
+| 33 | Plugins could not launch an Android app | `launchApp` and `getLauncherApps` (2026.10.39, upstream issue 1122) | **App** items and entries pick from the App Launcher's apps with plugin choices and open them |
+| 34 | A manifest could not declare a minimum Kiosk Satellite version | `minAppVersion` (2026.10.40, upstream issue 1140) | The manifest says 2026.10.39, so an older kiosk refuses the update and keeps the version it has |
+| 32 | The dashboard picker left out Home Assistant's built-in pages | Built-in pages in every dashboard picker and getDashboards with uiltIn: true (2026.10.43, upstream issue 1180) | **Hide the bar on** and **Page** list Energy, Map and the rest. A bare nergy hides the bar on its sub-pages. **Built-in page** stays for older kiosks |

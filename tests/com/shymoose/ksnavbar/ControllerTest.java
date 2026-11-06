@@ -24,6 +24,8 @@ public final class ControllerTest {
         statusRecovery();
         stoppedSession();
         layoutBounds();
+        appChoices();
+        chosenActions();
         gestureTrigger();
         System.out.println("ControllerTest: " + checks + " checks passed");
     }
@@ -174,6 +176,80 @@ public final class ControllerTest {
         check(replacement.status.isEmpty(), "new session starts clean");
     }
 
+    private static void appChoices() {
+        Fixture f = new Fixture(0);
+        List<Object> apps = new ArrayList<>();
+        Map<String, Object> app = new HashMap<>();
+        app.put("package", "com.spotify.music");
+        app.put("label", "Spotify");
+        apps.add(app);
+        // The list is made at start, with no run to report to.
+        f.host.reply("getLauncherApps", true, apps, null);
+        check(f.host.listed.get("items.app") == 1 && f.host.listed.get("items.entries.app") == 1, "apps listed for both pickers at start");
+        check(f.host.results.isEmpty(), "a start listing has no run to end");
+        // A Refresh press names its run and gets the outcome.
+        f.plugin.onEvent("settings.choices", refresh("items.app", "r1"));
+        f.host.reply("getLauncherApps", true, apps, null);
+        check("r1:success:Found 1 app.".equals(f.host.results.get(0)), "refresh reports what it found");
+        f.plugin.onEvent("settings.choices", refresh("items.entries.app", "r2"));
+        f.host.reply("getLauncherApps", true, new ArrayList<Object>(), null);
+        check(f.host.results.get(1).startsWith("r2:success:No apps are listed"), "an empty launcher says where to add apps");
+        f.plugin.onEvent("settings.choices", refresh("items.app", "r3"));
+        f.host.reply("getLauncherApps", false, null, "launcher off");
+        check("r3:error:Could not list apps: launcher off".equals(f.host.results.get(2)), "a failed listing ends the run with the reason");
+        // Another setting's refresh is not ours.
+        f.plugin.onEvent("settings.choices", refresh("other", "r4"));
+        check(f.host.replies.get("getLauncherApps").isEmpty(), "other settings are left alone");
+        // A tap launches the app, and a refusal is shown.
+        f.plugin.taps.onTarget(NavTarget.app("com.spotify.music"));
+        f.host.reply("launchApp", true, null, null);
+        f.clock.flush();
+        check(f.host.status.isEmpty(), "launching an app leaves no error");
+        f.plugin.taps.onTarget(NavTarget.app("com.spotify.music"));
+        f.host.reply("launchApp", false, null, "not in the launcher");
+        f.clock.flush();
+        check(f.host.status.contains("not in the launcher") && f.host.error, "a refused launch is shown");
+    }
+
+    private static void chosenActions() {
+        Fixture f = new Fixture(0);
+        // A tap runs the action the user picked, by naming where it sits in the saved settings.
+        NavTarget doorbell = NavTarget.any("items.2.anyAction", map("type", "plugin_action"));
+        f.plugin.taps.onTarget(doorbell);
+        check(f.host.ran.equals(Collections.singletonList("items.2.anyAction")), "the row's action field is named");
+        check(f.host.replies.get("haNavigate") == null && f.host.replies.get("launchApp") == null, "no command of the plugin's own runs");
+        f.host.finishAction(true, null);
+        f.clock.flush();
+        check(f.host.status.isEmpty(), "a finished action leaves no error");
+        // A failure says why, and a later success clears it.
+        f.plugin.taps.onTarget(doorbell);
+        f.host.finishAction(false, "Lockdown Mode is on");
+        f.clock.flush();
+        check(f.host.status.contains("Could not run the action") && f.host.status.contains("Lockdown Mode is on") && f.host.error, "a refused action is shown");
+        f.plugin.taps.onTarget(doorbell);
+        f.host.finishAction(true, null);
+        f.clock.flush();
+        check(f.host.status.isEmpty() && !f.host.error, "a retry that works clears the error");
+        // A tap that has been replaced by a newer one does not report.
+        f.plugin.taps.onTarget(doorbell);
+        f.plugin.taps.onTarget(doorbell);
+        f.host.finishAction(false, "stale");
+        f.host.finishAction(true, null);
+        f.clock.flush();
+        check(f.host.status.isEmpty(), "a stale action result is ignored");
+        // A Kiosk Satellite without action settings says so, and the bar goes on working.
+        f.host.actionsUnavailable = true;
+        f.plugin.taps.onTarget(doorbell);
+        f.clock.flush();
+        check(f.host.status.contains("Action settings are unavailable") && f.host.error, "an old host is explained");
+    }
+
+    private static Map<String, Object> refresh(String key, String run) {
+        Map<String, Object> payload = map("key", key);
+        payload.put("run", run);
+        return payload;
+    }
+
     private static void layoutBounds() {
         for (int available : new int[] {240, 320, 480, 800}) {
             for (float scale : new float[] {.8f, 1f, 1.4f}) {
@@ -202,20 +278,10 @@ public final class ControllerTest {
 
     private static void gestureTrigger() throws Exception {
         Fixture f = new Fixture(0);
-        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
+        f.plugin.taps.onTarget(NavTarget.retired());
         f.clock.flush();
-        check(f.host.fired.equals(Collections.singletonList("button2")), "a gesture item fires its trigger");
-        check(!f.host.replies.containsKey("voiceWake"), "a gesture item sends no KS command");
-        check(!f.host.error, "a fired trigger reports no problem");
-
-        f.host.refuseTriggers = true;
-        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
-        f.clock.flush();
-        check(f.host.error && f.host.status.contains("Navbar button 2"), "an older KS is reported on the plugin page");
-        f.host.refuseTriggers = false;
-        f.plugin.taps.onTarget(NavTarget.trigger("Navbar button 2"));
-        f.clock.flush();
-        check(!f.host.error, "a later fire clears the problem");
+        check(f.host.error && f.host.status.contains("Any action"), "a retired Gesture action item says how to switch it");
+        check(f.host.replies.isEmpty() || !f.host.replies.containsKey("fireTrigger"), "a retired item sends nothing");
     }
 
     private static Map<String, Object> map(String key, Object value) {
@@ -295,12 +361,6 @@ public final class ControllerTest {
         String status = "";
         boolean error;
         final List<OverlayFactory> menus = new ArrayList<>();
-        final List<String> fired = new ArrayList<>();
-        boolean refuseTriggers;
-        public void fireTrigger(String id) {
-            if (refuseTriggers) throw new UnsupportedOperationException("Gesture triggers are unavailable");
-            fired.add(id);
-        }
         public void subscribe(String event) {}
         public void executeCommand(String name, Map<String, Object> args, CommandCallback callback) {
             replies.computeIfAbsent(name, key -> new ArrayList<>()).add(callback);
@@ -317,6 +377,19 @@ public final class ControllerTest {
         }
         public void hideOverlay(String key) { if ("menu".equals(key)) menu = false; }
         public void setContentInsets(int l, int t, int r, int b) {}
+        final List<String> ran = new ArrayList<>();
+        private final List<CommandCallback> actionCallbacks = new ArrayList<>();
+        boolean actionsUnavailable;
+        public void runAction(String setting, CommandCallback callback) {
+            if (actionsUnavailable) throw new UnsupportedOperationException("Action settings are unavailable");
+            ran.add(setting);
+            actionCallbacks.add(callback);
+        }
+        void finishAction(boolean ok, String error) { actionCallbacks.remove(0).onResult(ok, null, error); }
+        final Map<String, Integer> listed = new HashMap<>();
+        final List<String> results = new ArrayList<>();
+        public void setSettingChoices(String key, List<Map<String, Object>> choices) { listed.put(key, choices.size()); }
+        public boolean setupResult(String run, String state, String message) { results.add(run + ":" + state + ":" + message); return true; }
         public void status(String message, boolean error) { this.status = message; this.error = error; }
         public void showWindow(String title, String message, String button) {}
         public void hideWindow() {}

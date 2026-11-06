@@ -7,26 +7,32 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Where a navbar item goes: a dashboard view, a camera view, a kiosk action, a web address or one of
- * the navbar's gesture triggers.
+ * Where a navbar item goes: a dashboard view, a built-in page, a camera view, the calendar, a kiosk
+ * action, any gesture action or a web address.
  */
 final class NavTarget {
-    enum Kind { PAGE, URL, CAMERA, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME, TRIGGER }
+    enum Kind { PAGE, PANEL, URL, APP, ANY, CAMERA, CALENDAR, MUSIC, NOW_PLAYING, SCREENSAVER, APPS, RELOAD, HOME, RETIRED }
 
     /** The Kiosk action choices in settings, in the order they are offered. */
     static final String[] ACTIONS = {"Music", "Now playing", "Screensaver", "App launcher", "Reload", "Start page"};
 
-    /**
-     * The gesture trigger choices in settings, in order. Each fires the manifest trigger
-     * {@code button1} to {@code button8}, which the person maps under Gestures > Plugin trigger to any
-     * gesture action, such as Start a voice command or Run a plugin action. Kiosk Satellite does not
-     * let plugins run those actions directly, so the trigger is the way in. The IDs and titles must
-     * never change: a gesture saved for a trigger stops firing if its ID goes away.
-     */
-    static final String[] TRIGGERS = {
-        "Navbar button 1", "Navbar button 2", "Navbar button 3", "Navbar button 4",
-        "Navbar button 5", "Navbar button 6", "Navbar button 7", "Navbar button 8",
-    };
+    /** The built-in Home Assistant pages offered in settings, with the path each one opens. */
+    static final Map<String, String> PANELS = new LinkedHashMap<>();
+    static {
+        PANELS.put("Energy", "energy");
+        PANELS.put("Map", "map");
+        PANELS.put("Logbook", "logbook");
+        PANELS.put("History", "history");
+        PANELS.put("To-do", "todo");
+        PANELS.put("Media", "media-browser");
+    }
+
+    /** The choice that opens a path typed in settings, for a page no list names. */
+    static final String OTHER_PANEL = "Other";
+
+    /** The calendar view choices in settings. Default leaves the view to the kiosk's Calendar settings. */
+    static final String[] CALENDAR_VIEWS = {"Default", "Day", "Week", "Month", "Schedule"};
+
 
     /** A KS host command and its arguments. */
     static final class Command {
@@ -40,7 +46,7 @@ final class NavTarget {
     }
 
     final Kind kind;
-    /** The path for PAGE, the URL for URL and the view ID for CAMERA. Empty otherwise. */
+    /** The path for PAGE, the URL for URL, the view ID for CAMERA and the calendar view for CALENDAR. Empty otherwise. */
     final String value;
 
     private NavTarget(Kind kind, String value) {
@@ -58,11 +64,73 @@ final class NavTarget {
         return new NavTarget(Kind.PAGE, text);
     }
 
+    /**
+     * A page Home Assistant provides itself, such as Energy, which no dashboard list shows. The choice
+     * is one of {@link #PANELS}, or {@link #OTHER_PANEL} with the path to open.
+     */
+    static NavTarget panel(String choice, String otherPath) {
+        String text = choice == null ? "" : choice.trim();
+        if (OTHER_PANEL.equals(text)) {
+            String path = otherPath == null ? "" : otherPath.trim();
+            while (path.startsWith("/")) path = path.substring(1);
+            path = Paths.stripTrailingSlashes(path);
+            if (path.isEmpty()) throw new IllegalArgumentException("needs a path");
+            if (path.contains("://")) throw new IllegalArgumentException("a built-in page is a path, not a web address");
+            return new NavTarget(Kind.PANEL, path);
+        }
+        String path = PANELS.get(text);
+        if (path == null) throw new IllegalArgumentException("pick a built-in page");
+        return new NavTarget(Kind.PANEL, path);
+    }
+
+    /** An Android app from the kiosk's App Launcher, by package name. Needs Kiosk Satellite 2026.10.39 or newer. */
+    static NavTarget app(String packageName) {
+        String text = packageName == null ? "" : packageName.trim();
+        if (text.isEmpty()) throw new IllegalArgumentException("pick an app");
+        if (!isPackage(text)) throw new IllegalArgumentException("is not an app");
+        return new NavTarget(Kind.APP, text);
+    }
+
+    /** Whether {@code text} reads as an Android package name, such as {@code com.spotify.music}. */
+    static boolean isPackage(String text) {
+        return text.matches("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+");
+    }
+
+    /**
+     * Whatever action the user picked in the row's Action field, with the chooser Gestures uses. {@code path} is
+     * where that field sits in the saved settings, such as {@code items.2.anyAction}: Kiosk Satellite reads the
+     * action itself, so the plugin only names it. {@code chosen} is the field as {@code configure} saw it, an
+     * empty map while nothing is picked. Needs Kiosk Satellite 2026.10.42 or newer.
+     */
+    static NavTarget any(String path, Object chosen) {
+        if (path == null || path.isEmpty()) throw new IllegalArgumentException("has nowhere to run an action from");
+        if (!(chosen instanceof Map) || ((Map<?, ?>) chosen).isEmpty()) throw new IllegalArgumentException("pick an action");
+        return new NavTarget(Kind.ANY, path);
+    }
+
+    /** Whether a tap runs the user's action through {@code runAction}, not a command of the plugin's own. */
+    boolean runsChosenAction() {
+        return kind == Kind.ANY;
+    }
+
     /** A camera view ID, as the camera view picker stores it. */
     static NavTarget camera(String viewId) {
         String id = viewId == null ? "" : viewId.trim();
         if (id.isEmpty()) throw new IllegalArgumentException("pick a camera view");
         return new NavTarget(Kind.CAMERA, id);
+    }
+
+    /**
+     * The kiosk's calendar on one of {@link #CALENDAR_VIEWS}. Default, or nothing, opens the view the
+     * kiosk's Calendar settings name. Needs Kiosk Satellite 2026.10.33 or newer.
+     */
+    static NavTarget calendar(String view) {
+        String text = view == null ? "" : view.trim();
+        if (text.isEmpty() || "Default".equals(text)) return new NavTarget(Kind.CALENDAR, "");
+        for (String known : CALENDAR_VIEWS) {
+            if (known.equals(text)) return new NavTarget(Kind.CALENDAR, text.toLowerCase(Locale.ROOT));
+        }
+        throw new IllegalArgumentException("pick a calendar view");
     }
 
     static NavTarget url(String address) {
@@ -89,39 +157,58 @@ final class NavTarget {
         }
     }
 
-    /** One of {@link #TRIGGERS}. The value is the manifest trigger ID. */
-    static NavTarget trigger(String name) {
-        String text = name == null ? "" : name.trim();
-        for (int i = 0; i < TRIGGERS.length; i++) {
-            if (TRIGGERS[i].equals(text)) return new NavTarget(Kind.TRIGGER, "button" + (i + 1));
-        }
-        throw new IllegalArgumentException("pick a gesture trigger");
+    /**
+     * A Gesture action item from Vista Navbar 1.0 and 1.1, which fired a gesture trigger. Any action
+     * replaced it, and Kiosk Satellite caps a row at 16 fields, so the trigger field is gone. The item
+     * stays on the bar and a tap says how to switch it, rather than the item vanishing.
+     */
+    static NavTarget retired() {
+        return new NavTarget(Kind.RETIRED, "");
     }
 
-    /** The gesture trigger's title, as Gestures > Plugin trigger lists it. Only for TRIGGER. */
-    String triggerTitle() {
-        return TRIGGERS[Integer.parseInt(value.substring("button".length())) - 1];
-    }
+    /** What a tap on a retired Gesture action item reports. */
+    static final String RETIRED_HELP = "Gesture action items no longer work. Edit it, set Opens to Any action and pick the action.";
 
     /** The normalized dashboard path this target highlights, or null when it never matches a page. */
     String matchPath() {
-        return kind == Kind.PAGE ? Paths.normalize(value) : null;
+        return isPage() ? Paths.normalize(value) : null;
     }
 
-    /** The KS command that performs this target. A trigger is fired with fireTrigger instead. */
+    /** A dashboard view or a built-in page: the targets that light up while their page is shown. */
+    boolean isPage() {
+        return kind == Kind.PAGE || kind == Kind.PANEL;
+    }
+
+    /**
+     * Whether {@code path} is this target's page. A built-in page also owns its sub-pages, so Energy
+     * stays lit on its Electricity and Gas tabs. A dashboard view matches only itself.
+     */
+    boolean shows(String path) {
+        String own = matchPath();
+        if (own == null || path == null) return false;
+        String here = Paths.normalize(path);
+        if (own.equals(here)) return true;
+        return kind == Kind.PANEL && here.startsWith(own + "/");
+    }
+
+    /** The KS command that performs this target. */
     Command command() {
         switch (kind) {
             // haNavigate takes a query string and fragment too, and stays in the page.
-            case PAGE: return new Command("haNavigate", args("path", value));
+            case PAGE:
+            case PANEL: return new Command("haNavigate", args("path", value));
             case URL: return new Command("loadUrl", args("url", value));
+            case APP: return new Command("launchApp", args("package", value));
+            case ANY: throw new IllegalStateException("An action the user chose runs through runAction");
             case CAMERA: return new Command("showCameraView", args("viewId", value));
+            case CALENDAR: return new Command("openCalendar", value.isEmpty() ? Collections.<String, Object>emptyMap() : args("view", value));
             case MUSIC: return new Command("showMusicAssistant", Collections.<String, Object>emptyMap());
             case NOW_PLAYING: return new Command("showNowPlaying", Collections.<String, Object>emptyMap());
             case SCREENSAVER: return new Command("startScreensaver", Collections.<String, Object>emptyMap());
             case APPS: return new Command("showAppLauncher", Collections.<String, Object>emptyMap());
             case RELOAD: return new Command("reload", Collections.<String, Object>emptyMap());
             case HOME: return new Command("loadStartUrl", Collections.<String, Object>emptyMap());
-            case TRIGGER: throw new IllegalStateException("A gesture trigger has no KS command");
+            case RETIRED: throw new IllegalStateException(RETIRED_HELP);
             default: throw new IllegalStateException("Unhandled target " + kind);
         }
     }

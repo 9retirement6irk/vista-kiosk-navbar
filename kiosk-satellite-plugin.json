@@ -2,8 +2,9 @@
   "schemaVersion": 1,
   "id": "ks-navbar-vista",
   "name": "Vista Navbar",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": 1,
+  "minAppVersion": "2026.10.42",
   "minAndroidSdk": 26,
   "entryClass": "com.shymoose.ksnavbar.NavbarPlugin",
   "description": "A navigation bar for your dashboards, with a Windows Vista style and gesture actions.",
@@ -99,14 +100,14 @@
       ],
       "group": "Items",
       "addTitle": "Add item",
-      "maxItems": 8,
+      "maxItems": 16,
       "row": {
         "title": "label",
         "subtitle": [
           "page",
           "action",
           "url",
-          "trigger"
+          "anyAction"
         ],
         "icon": "icon"
       },
@@ -123,9 +124,13 @@
           "title": "Opens",
           "options": [
             "Page",
+            "Built-in page",
             "Camera view",
+            "Calendar",
             "Menu",
             "Kiosk action",
+            "App",
+            "Any action",
             "Web address",
             "Gesture action"
           ]
@@ -141,6 +146,36 @@
           }
         },
         {
+          "key": "panel",
+          "type": "select",
+          "title": "Built-in page",
+          "options": [
+            "Energy",
+            "Map",
+            "Logbook",
+            "History",
+            "To-do",
+            "Media",
+            "Other"
+          ],
+          "description": "A page Home Assistant provides itself. Other opens a path you type.",
+          "visibleWhen": {
+            "key": "opens",
+            "equals": "Built-in page"
+          }
+        },
+        {
+          "key": "panelPath",
+          "type": "string",
+          "title": "Path",
+          "description": "The path after your Home Assistant address, such as profile.",
+          "required": true,
+          "visibleWhen": {
+            "key": "panel",
+            "equals": "Other"
+          }
+        },
+        {
           "key": "camera",
           "type": "cameraView",
           "title": "Camera view",
@@ -148,6 +183,23 @@
           "visibleWhen": {
             "key": "opens",
             "equals": "Camera view"
+          }
+        },
+        {
+          "key": "calendarView",
+          "type": "select",
+          "title": "Calendar view",
+          "options": [
+            "Default",
+            "Day",
+            "Week",
+            "Month",
+            "Schedule"
+          ],
+          "description": "Default opens the view picked under Settings > Calendar. Needs Kiosk Satellite 2026.10.33 or newer.",
+          "visibleWhen": {
+            "key": "opens",
+            "equals": "Calendar"
           }
         },
         {
@@ -168,6 +220,30 @@
           }
         },
         {
+          "key": "app",
+          "type": "string",
+          "title": "App",
+          "choices": "plugin",
+          "required": true,
+          "description": "An app from Settings > App Launcher > Apps. Refresh lists them.",
+          "emptyText": "Add apps under Settings > App Launcher > Apps, then Refresh.",
+          "visibleWhen": {
+            "key": "opens",
+            "equals": "App"
+          }
+        },
+        {
+          "key": "anyAction",
+          "type": "action",
+          "title": "Action",
+          "required": true,
+          "description": "What a tap runs, such as a script or another plugin's action.",
+          "visibleWhen": {
+            "key": "opens",
+            "equals": "Any action"
+          }
+        },
+        {
           "key": "url",
           "type": "string",
           "title": "Web address",
@@ -176,26 +252,6 @@
           "visibleWhen": {
             "key": "opens",
             "equals": "Web address"
-          }
-        },
-        {
-          "key": "trigger",
-          "type": "select",
-          "title": "Gesture trigger",
-          "description": "Map it under Gestures > Plugin trigger, for example to Start a voice command.",
-          "options": [
-            "Navbar button 1",
-            "Navbar button 2",
-            "Navbar button 3",
-            "Navbar button 4",
-            "Navbar button 5",
-            "Navbar button 6",
-            "Navbar button 7",
-            "Navbar button 8"
-          ],
-          "visibleWhen": {
-            "key": "opens",
-            "equals": "Gesture action"
           }
         },
         {
@@ -216,7 +272,7 @@
               "page",
               "action",
               "url",
-              "trigger"
+              "anyAction"
             ],
             "icon": "icon"
           },
@@ -233,8 +289,12 @@
               "title": "Opens",
               "options": [
                 "Page",
+                "Built-in page",
                 "Camera view",
+                "Calendar",
                 "Kiosk action",
+                "App",
+                "Any action",
                 "Web address",
                 "Gesture action"
               ]
@@ -250,6 +310,36 @@
               }
             },
             {
+              "key": "panel",
+              "type": "select",
+              "title": "Built-in page",
+              "options": [
+                "Energy",
+                "Map",
+                "Logbook",
+                "History",
+                "To-do",
+                "Media",
+                "Other"
+              ],
+              "description": "A page Home Assistant provides itself. Other opens a path you type.",
+              "visibleWhen": {
+                "key": "opens",
+                "equals": "Built-in page"
+              }
+            },
+            {
+              "key": "panelPath",
+              "type": "string",
+              "title": "Path",
+              "description": "The path after your Home Assistant address, such as profile.",
+              "required": true,
+              "visibleWhen": {
+                "key": "panel",
+                "equals": "Other"
+              }
+            },
+            {
               "key": "camera",
               "type": "cameraView",
               "title": "Camera view",
@@ -257,6 +347,23 @@
               "visibleWhen": {
                 "key": "opens",
                 "equals": "Camera view"
+              }
+            },
+            {
+              "key": "calendarView",
+              "type": "select",
+              "title": "Calendar view",
+              "options": [
+                "Default",
+                "Day",
+                "Week",
+                "Month",
+                "Schedule"
+              ],
+              "description": "Default opens the view picked under Settings > Calendar. Needs Kiosk Satellite 2026.10.33 or newer.",
+              "visibleWhen": {
+                "key": "opens",
+                "equals": "Calendar"
               }
             },
             {
@@ -277,6 +384,30 @@
               }
             },
             {
+              "key": "app",
+              "type": "string",
+              "title": "App",
+              "choices": "plugin",
+              "required": true,
+              "description": "An app from Settings > App Launcher > Apps. Refresh lists them.",
+              "emptyText": "Add apps under Settings > App Launcher > Apps, then Refresh.",
+              "visibleWhen": {
+                "key": "opens",
+                "equals": "App"
+              }
+            },
+            {
+              "key": "anyAction",
+              "type": "action",
+              "title": "Action",
+              "required": true,
+              "description": "What a tap runs, such as a script or another plugin's action.",
+              "visibleWhen": {
+                "key": "opens",
+                "equals": "Any action"
+              }
+            },
+            {
               "key": "url",
               "type": "string",
               "title": "Web address",
@@ -285,26 +416,6 @@
               "visibleWhen": {
                 "key": "opens",
                 "equals": "Web address"
-              }
-            },
-            {
-              "key": "trigger",
-              "type": "select",
-              "title": "Gesture trigger",
-              "description": "Map it under Gestures > Plugin trigger, for example to Start a voice command.",
-              "options": [
-                "Navbar button 1",
-                "Navbar button 2",
-                "Navbar button 3",
-                "Navbar button 4",
-                "Navbar button 5",
-                "Navbar button 6",
-                "Navbar button 7",
-                "Navbar button 8"
-              ],
-              "visibleWhen": {
-                "key": "opens",
-                "equals": "Gesture action"
               }
             },
             {
@@ -489,15 +600,15 @@
   "commands": [
     {
       "id": "show",
-      "title": "Show navbar"
+      "title": "Show navigation bar"
     },
     {
       "id": "hide",
-      "title": "Hide navbar"
+      "title": "Hide navigation bar"
     },
     {
       "id": "toggle",
-      "title": "Toggle navbar"
+      "title": "Toggle navigation bar"
     }
   ],
   "groups": [
@@ -512,40 +623,6 @@
     },
     {
       "title": "Hide the bar on"
-    }
-  ],
-  "triggers": [
-    {
-      "id": "button1",
-      "title": "Navbar button 1"
-    },
-    {
-      "id": "button2",
-      "title": "Navbar button 2"
-    },
-    {
-      "id": "button3",
-      "title": "Navbar button 3"
-    },
-    {
-      "id": "button4",
-      "title": "Navbar button 4"
-    },
-    {
-      "id": "button5",
-      "title": "Navbar button 5"
-    },
-    {
-      "id": "button6",
-      "title": "Navbar button 6"
-    },
-    {
-      "id": "button7",
-      "title": "Navbar button 7"
-    },
-    {
-      "id": "button8",
-      "title": "Navbar button 8"
     }
   ]
 }
